@@ -63,3 +63,6 @@ logs/
 
 # Worktrees de Claude
 .claude/worktrees/
+
+# GitHub Actions (requiere scope workflow para pushear)
+.github/
