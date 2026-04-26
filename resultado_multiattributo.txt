@@ -1,0 +1,604 @@
+﻿    * Minimo: $38,300
+    * Maximo: $55,500
+    * Promedio: $46,100
+    * DIFERENCIA: $17,200 (31.0%)
+  FABRICANTES: pinitos, pinito
+
+  DETALLE:
+    ID:  144 | biblioteca                                    | Longchamps   | Stock:   0 | $    55,500 | pinitos
+    ID:  141 | biblioteca                                    | Longchamps   | Stock:   2 | $    38,300 | pinitos
+    ID:  142 | biblioteca                                    | Longchamps   | Stock:   1 | $    45,000 | pinitos
+    ID:  143 | biblioteca                                    | Longchamps   | Stock:   1 | $    50,300 | pinitos
+    ID:  366 | biblioteca                                    | Vidriera     | Stock:   1 | $    38,300 | pinito
+    ID:  367 | biblioteca                                    | Vidriera     | Stock:   1 | $    45,000 | pinito
+    ID:  368 | biblioteca                                    | Vidriera     | Stock:   1 | $    50,300 | pinito
+
+[GRUPO 70] - 4 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (1 variaciones): bicicleta ni±o
+  MEDIDAS: Rodado 12", rodado 12"
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: infantil
+
+  PRECIOS:
+    * Minimo: $118,000
+    * Maximo: $118,000
+    * Promedio: $118,000
+    * DIFERENCIA: $0 (0.0%)
+  FABRICANTES: aventura
+
+  DETALLE:
+    ID:  735 | bicicleta ni±o                                | Longchamps   | Stock:   1 | $   118,000 | aventura
+    ID:  727 | bicicleta ni±o                                | Longchamps   | Stock:   1 | $   118,000 | aventura
+    ID:  512 | bicicleta ni±o                                | Vidriera     | Stock:   1 | $   118,000 | aventura
+    ID:  513 | bicicleta ni±o                                | Vidriera     | Stock:   1 | $   118,000 | aventura
+
+[GRUPO 71] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): box benethon 2 plazas | box benethon
+  MEDIDAS: 38x81, 2 plazas
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $320,500
+    * Maximo: $526,600
+    * Promedio: $423,550
+    * DIFERENCIA: $206,100 (39.1%)
+  FABRICANTES: mosconi
+
+  DETALLE:
+    ID:  522 | box benethon 2 plazas                         | Longchamps   | Stock:   1 | $   526,600 | mosconi
+    ID:  617 | box benethon                                  | Vidriera     | Stock:   1 | $   320,500 | mosconi
+
+[GRUPO 72] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): sofa cama | carro cama
+  LOCALES: Longchamps
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $57,000
+    * Maximo: $445,000
+    * Promedio: $251,000
+    * DIFERENCIA: $388,000 (87.2%)
+  FABRICANTES: pinitos
+
+  DETALLE:
+    ID:  410 | carro cama                                    | Longchamps   | Stock:   1 | $    57,000 | pinitos
+    ID:  651 | sofa cama                                     | Longchamps   | Stock:   1 | $   445,000 | 
+
+[GRUPO 73] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): chifo 2 puertas | chifo 1 puerta
+  MEDIDAS: 1m
+  LOCALES: Longchamps
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $112,500
+    * Maximo: $120,000
+    * Promedio: $116,250
+    * DIFERENCIA: $7,500 (6.2%)
+  FABRICANTES: .
+
+  DETALLE:
+    ID:  422 | chifo 1 puerta                                | Longchamps   | Stock:   1 | $   112,500 | .
+    ID:  423 | chifo 2 puertas                               | Longchamps   | Stock:   1 | $   120,000 | .
+
+[GRUPO 74] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (1 variaciones): cocina compacta
+  MEDIDAS: 196x2m, 1,96x2m
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: cocina
+
+  PRECIOS:
+    * Minimo: $380,000
+    * Maximo: $380,000
+    * Promedio: $380,000
+    * DIFERENCIA: $0 (0.0%)
+  FABRICANTES: mosconi
+
+  DETALLE:
+    ID:  534 | cocina compacta                               | Longchamps   | Stock:   1 | $   380,000 | mosconi
+    ID:  517 | cocina compacta                               | Vidriera     | Stock:   1 | $   380,000 | mosconi
+
+[GRUPO 75] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (1 variaciones): colchon de cuna
+  MEDIDAS: 1,40x0,80m, 1,20x0,60m
+  LOCALES: Longchamps
+  CATEGORIAS: infantil
+
+  PRECIOS:
+    * Minimo: $32,000
+    * Maximo: $49,000
+    * Promedio: $40,500
+    * DIFERENCIA: $17,000 (34.7%)
+
+  DETALLE:
+    ID:  699 | colchon de cuna                               | Longchamps   | Stock:   9 | $    49,000 | 
+    ID:  700 | colchon de cuna                               | Longchamps   | Stock:  10 | $    32,000 | 
+
+[GRUPO 76] - 4 productos COMBO/CONJUNTO
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): combo bajo y alacena | combo bajo,alacena y mesada
+  MEDIDAS: 1,60m, 1m, 1,40m
+  LOCALES: Longchamps
+  CATEGORIAS: cocina
+
+  PRECIOS:
+    * Minimo: $123,000
+    * Maximo: $231,000
+    * Promedio: $170,625
+    * DIFERENCIA: $108,000 (46.8%)
+  FABRICANTES: ., pinitos
+
+  [COMBO/CONJUNTO DETECTADO]
+    - combo bajo y alacena (combo) en Longchamps
+    - combo bajo y alacena (combo) en Longchamps
+    - combo bajo y alacena (combo) en Longchamps
+    - combo bajo,alacena y mesada (combo) en Longchamps
+
+  DETALLE:
+    ID:  444 | [COMBO] combo bajo y alacena                          | Longchamps   | Stock:   0 | $   123,000 | pinitos
+    ID:  449 | [COMBO] combo bajo y alacena                          | Longchamps   | Stock:   0 | $   156,000 | pinitos
+    ID:  451 | [COMBO] combo bajo y alacena                          | Longchamps   | Stock:   0 | $   172,500 | pinitos
+    ID:  459 | [COMBO] combo bajo,alacena y mesada                   | Longchamps   | Stock:   0 | $   231,000 | .
+
+[GRUPO 77] - 3 productos COMBO/CONJUNTO
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): combo bajo,alacena,mesada | combo bajo,alacena y mesada
+  MEDIDAS: 1,60m, 1,20m, 1,40m
+  LOCALES: Longchamps
+  CATEGORIAS: cocina
+
+  PRECIOS:
+    * Minimo: $258,000
+    * Maximo: $335,000
+    * Promedio: $296,000
+    * DIFERENCIA: $77,000 (23.0%)
+  FABRICANTES: .
+
+  [COMBO/CONJUNTO DETECTADO]
+    - combo bajo,alacena y mesada (combo) en Longchamps
+    - combo bajo,alacena y mesada (combo) en Longchamps
+    - combo bajo,alacena,mesada (combo) en Longchamps
+
+  DETALLE:
+    ID:  456 | [COMBO] combo bajo,alacena y mesada                   | Longchamps   | Stock:   0 | $   335,000 | .
+    ID:  458 | [COMBO] combo bajo,alacena y mesada                   | Longchamps   | Stock:   0 | $   295,000 | .
+    ID:  457 | [COMBO] combo bajo,alacena,mesada                     | Longchamps   | Stock:   0 | $   258,000 | .
+
+[GRUPO 78] - 18 productos COMBO/CONJUNTO
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (11 variaciones): conjunto super lujo | conjunto g.jackard | combo sommier ilusion | combo sommier gold jackar | combo sommier palace | combo sommier flow | combo sommier super lujo | combo sommier equis | combo sommier silver | combo sommier palace pillow | conjunto equis
+  MEDIDAS: 1plaza, medida, 2 1/2 plazas, 1 plaza, 2 plazas 1/2
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $240,000
+    * Maximo: $959,000
+    * Promedio: $386,389
+    * DIFERENCIA: $719,000 (75.0%)
+  FABRICANTES: taurus
+
+  [COMBO/CONJUNTO DETECTADO]
+    - combo sommier equis (combo) en Longchamps
+    - combo sommier equis (combo) en Longchamps
+    - combo sommier flow (combo) en Longchamps
+    - conjunto equis (conjunto) en Longchamps
+    - conjunto equis (conjunto) en Longchamps
+    - conjunto g.jackard (conjunto) en Longchamps
+    - conjunto super lujo (conjunto) en Longchamps
+    - combo sommier equis (combo) en Vidriera
+    - combo sommier equis (combo) en Vidriera
+    - combo sommier flow (combo) en Vidriera
+    - combo sommier gold jackar (combo) en Vidriera
+    - combo sommier ilusion (combo) en Vidriera
+    - combo sommier palace (combo) en Vidriera
+    - combo sommier palace (combo) en Vidriera
+    - combo sommier palace pillow (combo) en Vidriera
+    - combo sommier silver (combo) en Vidriera
+    - combo sommier super lujo (combo) en Vidriera
+    - conjunto equis (conjunto) en Vidriera
+
+  DETALLE:
+    ID:  631 | [COMBO] combo sommier equis                           | Longchamps   | Stock:   0 | $   374,000 | taurus
+    ID:  636 | [COMBO] combo sommier equis                           | Longchamps   | Stock:   0 | $   374,000 | taurus
+    ID:  629 | [COMBO] combo sommier flow                            | Longchamps   | Stock:   0 | $   240,000 | taurus
+    ID:  619 | [COMBO] conjunto equis                                | Longchamps   | Stock:   0 | $   540,000 | taurus
+    ID:  613 | [COMBO] conjunto equis                                | Longchamps   | Stock:   0 | $   374,000 | taurus
+    ID:  594 | [COMBO] conjunto g.jackard                            | Longchamps   | Stock:   0 | $   370,000 | taurus
+    ID:  599 | [COMBO] conjunto super lujo                           | Longchamps   | Stock:   0 | $   310,000 | taurus
+    ID:  630 | [COMBO] combo sommier equis                           | Vidriera     | Stock:   0 | $   374,000 | taurus
+    ID:  639 | [COMBO] combo sommier equis                           | Vidriera     | Stock:   0 | $   374,000 | taurus
+    ID:  628 | [COMBO] combo sommier flow                            | Vidriera     | Stock:   0 | $   240,000 | taurus
+    ID:  625 | [COMBO] combo sommier gold jackar                     | Vidriera     | Stock:   0 | $   370,000 | taurus
+    ID:  661 | [COMBO] combo sommier ilusion                         | Vidriera     | Stock:   0 | $   959,000 | taurus
+    ID:  652 | [COMBO] combo sommier palace                          | Vidriera     | Stock:   0 | $   445,000 | taurus
+    ID:  626 | [COMBO] combo sommier palace                          | Vidriera     | Stock:   0 | $   310,000 | taurus
+    ID:  627 | [COMBO] combo sommier palace pillow                   | Vidriera     | Stock:   0 | $   346,000 | taurus
+    ID:  624 | [COMBO] combo sommier silver                          | Vidriera     | Stock:   0 | $   271,000 | taurus
+    ID:  623 | [COMBO] combo sommier super lujo                      | Vidriera     | Stock:   0 | $   310,000 | taurus
+    ID:  614 | [COMBO] conjunto equis                                | Vidriera     | Stock:   0 | $   374,000 | taurus
+
+[GRUPO 79] - 13 productos COMBO/CONJUNTO
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (8 variaciones): conjunto super lujo | conjunto palace | conjunto flow | conjunto silver | conjunto palace s/pillow | conjunto luxor | conjunto palace c/pillow | conjunto real 20alto
+  MEDIDAS: 1plaza, 2plaza 1/2, 2 plazas 1/2, 1 plaza 1/2, 1 1/2 plaza
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $240,000
+    * Maximo: $618,000
+    * Promedio: $409,615
+    * DIFERENCIA: $378,000 (61.2%)
+  FABRICANTES: taurus
+
+  [COMBO/CONJUNTO DETECTADO]
+    - conjunto flow (conjunto) en Longchamps
+    - conjunto luxor (conjunto) en Longchamps
+    - conjunto palace (conjunto) en Longchamps
+    - conjunto palace c/pillow (conjunto) en Longchamps
+    - conjunto palace c/pillow (conjunto) en Longchamps
+    - conjunto palace s/pillow (conjunto) en Longchamps
+    - conjunto real 20alto (conjunto) en Longchamps
+    - conjunto silver (conjunto) en Longchamps
+    - conjunto super lujo (conjunto) en Longchamps
+    - conjunto flow (conjunto) en Vidriera
+    - conjunto luxor (conjunto) en Vidriera
+    - conjunto silver (conjunto) en Vidriera
+    - conjunto super lujo (conjunto) en Vidriera
+
+  DETALLE:
+    ID:  615 | [COMBO] conjunto flow                                 | Longchamps   | Stock:   0 | $   240,000 | taurus
+    ID:  608 | [COMBO] conjunto luxor                                | Longchamps   | Stock:   0 | $   618,000 | taurus
+    ID:  607 | [COMBO] conjunto palace                               | Longchamps   | Stock:   0 | $   445,000 | taurus
+    ID:  603 | [COMBO] conjunto palace c/pillow                      | Longchamps   | Stock:   0 | $   346,000 | taurus
+    ID:  604 | [COMBO] conjunto palace c/pillow                      | Longchamps   | Stock:   0 | $   421,000 | taurus
+    ID:  606 | [COMBO] conjunto palace s/pillow                      | Longchamps   | Stock:   0 | $   380,000 | taurus
+    ID:  591 | [COMBO] conjunto real 20alto                          | Longchamps   | Stock:   0 | $   367,000 | taurus
+    ID:  611 | [COMBO] conjunto silver                               | Longchamps   | Stock:   0 | $   385,000 | taurus
+    ID:  601 | [COMBO] conjunto super lujo                           | Longchamps   | Stock:   0 | $   440,000 | taurus
+    ID:  616 | [COMBO] conjunto flow                                 | Vidriera     | Stock:   0 | $   240,000 | taurus
+    ID:  609 | [COMBO] conjunto luxor                                | Vidriera     | Stock:   0 | $   618,000 | taurus
+    ID:  612 | [COMBO] conjunto silver                               | Vidriera     | Stock:   0 | $   385,000 | taurus
+    ID:  602 | [COMBO] conjunto super lujo                           | Vidriera     | Stock:   0 | $   440,000 | taurus
+
+[GRUPO 80] - 3 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (3 variaciones): escritorio 709 | escritorio classic | escritorio 720
+  LOCALES: Longchamps
+  CATEGORIAS: oficina
+
+  PRECIOS:
+    * Minimo: $148,500
+    * Maximo: $192,000
+    * Promedio: $173,200
+    * DIFERENCIA: $43,500 (22.7%)
+  FABRICANTES: mosconi
+
+  DETALLE:
+    ID:  531 | escritorio 709                                | Longchamps   | Stock:   1 | $   148,500 | mosconi
+    ID:  532 | escritorio 720                                | Longchamps   | Stock:   1 | $   192,000 | mosconi
+    ID:  530 | escritorio classic                            | Longchamps   | Stock:   1 | $   179,100 | mosconi
+
+[GRUPO 81] - 5 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (5 variaciones): mesa escandinava | mesa pintada | mesa escandilava | mesa fija | mesa eco con detalle
+  MEDIDAS: 1,40x80, 1,40m
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: comedor
+
+  PRECIOS:
+    * Minimo: $66,500
+    * Maximo: $300,000
+    * Promedio: $173,500
+    * DIFERENCIA: $233,500 (77.8%)
+  FABRICANTES: ma±a, pinito
+
+  DETALLE:
+    ID:  693 | mesa escandilava                              | Longchamps   | Stock:   1 | $   166,000 | 
+    ID:  345 | mesa eco con detalle                          | Vidriera     | Stock:   0 | $    70,000 | ma±a
+    ID:  333 | mesa escandinava                              | Vidriera     | Stock:   1 | $   300,000 | 
+    ID:  329 | mesa fija                                     | Vidriera     | Stock:   1 | $   265,000 | 
+    ID:  670 | mesa pintada                                  | Vidriera     | Stock:   1 | $    66,500 | pinito
+
+[GRUPO 82] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (1 variaciones): mesa fija
+  MEDIDAS: 1,50, 1.50
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: comedor
+
+  PRECIOS:
+    * Minimo: $280,000
+    * Maximo: $280,000
+    * Promedio: $280,000
+    * DIFERENCIA: $0 (0.0%)
+  FABRICANTES: la alborada
+
+  DETALLE:
+    ID:  689 | mesa fija                                     | Longchamps   | Stock:   3 | $   280,000 | la alborada
+    ID:  330 | mesa fija                                     | Vidriera     | Stock:   1 | $   280,000 | 
+
+[GRUPO 83] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): mini chester | sillon mini chester
+  MEDIDAS: 1,50x80cm
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: living
+
+  PRECIOS:
+    * Minimo: $295,000
+    * Maximo: $295,000
+    * Promedio: $295,000
+    * DIFERENCIA: $0 (0.0%)
+
+  DETALLE:
+    ID:  665 | mini chester                                  | Longchamps   | Stock:   1 | $   295,000 | 
+    ID:  588 | sillon mini chester                           | Vidriera     | Stock:   1 | $   295,000 | 
+
+[GRUPO 84] - 7 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (3 variaciones): placard alto | placard macizo alto | placard macizo
+  MEDIDAS: 1,60m, 2m
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $210,000
+    * Maximo: $367,000
+    * Promedio: $301,786
+    * DIFERENCIA: $157,000 (42.8%)
+  FABRICANTES: ., santa ana, pinitos, pasaje gonzalez
+
+  DETALLE:
+    ID:  493 | placard alto                                  | Longchamps   | Stock:   1 | $   320,000 | .
+    ID:  494 | placard alto                                  | Longchamps   | Stock:   1 | $   367,000 | .
+    ID:  535 | placard alto                                  | Longchamps   | Stock:   1 | $   320,000 | santa ana
+    ID:  536 | placard alto                                  | Longchamps   | Stock:   2 | $   365,500 | santa ana
+    ID:  168 | placard macizo                                | Longchamps   | Stock:   3 | $   210,000 | pinitos
+    ID:  356 | placard macizo                                | Vidriera     | Stock:   1 | $   210,000 | pinitos
+    ID:  353 | placard macizo alto                           | Vidriera     | Stock:   0 | $   320,000 | pasaje gonzalez
+
+[GRUPO 85] - 2 productos COMBO/CONJUNTO
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): placard eco pack | placard corredizo
+  MEDIDAS: 85x181, 1,80m
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $194,000
+    * Maximo: $578,000
+    * Promedio: $386,000
+    * DIFERENCIA: $384,000 (66.4%)
+  FABRICANTES: mosconi
+
+  [COMBO/CONJUNTO DETECTADO]
+    - placard eco pack (pack) en Vidriera
+
+  DETALLE:
+    ID:  471 | placard corredizo                             | Longchamps   | Stock:   1 | $   578,000 | mosconi
+    ID:  446 | [COMBO] placard eco pack                              | Vidriera     | Stock:   1 | $   194,000 | mosconi
+
+[GRUPO 86] - 13 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (4 variaciones): placard millenium 26 | placard millenium 23 | placard millenium 22 | placard millenium 24
+  LOCALES: Longchamps
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $158,000
+    * Maximo: $409,000
+    * Promedio: $278,323
+    * DIFERENCIA: $251,000 (61.4%)
+  FABRICANTES: mosconi
+
+  DETALLE:
+    ID:  487 | placard millenium 22                          | Longchamps   | Stock:   1 | $   158,000 | mosconi
+    ID:  492 | placard millenium 22                          | Longchamps   | Stock:   1 | $   158,000 | mosconi
+    ID:  496 | placard millenium 22                          | Longchamps   | Stock:   1 | $   158,000 | mosconi
+    ID:  497 | placard millenium 22                          | Longchamps   | Stock:   1 | $   158,000 | mosconi
+    ID:  485 | placard millenium 23                          | Longchamps   | Stock:   3 | $   222,100 | mosconi
+    ID:  486 | placard millenium 23                          | Longchamps   | Stock:   2 | $   222,100 | mosconi
+    ID:  203 | placard millenium 24                          | Longchamps   | Stock:   1 | $   302,000 | mosconi
+    ID:  201 | placard millenium 24                          | Longchamps   | Stock:   1 | $   302,000 | mosconi
+    ID:  202 | placard millenium 24                          | Longchamps   | Stock:   1 | $   302,000 | mosconi
+    ID:  488 | placard millenium 26                          | Longchamps   | Stock:   1 | $   409,000 | mosconi
+    ID:  489 | placard millenium 26                          | Longchamps   | Stock:   1 | $   409,000 | mosconi
+    ID:  490 | placard millenium 26                          | Longchamps   | Stock:   1 | $   409,000 | mosconi
+    ID:  491 | placard millenium 26                          | Longchamps   | Stock:   1 | $   409,000 | mosconi
+
+[GRUPO 87] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): silla abby doble respaldo | silla aby doble respaldo
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $100,000
+    * Maximo: $100,000
+    * Promedio: $100,000
+    * DIFERENCIA: $0 (0.0%)
+  FABRICANTES: seleccion muebles, seccion mueble
+
+  DETALLE:
+    ID:  683 | silla aby doble respaldo                      | Longchamps   | Stock:  12 | $   100,000 | seccion mueble
+    ID:  294 | silla abby doble respaldo                     | Vidriera     | Stock:   6 | $   100,000 | seleccion muebles
+
+[GRUPO 88] - 7 productos COMBO/CONJUNTO
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (7 variaciones): sillon combo 17 | sillon combo 66 | sillon combo 23 | sillon futon | sillon combo 14 | sillon combo 8 | sillon combo 61
+  MEDIDAS: 2,50x1,80, 1,85x75cm, 2,10x0,90m, 2,10x90cm, 1,80x80cm, 2,10x1,60
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: living
+
+  PRECIOS:
+    * Minimo: $260,000
+    * Maximo: $950,000
+    * Promedio: $598,429
+    * DIFERENCIA: $690,000 (72.6%)
+
+  [COMBO/CONJUNTO DETECTADO]
+    - sillon combo 14 (combo) en Vidriera
+    - sillon combo 17 (combo) en Vidriera
+    - sillon combo 23 (combo) en Vidriera
+    - sillon combo 61 (combo) en Vidriera
+    - sillon combo 66 (combo) en Vidriera
+    - sillon combo 8 (combo) en Vidriera
+
+  DETALLE:
+    ID:  650 | sillon futon                                  | Longchamps   | Stock:   2 | $   260,000 | 
+    ID:  600 | [COMBO] sillon combo 14                               | Vidriera     | Stock:   1 | $   490,000 | 
+    ID:  587 | [COMBO] sillon combo 17                               | Vidriera     | Stock:   1 | $   940,000 | 
+    ID:  597 | [COMBO] sillon combo 23                               | Vidriera     | Stock:   1 | $   950,000 | 
+    ID:  590 | [COMBO] sillon combo 61                               | Vidriera     | Stock:   1 | $   495,000 | 
+    ID:  595 | [COMBO] sillon combo 66                               | Vidriera     | Stock:   2 | $   440,000 | 
+    ID:  592 | [COMBO] sillon combo 8                                | Vidriera     | Stock:   1 | $   614,000 | 
+
+[GRUPO 89] - 3 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (1 variaciones): vestidor
+  MEDIDAS: 1m, 1,40m
+  LOCALES: Longchamps, Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $45,000
+    * Maximo: $53,000
+    * Promedio: $50,333
+    * DIFERENCIA: $8,000 (15.1%)
+  FABRICANTES: machuca
+
+  DETALLE:
+    ID:  187 | vestidor                                      | Longchamps   | Stock:   1 | $    45,000 | machuca
+    ID:  188 | vestidor                                      | Longchamps   | Stock:   5 | $    53,000 | machuca
+    ID:  548 | vestidor                                      | Vidriera     | Stock:   1 | $    53,000 | machuca
+
+[GRUPO 90] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): comoda dakar zero | comoda nature
+  MEDIDAS: 90x83, 90x90
+  LOCALES: Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $159,000
+    * Maximo: $265,000
+    * Promedio: $212,000
+    * DIFERENCIA: $106,000 (40.0%)
+  FABRICANTES: mosconi
+
+  DETALLE:
+    ID:  605 | comoda dakar zero                             | Vidriera     | Stock:   1 | $   159,000 | mosconi
+    ID:  579 | comoda nature                                 | Vidriera     | Stock:   1 | $   265,000 | mosconi
+
+[GRUPO 91] - 3 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (3 variaciones): mesa matera cuadrada | masa matera cuadrada | mesa matera redonda
+  MEDIDAS: 58x58
+  LOCALES: Vidriera
+  CATEGORIAS: comedor
+
+  PRECIOS:
+    * Minimo: $12,000
+    * Maximo: $12,000
+    * Promedio: $12,000
+    * DIFERENCIA: $0 (0.0%)
+  FABRICANTES: ramon
+
+  DETALLE:
+    ID:  499 | masa matera cuadrada                          | Vidriera     | Stock:   1 | $    12,000 | 
+    ID:  544 | mesa matera cuadrada                          | Vidriera     | Stock:   1 | $    12,000 | ramon
+    ID:  543 | mesa matera redonda                           | Vidriera     | Stock:   4 | $    12,000 | ramon
+
+[GRUPO 92] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (1 variaciones): perchero
+  MEDIDAS: 1,50cm, 1,65
+  LOCALES: Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $45,000
+    * Maximo: $55,000
+    * Promedio: $50,000
+    * DIFERENCIA: $10,000 (18.2%)
+
+  DETALLE:
+    ID:  577 | perchero                                      | Vidriera     | Stock:   2 | $    45,000 | 
+    ID:  578 | perchero                                      | Vidriera     | Stock:   2 | $    55,000 | 
+
+[GRUPO 93] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): plancha blacksteam | plancha ironplus
+  LOCALES: Vidriera
+  CATEGORIAS: electrodomesticos
+
+  PRECIOS:
+    * Minimo: $50,000
+    * Maximo: $55,000
+    * Promedio: $52,500
+    * DIFERENCIA: $5,000 (9.1%)
+  FABRICANTES: liliana
+
+  DETALLE:
+    ID:  392 | plancha blacksteam                            | Vidriera     | Stock:   1 | $    50,000 | liliana
+    ID:  391 | plancha ironplus                              | Vidriera     | Stock:   1 | $    55,000 | liliana
+
+[GRUPO 94] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (1 variaciones): respaldo con boton
+  MEDIDAS: 11/2plaza, 2plazas
+  LOCALES: Vidriera
+  CATEGORIAS: dormitorio
+
+  PRECIOS:
+    * Minimo: $45,000
+    * Maximo: $60,000
+    * Promedio: $52,500
+    * DIFERENCIA: $15,000 (25.0%)
+  FABRICANTES: pelado
+
+  DETALLE:
+    ID:  337 | respaldo con boton                            | Vidriera     | Stock:   2 | $    60,000 | pelado
+    ID:  339 | respaldo con boton                            | Vidriera     | Stock:   1 | $    45,000 | pelado
+
+[GRUPO 95] - 2 productos SIMILARES
+------------------------------------------------------------------------------------------------------------------------
+  NOMBRES (2 variaciones): ventilador turbo | ventitador pie
+  MEDIDAS: 20"
+  LOCALES: Vidriera
+  CATEGORIAS: electrodomesticos
+
+  PRECIOS:
+    * Minimo: $39,000
+    * Maximo: $43,000
+    * Promedio: $41,000
+    * DIFERENCIA: $4,000 (9.3%)
+  FABRICANTES: star trak
+
+  DETALLE:
+    ID:  347 | ventilador turbo                              | Vidriera     | Stock:   3 | $    39,000 | star trak
+    ID:  348 | ventitador pie                                | Vidriera     | Stock:   5 | $    43,000 | star trak
+INFO:__main__:Encontrados 95 grupos de similares
+Traceback (most recent call last):
+  File "C:\Users\USUARIO\Desktop\Manarey\analizar_multiattributo.py", line 
+389, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\USUARIO\Desktop\Manarey\analizar_multiattributo.py", line 
+381, in main
+    report = generar_reporte_detallado(groups, 'ANALISIS_MULTIATTRIBUTO.json')
+  File "C:\Users\USUARIO\Desktop\Manarey\analizar_multiattributo.py", line 
+267, in generar_reporte_detallado
+    'precio_diferencia_pct': ((max(precios) - min(precios)) / max(precios, 1) 
+* 100) if precios else 0,
+                                                              ~~~^^^^^^^^^^^^
+TypeError: '>' not supported between instances of 'int' and 'list'

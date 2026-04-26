@@ -1,0 +1,53 @@
+"""
+Migration 0001
+- Ensure usuarios.last_seen column exists
+- Seed default users
+"""
+def _has_column(conn, table, column):
+    # validar identificador seguro antes de interpolar en PRAGMA
+    import re
+    if not isinstance(table, str) or not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', table):
+        raise ValueError(f"Invalid table name: {table!r}")
+    cur = conn.cursor()
+    cur.execute(f"PRAGMA table_info({table})")
+    return any(r[1] == column for r in cur.fetchall())
+
+
+def upgrade(conn):
+    # Ensure usuarios table exists (some installations may run migrations on a fresh DB)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL,
+            local TEXT
+        );
+    """)
+    conn.commit()
+
+    # Add last_seen column if missing (SQLite)
+    try:
+        if not _has_column(conn, 'usuarios', 'last_seen'):
+            cur.execute("ALTER TABLE usuarios ADD COLUMN last_seen TEXT")
+            conn.commit()
+    except Exception:
+        # ignore if it fails on older sqlite versions or Postgres (handled elsewhere)
+        pass
+
+    # Seed users using models.db.seed_users if available
+    try:
+        from models import db as models_db
+
+        cur = conn.cursor()
+        # models_db.seed_users expects a cursor in our codebase
+        try:
+            models_db.seed_users(cur, force=False)
+            conn.commit()
+        except Exception:
+            # if seeding fails, continue silently (migration should be non-fatal)
+            pass
+    except Exception:
+        # if models.db is not importable, ignore
+        pass

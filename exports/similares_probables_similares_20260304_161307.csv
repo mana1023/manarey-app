@@ -1,0 +1,46 @@
+score,nombre1,nombre2,local1,local2,categoria1,categoria2,medida1,medida2,color1,color2,material1,material2,fabricante1,fabricante2,precio_venta1,precio_venta2,cat
+0.9944,colchon standard 17 alto,colchon standard 17alto,Estacion,Vidriera,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,,,espuma,espuma,taurus,taurus,105000.00,105000.00,formato/typo
+0.9904,conjunto colchones super lujo,conjunto colchon super lujo,Longchamps,Vidriera,conjuntos,conjuntos,1 plaza,1 plaza,,,espuma,espuma,taurus,taurus,310000.00,310000.00,palabras_diferentes
+0.9887,colchon estandar 13alto,colchon standard 13alto,Longchamps,Estacion,dormitorio,dormitorio,1 plaza,1 plaza,,,espuma,espuma,taurus,taurus,65000.00,65000.00,palabras_diferentes
+0.9887,colchon estandar 13alto,colchon standard 13alto,Longchamps,Vidriera,dormitorio,dormitorio,1 plaza,1 plaza,,,espuma,espuma,taurus,taurus,65000.00,65000.00,palabras_diferentes
+0.9863,silla abby doble respaldo,silla aby doble respaldo,Vidriera,Longchamps,dormitorio,dormitorio,,,,,caño,caño,seleccion muebles,seccion mueble,100000.00,100000.00,palabras_diferentes
+0.986,conjunto colchon gold jackard con pillow,conjunto colchon gold jackard sin pillow,Longchamps,Longchamps,conjuntos,conjuntos,1 plaza,1 plaza,,,espuma,espuma,taurus,taurus,415000.00,370000.00,palabras_diferentes
+0.9832,colchon gold jackard sin pillow,colchon gold jackard con pillow,Longchamps,Longchamps,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,,,espuma,espuma,taurus,taurus,410000.00,480000.00,palabras_diferentes
+0.9832,colchon gold jackard con pillow,colchon gold jackard sin pillow,Longchamps,Estacion,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,,,espuma,espuma,taurus,taurus,480000.00,410000.00,palabras_diferentes
+0.9816,colchon eco 17alto,colchon eco 17 alto,Longchamps,Longchamps,dormitorio,dormitorio,1 1/2 plaza,2 1/2 plazas,,,espuma,espuma,taurus,taurus,86000.00,114000.00,formato/typo
+0.9816,colchon eco 17 alto,colchon eco 17alto,Longchamps,Vidriera,dormitorio,dormitorio,2 1/2 plazas,1 1/2 plaza,,,espuma,espuma,taurus,taurus,114000.00,86000.00,formato/typo
+0.9791,colchon palace con pillow,colchon palace sin pillow,Longchamps,Estacion,dormitorio,dormitorio,1 plaza,1 plaza,,,resorte,resorte,taurus,taurus,245000.00,210000.00,palabras_diferentes
+0.9791,colchon palace con pillow,colchon palace sin pillow,Estacion,Estacion,dormitorio,dormitorio,1 plaza,1 plaza,,,resorte,resorte,taurus,taurus,245000.00,210000.00,palabras_diferentes
+0.9791,colchon palace sin pillow,colchon palace con pillow,Longchamps,Vidriera,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,,,resorte,resorte,taurus,taurus,315000.00,375000.00,palabras_diferentes
+0.9791,colchon palace con pillow,colchon palace sin pillow,Vidriera,Vidriera,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,,,resorte,resorte,taurus,taurus,375000.00,315000.00,palabras_diferentes
+0.9765,colchon gold jackard sin pillow,colchon gold jackard con pillow,Longchamps,Vidriera,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,,,espuma,espuma,taurus,taururs,410000.00,480000.00,palabras_diferentes
+0.9765,colchon gold jackard sin pillow,colchon gold jackard con pillow,Estacion,Vidriera,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,,,espuma,espuma,taurus,taururs,410000.00,480000.00,palabras_diferentes
+0.9751,colchon standard 17alto,colchon standard 17 alto,Vidriera,Estacion,dormitorio,dormitorio,1 plaza,1 1/2 plaza,,,espuma,espuma,taurus,taurus,79000.00,105000.00,formato/typo
+0.9751,colchon standard 17alto,colchon standard 17 alto,Estacion,Estacion,dormitorio,dormitorio,1 plaza,1 1/2 plaza,,,espuma,espuma,taurus,taurus,79000.00,105000.00,formato/typo
+0.9722,silla abby,silla aby,Vidriera,Longchamps,comedor,comedor,,,,,caño,caño,seleccion muebres,seccion mueble,90000.00,90000.00,palabras_diferentes
+0.972,"combo bajo,alacena y mesada","combo bajo,alacena,mesada",Longchamps,Longchamps,cocina,cocina,"1,60m","1,20m",.,.,pino,pino,.,.,335000.00,258000.00,palabras_diferentes
+0.972,"combo bajo,alacena y mesada","combo bajo,alacena,mesada",Longchamps,Longchamps,cocina,cocina,"1,40m","1,20m",.,.,pino,pino,.,.,295000.00,258000.00,palabras_diferentes
+0.9707,conjunto colchon palace con pillow,conjunto colchon palace doble pillow,Longchamps,Vidriera,conjuntos,conjuntos,1plaza,1 plaza,,,resorte,resorte,taurus,taurus,346000.00,346000.00,palabras_diferentes
+0.9701,colchon eco 17alto,colchon eco 17 alto,Estacion,Longchamps,dormitorio,dormitorio,1 plaza,2 1/2 plazas,,,espuma,espuma,taurus,taurus,69000.00,114000.00,formato/typo
+0.9701,colchon eco 17alto,colchon eco 17 alto,Vidriera,Longchamps,dormitorio,dormitorio,1 plaza,2 1/2 plazas,,,espuma,espuma,taurus,taurus,69000.00,114000.00,formato/typo
+0.9678,sillas issusi,silla issusi,Vidriera,Longchamps,comedor,comedor,,,,,caño,caño,lucy,luci,103500.00,104000.00,palabras_diferentes
+0.9678,colchon palace con pillow,colchon palace sin pillow,Vidriera,Longchamps,dormitorio,dormitorio,2 1/2 plazas,1 1/2 plaza,,,resorte,resorte,taurus,taurus,375000.00,245000.00,palabras_diferentes
+0.9678,colchon palace con pillow,colchon palace sin pillow,Vidriera,Vidriera,dormitorio,dormitorio,2 1/2 plazas,1 1/2 plaza,,,resorte,resorte,taurus,taurus,375000.00,245000.00,palabras_diferentes
+0.9603,colchon gold jackard sin pillow,colchon gold jackard con pillow,Longchamps,Longchamps,dormitorio,dormitorio,2 1/2 plazas,1 plaza,,,espuma,espuma,taurus,taurus,410000.00,315000.00,palabras_diferentes
+0.9603,colchon gold jackard sin pillow,colchon gold jackard con pillow,Estacion,Longchamps,dormitorio,dormitorio,2 1/2 plazas,1 plaza,,,espuma,espuma,taurus,taurus,410000.00,315000.00,palabras_diferentes
+0.9598,colchon palace con pillow,colchon palace sin pillow,Longchamps,Longchamps,dormitorio,dormitorio,1 plaza,1 1/2 plaza,,,resorte,resorte,taurus,taurus,245000.00,245000.00,palabras_diferentes
+0.9598,colchon palace con pillow,colchon palace sin pillow,Longchamps,Vidriera,dormitorio,dormitorio,1 plaza,1 1/2 plaza,,,resorte,resorte,taurus,taurus,245000.00,245000.00,palabras_diferentes
+0.9598,colchon palace con pillow,colchon palace sin pillow,Estacion,Longchamps,dormitorio,dormitorio,1 plaza,1 1/2 plaza,,,resorte,resorte,taurus,taurus,245000.00,245000.00,palabras_diferentes
+0.9598,colchon palace con pillow,colchon palace sin pillow,Estacion,Vidriera,dormitorio,dormitorio,1 plaza,1 1/2 plaza,,,resorte,resorte,taurus,taurus,245000.00,245000.00,palabras_diferentes
+0.9597,conjunto colchon gold jackard con pillow,conjunto colchon gold jackard sin pillow,Longchamps,Longchamps,conjuntos,conjuntos,2 1/2 plazas,1 plaza,,,espuma,espuma,taurus,taurus,605000.00,370000.00,palabras_diferentes
+0.9591,conjunto colchon gold jackard sin pillow,conjunto colchon gold jackard con pillow,Longchamps,Vidriera,conjuntos,conjuntos,1 plaza,2 1/2 plazas,,,espuma,espuma,taurus,taurus,370000.00,605000.00,palabras_diferentes
+0.9563,conjunto colchon palace con pillow,conjunto colchon palace sin pillow,Longchamps,Longchamps,conjuntos,conjuntos,1plaza,1 1/2 plaza,,,resorte,resorte,taurus,taurus,346000.00,380000.00,palabras_diferentes
+0.9562,colchon palace con pillow,colchon palace sin pillow,Longchamps,Longchamps,dormitorio,dormitorio,1 plaza,2 1/2 plazas,,,resorte,resorte,taurus,taurus,245000.00,315000.00,palabras_diferentes
+0.9562,colchon palace con pillow,colchon palace sin pillow,Longchamps,Vidriera,dormitorio,dormitorio,1 plaza,2 1/2 plazas,,,resorte,resorte,taurus,taurus,245000.00,315000.00,palabras_diferentes
+0.9562,colchon palace con pillow,colchon palace sin pillow,Estacion,Longchamps,dormitorio,dormitorio,1 plaza,2 1/2 plazas,,,resorte,resorte,taurus,taurus,245000.00,315000.00,palabras_diferentes
+0.9562,colchon palace con pillow,colchon palace sin pillow,Estacion,Vidriera,dormitorio,dormitorio,1 plaza,2 1/2 plazas,,,resorte,resorte,taurus,taurus,245000.00,315000.00,palabras_diferentes
+0.9562,colchon palace con pillow,colchon palace sin pillow,Vidriera,Estacion,dormitorio,dormitorio,2 1/2 plazas,1 plaza,,,resorte,resorte,taurus,taurus,375000.00,210000.00,palabras_diferentes
+0.9554,conjunto colchones super lujo,conjunto colchon super lujo,Longchamps,Longchamps,conjuntos,conjuntos,1 plaza,2 plazas 1/2,,,espuma,espuma,taurus,taurus,310000.00,580000.00,palabras_diferentes
+0.9554,conjunto colchones super lujo,conjunto colchon super lujo,Longchamps,Vidriera,conjuntos,conjuntos,1 plaza,2 plazas 1/2,,,espuma,espuma,taurus,taurus,310000.00,580000.00,palabras_diferentes
+0.9547,mesa escandilava,mesa escandinava,Longchamps,Vidriera,comedor,comedor,"1,40m","1,40x80",,,melamina,melamina,,,166000.00,300000.00,palabras_diferentes
+0.9524,"combo bajo,alacena,mesada","combo bajo,alacena y mesada",Longchamps,Longchamps,cocina,cocina,"1,20m",1m,.,.,pino,pino,.,.,258000.00,231000.00,palabras_diferentes

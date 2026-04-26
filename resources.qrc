@@ -1,0 +1,37 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+<qresource>
+    <!-- Iconos generales -->
+    <file alias="icons/refresh.png">icons/refresh.png</file>
+    <file alias="icons/save.png">icons/save.png</file>
+    <file alias="icons/delete.png">icons/delete.png</file>
+    <file alias="icons/edit.png">icons/edit.png</file>
+    <file alias="icons/add.png">icons/add.png</file>
+    <file alias="icons/search.png">icons/search.png</file>
+    <file alias="icons/user.png">icons/user.png</file>
+    <file alias="icons/chart.png">icons/chart.png</file>
+    <file alias="icons/inventory.png">icons/inventory.png</file>
+    <file alias="icons/sales.png">icons/sales.png</file>
+    <file alias="icons/settings.png">icons/settings.png</file>
+    
+    <!-- Iconos de acciones -->
+    <file alias="icons/plus.png">icons/plus.png</file>
+    <file alias="icons/minus.png">icons/minus.png</file>
+    <file alias="icons/check.png">icons/check.png</file>
+    <file alias="icons/cancel.png">icons/cancel.png</file>
+    <file alias="icons/print.png">icons/print.png</file>
+    <file alias="icons/export.png">icons/export.png</file>
+    
+    <!-- Iconos de estado -->
+    <file alias="icons/success.png">icons/success.png</file>
+    <file alias="icons/warning.png">icons/warning.png</file>
+    <file alias="icons/error.png">icons/error.png</file>
+    <file alias="icons/info.png">icons/info.png</file>
+    
+    <!-- Iconos de navegación -->
+    <file alias="icons/home.png">icons/home.png</file>
+    <file alias="icons/back.png">icons/back.png</file>
+    <file alias="icons/forward.png">icons/forward.png</file>
+    <file alias="icons/logout.png">icons/logout.png</file>
+</qresource>
+</RCC>

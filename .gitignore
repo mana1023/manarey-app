@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Base de datos
+*.sqlite3
+manarey_backup.db
+*.db-journal
+
+# Archivos temporales
+*.log
+*.tmp
+test_*.py
+debug_*.py
+*_backup.py
+*_old.py
+*_test.py
+
+# Carpetas de prueba
+test_outputs/
+temp/
+tmp/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Boletas generadas (opcional - comenta si quieres versionar)
+# boletas/*.pdf
+
+# Credenciales locales
+.github_token
+.env
+.dburl
+config.json
+
+# Instaladores y binarios compilados
+DESCARGABLE/
+dist/
+*.exe
+*.zip
+
+# Logs
+logs/
+
+# Worktrees de Claude
+.claude/worktrees/

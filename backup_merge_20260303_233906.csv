@@ -1,0 +1,7 @@
+id,nombre,categoria,medida,estado,color,cantidad,precio_costo,precio_venta,local,codigo,descripcion,created_at,updated_at,fabricante,is_combo,material
+116,colchon gold jackard sin pillow,dormitorio,2 1/2 plazas,Nuevo,,3,0.00,399000.00,Longchamps,,,2026-02-24 19:22:52.805019,2026-03-04 02:03:19.184686,taurus,0,espuma
+543,mesa matera redonda,comedor,58x58,Nuevo,,2,0.00,12000.00,Vidriera,,,2026-03-02 20:04:52.854333,2026-03-04 02:03:19.184686,ramon,0,pino
+595,sillon combo 66,living,"1,80x80cm",Nuevo,gris claro,1,0.00,440000.00,Vidriera,,,2026-03-03 13:46:45.834580,2026-03-04 02:03:19.184686,,0,tela pana
+158,colchon gold jackar sin pillow,dormitorio,2 1/2 plazas,Nuevo,,6,0.00,399000.00,Longchamps,,,2026-02-25 17:08:03.360108,2026-03-04 02:03:19.184686,taurus,0,espuma
+498,messa matera redonda,comedor,58x58,Nuevo,,2,0.00,12000.00,Vidriera,,,2026-03-02 17:11:16.643980,2026-03-04 02:06:54.340677,ramon,0,pino
+589,sollon combo 66,living,"1,80x80cm",Nuevo,gris claro,1,0.00,440000.00,Vidriera,,,2026-03-03 13:40:47.885679,2026-03-04 02:08:18.263617,,0,tela pana

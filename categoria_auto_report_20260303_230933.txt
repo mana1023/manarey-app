@@ -1,0 +1,11 @@
+Backup: backup_categorias_20260303_230933.csv
+Total productos: 712
+Actualizados: 2
+Sin match: 2
+Omitidos por posible fusion: 0
+
+--- Sin match (nombres unicos) ---
+combo 13
+evod bravery 215
+
+--- Omitidos por posible fusion (ids) ---

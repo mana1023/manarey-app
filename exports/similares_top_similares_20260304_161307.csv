@@ -1,0 +1,122 @@
+score,nombre1,nombre2,local1,local2,diff_campos,medida1,medida2,precio_venta1,precio_venta2,color1,color2
+0.9944,colchon standard 17 alto,colchon standard 17alto,Estacion,Vidriera,,1 1/2 plaza,1 1/2 plaza,105000.00,105000.00,,
+0.9923,placard darkar 12 puertas de abrir,placard darkar 10 puertas de abrir,Longchamps,Longchamps,precio_venta,,,656000.00,569000.00,avellana,avellana
+0.9923,placard darkar 12 puertas de abrir,placard darkar 10 puertas de abrir,Longchamps,Longchamps,precio_venta,,,656000.00,569000.00,malta,malta
+0.9921,placard darkar 8 puertas de abrir,placard darkar 6 puertas de abrir,Longchamps,Longchamps,precio_venta,,,478000.00,409000.00,malta,malta
+0.9904,conjunto colchones super lujo,conjunto colchon super lujo,Longchamps,Vidriera,,1 plaza,1 plaza,310000.00,310000.00,,
+0.9887,colchon estandar 13alto,colchon standard 13alto,Longchamps,Estacion,,1 plaza,1 plaza,65000.00,65000.00,,
+0.9887,colchon estandar 13alto,colchon standard 13alto,Longchamps,Vidriera,,1 plaza,1 plaza,65000.00,65000.00,,
+0.9887,colchon standard 17alto,colchon standard 13alto,Vidriera,Estacion,precio_venta,1 plaza,1 plaza,79000.00,65000.00,,
+0.9887,colchon standard 17alto,colchon standard 13alto,Vidriera,Vidriera,precio_venta,1 plaza,1 plaza,79000.00,65000.00,,
+0.9887,colchon standard 17alto,colchon standard 13alto,Estacion,Estacion,precio_venta,1 plaza,1 plaza,79000.00,65000.00,,
+0.9887,colchon standard 17alto,colchon standard 13alto,Estacion,Vidriera,precio_venta,1 plaza,1 plaza,79000.00,65000.00,,
+0.9883,placard darkar 12 puertas de abrir,placard darkar 8 puertas de abrir,Longchamps,Longchamps,precio_venta,,,656000.00,478000.00,avellana,avellana
+0.9883,placard darkar 10 puertas de abrir,placard darkar 8 puertas de abrir,Longchamps,Longchamps,precio_venta,,,569000.00,478000.00,avellana,avellana
+0.9883,placard darkar 12 puertas de abrir,placard dakar 10 puertas de abrir,Longchamps,Longchamps,precio_venta,,,656000.00,569000.00,venezia,venezia
+0.9883,placard darkar 8 puertas de abrir,placard darkar 12 puertas de abrir,Longchamps,Longchamps,precio_venta,,,478000.00,656000.00,malta,malta
+0.9883,placard darkar 8 puertas de abrir,placard darkar 10 puertas de abrir,Longchamps,Longchamps,precio_venta,,,478000.00,569000.00,malta,malta
+0.9883,placard darkar 12 puertas de abrir,placard darkar 6 puertas de abrir,Longchamps,Longchamps,precio_venta,,,656000.00,409000.00,malta,malta
+0.9883,placard darkar 10 puertas de abrir,placard darkar 6 puertas de abrir,Longchamps,Longchamps,precio_venta,,,569000.00,409000.00,malta,malta
+0.987,placard millenium 22,placard millenium 24,Longchamps,Longchamps,precio_venta,,,158000.00,302000.00,bambu,bambu
+0.987,placard millenium 22,placard millenium 23,Longchamps,Longchamps,precio_venta,,,158000.00,222100.00,bambu,bambu
+0.987,placard millenium 22,placard millenium 26,Longchamps,Longchamps,precio_venta,,,158000.00,409000.00,bambu,bambu
+0.987,placard millenium 24,placard millenium 23,Longchamps,Longchamps,precio_venta,,,302000.00,222100.00,bambu,bambu
+0.987,placard millenium 24,placard millenium 26,Longchamps,Longchamps,precio_venta,,,302000.00,409000.00,bambu,bambu
+0.987,placard millenium 23,placard millenium 26,Longchamps,Longchamps,precio_venta,,,222100.00,409000.00,bambu,bambu
+0.987,placard millenium 24,placard millenium 26,Longchamps,Longchamps,precio_venta,,,302000.00,409000.00,blanco,blanco
+0.987,placard millenium 24,placard millenium 22,Longchamps,Longchamps,precio_venta,,,302000.00,158000.00,blanco,blanco
+0.987,placard millenium 26,placard millenium 22,Longchamps,Longchamps,precio_venta,,,409000.00,158000.00,blanco,blanco
+0.987,placard millenium 23,placard millenium 26,Longchamps,Longchamps,precio_venta,,,222100.00,409000.00,green,green
+0.9863,tobogan 4 escalones,tobogan 2 escalones,Longchamps,Vidriera,precio_venta,,,228000.00,110000.00,rosa,rosa
+0.9863,tobogan 5 escalones,tobogan 4 escalones,Longchamps,Longchamps,precio_venta,,,242000.00,228000.00,amarillo,amarillo
+0.9863,tobogan 5 escalones,tobogan 4 escalones,Longchamps,Longchamps,precio_venta,,,242000.00,228000.00,verde,verde
+0.9863,silla abby doble respaldo,silla aby doble respaldo,Vidriera,Longchamps,fabricante,,,100000.00,100000.00,,
+0.986,conjunto colchon gold jackard con pillow,conjunto colchon gold jackard sin pillow,Longchamps,Longchamps,precio_venta,1 plaza,1 plaza,415000.00,370000.00,,
+0.9855,colchon eco 17alto,colchon eco 13alto,Estacion,Longchamps,precio_venta,1 plaza,1 plaza,69000.00,53000.00,,
+0.9855,colchon eco 17alto,colchon eco 13alto,Estacion,Estacion,precio_venta,1 plaza,1 plaza,69000.00,53000.00,,
+0.9855,colchon eco 17alto,colchon eco 13alto,Estacion,Vidriera,precio_venta,1 plaza,1 plaza,69000.00,53000.00,,
+0.9855,colchon eco 13alto,colchon eco 17alto,Longchamps,Vidriera,precio_venta,1 plaza,1 plaza,53000.00,69000.00,,
+0.9855,colchon eco 17alto,colchon eco 13alto,Vidriera,Estacion,precio_venta,1 plaza,1 plaza,69000.00,53000.00,,
+0.9855,colchon eco 17alto,colchon eco 13alto,Vidriera,Vidriera,precio_venta,1 plaza,1 plaza,69000.00,53000.00,,
+0.9855,cajonera 6 cajones,cajonera 7 cajones,Estacion,Estacion,precio_venta,,,59000.00,65000.00,,
+0.9855,cajonera 6 cajones,cajonera 5 cajones,Estacion,Longchamps,precio_venta,,,59000.00,52000.00,,
+0.9855,cajonera 6 cajones,cajonera 7 cajones,Estacion,Longchamps,precio_venta,,,59000.00,65000.00,,
+0.9855,cajonera 6 cajones,cajonera 7 cajones,Estacion,Vidriera,precio_venta,,,59000.00,65000.00,,
+0.9855,cajonera 6 cajones,cajonera 5 cajones,Estacion,Vidriera,precio_venta,,,59000.00,52000.00,,
+0.9855,cajonera 7 cajones,cajonera 6 cajones,Estacion,Longchamps,precio_venta,,,65000.00,59000.00,,
+0.9855,cajonera 7 cajones,cajonera 5 cajones,Estacion,Longchamps,precio_venta,,,65000.00,52000.00,,
+0.9855,cajonera 7 cajones,cajonera 6 cajones,Estacion,Vidriera,precio_venta,,,65000.00,59000.00,,
+0.9855,cajonera 7 cajones,cajonera 5 cajones,Estacion,Vidriera,precio_venta,,,65000.00,52000.00,,
+0.9855,cajonera 6 cajones,cajonera 5 cajones,Longchamps,Longchamps,precio_venta,,,59000.00,52000.00,,
+0.9855,cajonera 6 cajones,cajonera 7 cajones,Longchamps,Longchamps,precio_venta,,,59000.00,65000.00,,
+0.9855,cajonera 6 cajones,cajonera 7 cajones,Longchamps,Vidriera,precio_venta,,,59000.00,65000.00,,
+0.9855,cajonera 6 cajones,cajonera 5 cajones,Longchamps,Vidriera,precio_venta,,,59000.00,52000.00,,
+0.9855,cajonera 5 cajones,cajonera 7 cajones,Longchamps,Longchamps,precio_venta,,,52000.00,65000.00,,
+0.9855,cajonera 5 cajones,cajonera 6 cajones,Longchamps,Vidriera,precio_venta,,,52000.00,59000.00,,
+0.9855,cajonera 5 cajones,cajonera 7 cajones,Longchamps,Vidriera,precio_venta,,,52000.00,65000.00,,
+0.9855,cajonera 7 cajones,cajonera 6 cajones,Longchamps,Vidriera,precio_venta,,,65000.00,59000.00,,
+0.9855,cajonera 7 cajones,cajonera 5 cajones,Longchamps,Vidriera,precio_venta,,,65000.00,52000.00,,
+0.9855,cajonera 6 cajones,cajonera 7 cajones,Vidriera,Vidriera,precio_venta,,,59000.00,65000.00,,
+0.9855,cajonera 6 cajones,cajonera 5 cajones,Vidriera,Vidriera,precio_venta,,,59000.00,52000.00,,
+0.9855,cajonera 7 cajones,cajonera 5 cajones,Vidriera,Vidriera,precio_venta,,,65000.00,52000.00,,
+0.9832,colchon gold jackard sin pillow,colchon gold jackard con pillow,Longchamps,Longchamps,precio_venta,2 1/2 plazas,2 1/2 plazas,410000.00,480000.00,,
+0.9832,colchon gold jackard con pillow,colchon gold jackard sin pillow,Longchamps,Estacion,precio_venta,2 1/2 plazas,2 1/2 plazas,480000.00,410000.00,,
+0.9816,colchon eco 17alto,colchon eco 17 alto,Longchamps,Longchamps,"medida,precio_venta",1 1/2 plaza,2 1/2 plazas,86000.00,114000.00,,
+0.9816,colchon eco 17 alto,colchon eco 17alto,Longchamps,Vidriera,"medida,precio_venta",2 1/2 plazas,1 1/2 plaza,114000.00,86000.00,,
+0.9791,colchon palace con pillow,colchon palace sin pillow,Longchamps,Estacion,precio_venta,1 plaza,1 plaza,245000.00,210000.00,,
+0.9791,colchon palace con pillow,colchon palace sin pillow,Estacion,Estacion,precio_venta,1 plaza,1 plaza,245000.00,210000.00,,
+0.9791,colchon palace sin pillow,colchon palace con pillow,Longchamps,Vidriera,precio_venta,2 1/2 plazas,2 1/2 plazas,315000.00,375000.00,,
+0.9791,colchon palace con pillow,colchon palace sin pillow,Vidriera,Vidriera,precio_venta,2 1/2 plazas,2 1/2 plazas,375000.00,315000.00,,
+0.9773,colchon estandar 13alto,colchon standard 17alto,Longchamps,Vidriera,precio_venta,1 plaza,1 plaza,65000.00,79000.00,,
+0.9773,colchon estandar 13alto,colchon standard 17alto,Longchamps,Estacion,precio_venta,1 plaza,1 plaza,65000.00,79000.00,,
+0.9765,colchon gold jackard sin pillow,colchon gold jackard con pillow,Longchamps,Vidriera,"fabricante,precio_venta",2 1/2 plazas,2 1/2 plazas,410000.00,480000.00,,
+0.9765,colchon gold jackard sin pillow,colchon gold jackard con pillow,Estacion,Vidriera,"fabricante,precio_venta",2 1/2 plazas,2 1/2 plazas,410000.00,480000.00,,
+0.9751,colchon standard 17alto,colchon standard 17 alto,Vidriera,Estacion,"medida,precio_venta",1 plaza,1 1/2 plaza,79000.00,105000.00,,
+0.9751,colchon standard 17alto,colchon standard 17 alto,Estacion,Estacion,"medida,precio_venta",1 plaza,1 1/2 plaza,79000.00,105000.00,,
+0.9748,termotanque 80l,termotanque 120l,Vidriera,Vidriera,precio_venta,,,330000.00,541000.00,,
+0.9742,placard dakar 2 puertas,placard dakar 3 puertas,Vidriera,Vidriera,"medida,precio_venta",57x181,85x181,178200.00,248000.00,bambu,bambu
+0.9722,silla abby,silla aby,Vidriera,Longchamps,fabricante,,,90000.00,90000.00,,
+0.972,"combo bajo,alacena y mesada","combo bajo,alacena,mesada",Longchamps,Longchamps,"medida,precio_venta","1,60m","1,20m",335000.00,258000.00,.,.
+0.972,"combo bajo,alacena y mesada","combo bajo,alacena,mesada",Longchamps,Longchamps,"medida,precio_venta","1,40m","1,20m",295000.00,258000.00,.,.
+0.9707,conjunto colchon palace con pillow,conjunto colchon palace doble pillow,Longchamps,Vidriera,medida,1plaza,1 plaza,346000.00,346000.00,,
+0.9701,colchon eco 17alto,colchon eco 17 alto,Estacion,Longchamps,"medida,precio_venta",1 plaza,2 1/2 plazas,69000.00,114000.00,,
+0.9701,colchon eco 17alto,colchon eco 17 alto,Vidriera,Longchamps,"medida,precio_venta",1 plaza,2 1/2 plazas,69000.00,114000.00,,
+0.9693,colchon standard 13alto,colchon standard 17alto,Estacion,Vidriera,"medida,precio_venta",1 plaza,1 1/2 plaza,65000.00,105000.00,,
+0.9693,colchon standard 13alto,colchon standard 17alto,Vidriera,Vidriera,"medida,precio_venta",1 plaza,1 1/2 plaza,65000.00,105000.00,,
+0.9678,sillas issusi,silla issusi,Vidriera,Longchamps,"fabricante,precio_venta",,,103500.00,104000.00,,
+0.9678,colchon palace con pillow,colchon palace sin pillow,Vidriera,Longchamps,"medida,precio_venta",2 1/2 plazas,1 1/2 plaza,375000.00,245000.00,,
+0.9678,colchon palace con pillow,colchon palace sin pillow,Vidriera,Vidriera,"medida,precio_venta",2 1/2 plazas,1 1/2 plaza,375000.00,245000.00,,
+0.9662,colchon eco 13alto,colchon eco 17alto,Longchamps,Longchamps,"medida,precio_venta",1 plaza,1 1/2 plaza,53000.00,86000.00,,
+0.9662,colchon eco 13alto,colchon eco 17alto,Longchamps,Vidriera,"medida,precio_venta",1 plaza,1 1/2 plaza,53000.00,86000.00,,
+0.9662,colchon eco 17alto,colchon eco 13alto,Longchamps,Estacion,"medida,precio_venta",1 1/2 plaza,1 plaza,86000.00,53000.00,,
+0.9662,colchon eco 17alto,colchon eco 13alto,Longchamps,Vidriera,"medida,precio_venta",1 1/2 plaza,1 plaza,86000.00,53000.00,,
+0.9662,colchon eco 17alto,colchon eco 13alto,Vidriera,Estacion,"medida,precio_venta",1 1/2 plaza,1 plaza,86000.00,53000.00,,
+0.9662,colchon eco 17alto,colchon eco 13alto,Vidriera,Vidriera,"medida,precio_venta",1 1/2 plaza,1 plaza,86000.00,53000.00,,
+0.9657,placar dakar plus 8 puertas,placard dakar plus 6 puertas,Vidriera,Vidriera,"medida,precio_venta",140x214,1mx214,478000.00,372500.00,malta,malta
+0.9644,ropero chifo 2 puertas,ropero chifo 1 puerta,Longchamps,Longchamps,"medida,precio_venta","1,40m","1,20m",120000.00,112000.00,,
+0.964,colchon standard 13alto,colchon standard 17 alto,Estacion,Estacion,"medida,precio_venta",1 plaza,1 1/2 plaza,65000.00,105000.00,,
+0.964,colchon standard 13alto,colchon standard 17 alto,Vidriera,Estacion,"medida,precio_venta",1 plaza,1 1/2 plaza,65000.00,105000.00,,
+0.9603,colchon gold jackard sin pillow,colchon gold jackard con pillow,Longchamps,Longchamps,"medida,precio_venta",2 1/2 plazas,1 plaza,410000.00,315000.00,,
+0.9603,colchon gold jackard sin pillow,colchon gold jackard con pillow,Estacion,Longchamps,"medida,precio_venta",2 1/2 plazas,1 plaza,410000.00,315000.00,,
+0.9598,colchon palace con pillow,colchon palace sin pillow,Longchamps,Longchamps,medida,1 plaza,1 1/2 plaza,245000.00,245000.00,,
+0.9598,colchon palace con pillow,colchon palace sin pillow,Longchamps,Vidriera,medida,1 plaza,1 1/2 plaza,245000.00,245000.00,,
+0.9598,colchon palace con pillow,colchon palace sin pillow,Estacion,Longchamps,medida,1 plaza,1 1/2 plaza,245000.00,245000.00,,
+0.9598,colchon palace con pillow,colchon palace sin pillow,Estacion,Vidriera,medida,1 plaza,1 1/2 plaza,245000.00,245000.00,,
+0.9597,conjunto colchon gold jackard con pillow,conjunto colchon gold jackard sin pillow,Longchamps,Longchamps,"medida,precio_venta",2 1/2 plazas,1 plaza,605000.00,370000.00,,
+0.9591,conjunto colchon gold jackard sin pillow,conjunto colchon gold jackard con pillow,Longchamps,Vidriera,"medida,precio_venta",1 plaza,2 1/2 plazas,370000.00,605000.00,,
+0.958,colchon estandar 13alto,colchon standard 17alto,Longchamps,Vidriera,"medida,precio_venta",1 plaza,1 1/2 plaza,65000.00,105000.00,,
+0.958,placard millenium 24,placard millenium 22,Longchamps,Longchamps,"color,precio_venta",,,302000.00,158000.00,tiza,tissa
+0.9563,conjunto colchon palace con pillow,conjunto colchon palace sin pillow,Longchamps,Longchamps,"medida,precio_venta",1plaza,1 1/2 plaza,346000.00,380000.00,,
+0.9562,colchon palace con pillow,colchon palace sin pillow,Longchamps,Longchamps,"medida,precio_venta",1 plaza,2 1/2 plazas,245000.00,315000.00,,
+0.9562,colchon palace con pillow,colchon palace sin pillow,Longchamps,Vidriera,"medida,precio_venta",1 plaza,2 1/2 plazas,245000.00,315000.00,,
+0.9562,colchon palace con pillow,colchon palace sin pillow,Estacion,Longchamps,"medida,precio_venta",1 plaza,2 1/2 plazas,245000.00,315000.00,,
+0.9562,colchon palace con pillow,colchon palace sin pillow,Estacion,Vidriera,"medida,precio_venta",1 plaza,2 1/2 plazas,245000.00,315000.00,,
+0.9562,colchon palace con pillow,colchon palace sin pillow,Vidriera,Estacion,"medida,precio_venta",2 1/2 plazas,1 plaza,375000.00,210000.00,,
+0.956,colchon eco 13alto,colchon eco 17 alto,Longchamps,Longchamps,"medida,precio_venta",1 plaza,2 1/2 plazas,53000.00,114000.00,,
+0.956,colchon eco 17 alto,colchon eco 13alto,Longchamps,Estacion,"medida,precio_venta",2 1/2 plazas,1 plaza,114000.00,53000.00,,
+0.956,colchon eco 17 alto,colchon eco 13alto,Longchamps,Vidriera,"medida,precio_venta",2 1/2 plazas,1 plaza,114000.00,53000.00,,
+0.9554,conjunto colchones super lujo,conjunto colchon super lujo,Longchamps,Longchamps,"medida,precio_venta",1 plaza,2 plazas 1/2,310000.00,580000.00,,
+0.9554,conjunto colchones super lujo,conjunto colchon super lujo,Longchamps,Vidriera,"medida,precio_venta",1 plaza,2 plazas 1/2,310000.00,580000.00,,
+0.9547,mesa escandilava,mesa escandinava,Longchamps,Vidriera,"medida,precio_venta","1,40m","1,40x80",166000.00,300000.00,,
+0.9524,"combo bajo,alacena,mesada","combo bajo,alacena y mesada",Longchamps,Longchamps,"medida,precio_venta","1,20m",1m,258000.00,231000.00,.,.
+0.9522,tobogan 5 escalones,tobogan 2 escalones,Longchamps,Longchamps,"color,precio_venta",,,242000.00,110000.00,naranja,azul con naranja

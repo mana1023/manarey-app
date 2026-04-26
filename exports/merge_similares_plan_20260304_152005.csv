@@ -1,0 +1,242 @@
+cluster,id,local,old_nombre,new_nombre,old_precio_venta,new_precio_venta,old_precio_costo,new_precio_costo,old_categoria,new_categoria,old_medida,new_medida,old_estado,new_estado,old_color,new_color,old_material,new_material,old_fabricante,new_fabricante,old_codigo,new_codigo,old_descripcion,new_descripcion,is_combo
+10,87,Estacion,tobogan 4 escalones,tobogan 4 escalones,242000.00,242000.0,0.00,0.0,infantil,infantil,,,Nuevo,Nuevo,rosa,rosa,plastico,plastico,,,,,,,0
+10,198,Longchamps,tobogan 4 escalones,tobogan 4 escalones,242000.00,242000.0,0.00,0.0,infantil,infantil,,,Nuevo,Nuevo,rosa,rosa,plastico,plastico,,,,,,,0
+10,382,Vidriera,tobogan 4 escalones,tobogan 4 escalones,242000.00,242000.0,0.00,0.0,infantil,infantil,,,Nuevo,Nuevo,rosa,rosa,plastico,plastico,,,,,,,0
+11,294,Vidriera,silla abby doble respaldo,silla abby doble respaldo,100000.00,100000.0,0.00,0.0,dormitorio,dormitorio,,,Nuevo,Nuevo,,,caño,caño,seleccion muebles,seleccion muebles,,,,,0
+11,683,Longchamps,silla abby doble respaldo,silla abby doble respaldo,100000.00,100000.0,0.00,0.0,dormitorio,dormitorio,,,Nuevo,Nuevo,,,caño,caño,seleccion muebles,seleccion muebles,,,,,0
+12,50,Estacion,toallero,toallero,32000.00,32000.0,0.00,0.0,baño,baño,60cm,60cm,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+12,184,Longchamps,toallero,toallero,32000.00,32000.0,0.00,0.0,baño,baño,60cm,60cm,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+12,733,Vidriera,toallero,toallero,32000.00,32000.0,0.00,0.0,baño,baño,60cm,60cm,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+13,388,Vidriera,toallero,toallero,44000.00,44000.0,0.00,0.0,baño,baño,1m,1m,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+13,186,Longchamps,toallero,toallero,44000.00,44000.0,0.00,0.0,baño,baño,1m,1m,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+14,3,Estacion,despensero,despensero,76500.00,76500.0,0.00,0.0,cocina,cocina,40cm,40cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+14,162,Longchamps,despensero,despensero,76500.00,76500.0,0.00,0.0,cocina,cocina,40cm,40cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+14,361,Vidriera,despensero,despensero,76500.00,76500.0,0.00,0.0,cocina,cocina,40cm,40cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+22,91,Estacion,taburete,taburete,12500.00,12500.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+22,169,Longchamps,taburete,taburete,12500.00,12500.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+23,95,Longchamps,box,box,141000.00,141000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,negro,negro,chenille,chenille,taurus,taurus,,,,,0
+23,229,Vidriera,box,box,141000.00,141000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,negro,negro,chenille,chenille,taurus,taurus,,,,,0
+23,78,Estacion,box,box,141000.00,141000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,negro,negro,chenille,chenille,taurus,taurus,,,,,0
+24,736,Longchamps,bicicleta niño,bicicleta niño,241000.00,241000.0,0.00,0.0,infantil,infantil,"rodado 16""","rodado 16""",Nuevo,Nuevo,violeta,violeta,,,twin,twin,,,,,0
+24,516,Vidriera,bicicleta niño,bicicleta niño,241000.00,241000.0,0.00,0.0,infantil,infantil,"rodado 16""","rodado 16""",Nuevo,Nuevo,violeta,violeta,,,twin,twin,,,,,0
+25,811,Longchamps,desmalezadora,desmalezadora,160000.00,160000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,naranja,naranja,,,kld,kld,,,,,0
+25,426,Vidriera,desmalezadora,desmalezadora,160000.00,160000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,naranja,naranja,,,kld,kld,,,,,0
+32,119,Longchamps,colchon quantium,colchon quantium,970000.00,970000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+32,254,Vidriera,colchon quantium,colchon quantium,970000.00,970000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+40,256,Vidriera,box,box,159000.00,159000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,negro,negro,chenille,chenille,taurus,taurus,,,,,0
+40,96,Longchamps,box,box,159000.00,159000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,negro,negro,chenille,chenille,taurus,taurus,,,,,0
+41,165,Longchamps,modular,modular,114000.00,114000.0,0.00,0.0,living,living,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+41,359,Vidriera,modular,modular,114000.00,114000.0,0.00,0.0,living,living,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+42,53,Estacion,"ventilador turbo 20""","ventilador turbo 20""",39000.00,39000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,paleta plastica,paleta plastica,star track,star track,STTG31-20,STTG31-20,,,0
+42,200,Longchamps,"ventilador turbo 20""","ventilador turbo 20""",39000.00,39000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,paleta plastica,paleta plastica,star track,star track,,STTG31-20,,,0
+43,188,Longchamps,vestidor,vestidor,53000.00,53000.0,0.00,0.0,dormitorio,dormitorio,"1,40m","1,40m",Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+43,548,Vidriera,vestidor,vestidor,53000.00,53000.0,0.00,0.0,dormitorio,dormitorio,"1,40m","1,40m",Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+44,185,Longchamps,toallero,toallero,38000.00,38000.0,0.00,0.0,baño,baño,80cm,80cm,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+44,732,Vidriera,toallero,toallero,38000.00,38000.0,0.00,0.0,baño,baño,80cm,80cm,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+45,183,Longchamps,toallero,toallero,26000.00,26000.0,0.00,0.0,baño,baño,40cm,40cm,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+45,734,Vidriera,toallero,toallero,26000.00,26000.0,0.00,0.0,baño,baño,40cm,40cm,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+46,721,Cane,auriculares,auriculares,29000.00,29000.0,0.00,0.0,tecnologia,tecnologia,,,Nuevo,Nuevo,negro,negro,,,soul,soul,,BT350,,,0
+46,706,Estacion,auriculares,auriculares,29000.00,29000.0,0.00,0.0,tecnologia,tecnologia,,,Nuevo,Nuevo,negro,negro,,,soul,soul,BT350,BT350,,,0
+50,102,Longchamps,colchon gold jackard sin pillow,colchon gold jackard sin pillow,480000.00,480000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+50,79,Estacion,colchon gold jackard sin pillow,colchon gold jackard sin pillow,480000.00,480000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+50,240,Vidriera,colchon gold jackard sin pillow,colchon gold jackard sin pillow,480000.00,480000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+55,251,Longchamps,termotanque 55l,termotanque 55l,297000.00,297000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,electrico,electrico,escorial,escorial,,,,,0
+55,54,Estacion,termotanque 55l,termotanque 55l,297000.00,297000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,electrico,electrico,escorial,escorial,,,,,0
+55,270,Vidriera,termotanque 55l,termotanque 55l,297000.00,297000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,electrico,electrico,escorial,escorial,,,,,0
+56,204,Longchamps,placard corredizo,placard corredizo,122500.00,122500.0,0.00,0.0,dormitorio,dormitorio,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+56,350,Vidriera,placard corredizo,placard corredizo,122500.00,122500.0,0.00,0.0,dormitorio,dormitorio,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+57,250,Longchamps,termotanque 90l,termotanque 90l,320000.00,320000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,electrico,electrico,escorial,escorial,,,,,0
+57,272,Vidriera,termotanque 90l,termotanque 90l,320000.00,320000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,electrico,electrico,escorial,escorial,,,,,0
+58,418,Vidriera,combo taladro + moladora,combo taladro + moladora,136000.00,136000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,amarillo,amarillo,,,konan,konan,,,,,0
+58,703,Longchamps,combo taladro + moladora,combo taladro + moladora,136000.00,136000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,amarillo,amarillo,,,konan,konan,,,,,0
+59,252,Longchamps,lavarropa redondo,lavarropa redondo,205000.00,205000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,blanco,blanco,plastico,plastico,caddy,caddy,,,,,0
+59,642,Estacion,lavarropa redondo,lavarropa redondo,205000.00,205000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,blanco,blanco,plastico,plastico,caddy,caddy,,,,,0
+60,242,Longchamps,lavarropa semi automatico,lavarropa semi automatico,330000.00,330000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,blanco,blanco,plastico,plastico,dream,dream,,,,,0
+60,643,Estacion,lavarropa semi automatico,lavarropa semi automatico,330000.00,330000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,blanco,blanco,plastico,plastico,dream,dream,,,,,0
+60,664,Vidriera,lavarropa semi automatico,lavarropa semi automatico,330000.00,330000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,blanco,blanco,plastico,plastico,dream,dream,,,,,0
+61,253,Longchamps,secarropa 6kg,secarropa 6kg,242000.00,242000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,acero,acero,caddy,caddy,,,,,0
+61,552,Estacion,secarropa 6kg,secarropa 6kg,242000.00,242000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,acero,acero,caddy,caddy,,,,,0
+74,316,Vidriera,reposeras 5 posiciones,reposeras 5 posiciones,42000.00,42000.0,0.00,0.0,jardin,jardin,,,Nuevo,Nuevo,,,caño,caño,,,,,,,0
+74,33,Estacion,reposeras 5 posiciones,reposeras 5 posiciones,42000.00,42000.0,0.00,0.0,jardin,jardin,,,Nuevo,Nuevo,,,caño,caño,,,,,,,0
+98,114,Longchamps,colchon palace sin pillow,colchon palace sin pillow,375000.00,375000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+98,234,Vidriera,colchon palace sin pillow,colchon palace sin pillow,375000.00,375000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+99,230,Vidriera,colchon eco 17alto,colchon eco 17alto,86000.00,86000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+99,105,Longchamps,colchon eco 17alto,colchon eco 17alto,86000.00,86000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+100,439,Estacion,planchita botanicals,planchita botanicals,109000.00,109000.0,0.00,0.0,cuidado personal,cuidado personal,,,Nuevo,Nuevo,,,,,remington,remington,S32A,S32A,,,0
+100,414,Vidriera,planchita botanicals,planchita botanicals,109000.00,109000.0,0.00,0.0,cuidado personal,cuidado personal,,,Nuevo,Nuevo,,,,,remington,remington,,S32A,,,0
+101,386,Vidriera,batidora manual vuelty,batidora manual vuelty,65000.00,65000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,negro,negro,,,liliana,liliana,,AB101,,,0
+101,542,Estacion,batidora manual vuelty,batidora manual vuelty,65000.00,65000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,negro,negro,,,liliana,liliana,AB101,AB101,,,0
+102,397,Vidriera,pava electrica,pava electrica,19000.00,19000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,acero,acero,acero,acero,star,star,,,,,0
+102,704,Longchamps,pava electrica,pava electrica,19000.00,19000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,acero,acero,acero,acero,star,star,,,,,0
+103,513,Vidriera,bicicleta niño,bicicleta niño,118000.00,118000.0,0.00,0.0,infantil,infantil,"Rodado 12""","Rodado 12""",Nuevo,Nuevo,azul,azul,caño,caño,aventura,aventura,,,,,0
+103,727,Longchamps,bicicleta niño,bicicleta niño,118000.00,118000.0,0.00,0.0,infantil,infantil,"Rodado 12""","Rodado 12""",Nuevo,Nuevo,azul,azul,caño,caño,aventura,aventura,,,,,0
+118,421,Vidriera,bordeadora electrica,bordeadora electrica,85000.00,85000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,rojo,rojo,,,omaha,omaha,,bme-550,,,0
+118,731,Estacion,bordeadora electrica,bordeadora electrica,85000.00,85000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,rojo,rojo,,,omaha,omaha,bme-550,bme-550,,,0
+119,2,Estacion,despensero,despensero,109500.00,109500.0,0.00,0.0,cocina,cocina,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+119,161,Longchamps,despensero,despensero,109500.00,109500.0,0.00,0.0,cocina,cocina,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+119,362,Vidriera,despensero,despensero,109500.00,109500.0,0.00,0.0,cocina,cocina,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+120,56,Estacion,cajonera 6 cajones,cajonera 6 cajones,65000.00,65000.0,0.00,0.0,dormitorio,dormitorio,,,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+120,138,Longchamps,cajonera 6 cajones,cajonera 6 cajones,65000.00,65000.0,0.00,0.0,dormitorio,dormitorio,,,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+120,376,Vidriera,cajonera 6 cajones,cajonera 6 cajones,65000.00,65000.0,0.00,0.0,dormitorio,dormitorio,,,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+121,29,Estacion,mesa,mesa,36500.00,36500.0,0.00,0.0,comedor,comedor,70cm,70cm,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+121,172,Longchamps,mesa,mesa,36500.00,36500.0,0.00,0.0,comedor,comedor,70cm,70cm,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+122,27,Estacion,silla hindu,silla hindu,25000.00,25000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+122,126,Longchamps,silla hindu,silla hindu,25000.00,25000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+123,24,Estacion,cajonera asia,cajonera asia,70000.00,70000.0,0.00,0.0,dormitorio,dormitorio,1m,1m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+123,372,Vidriera,cajonera asia,cajonera asia,70000.00,70000.0,0.00,0.0,dormitorio,dormitorio,1m,1m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+124,38,Estacion,cama,cama,39800.00,39800.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,pino,pino,,,,,,,0
+124,495,Vidriera,cama,cama,39800.00,39800.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,pino,pino,,,,,,,0
+125,23,Estacion,cajonera asia,cajonera asia,60000.00,60000.0,0.00,0.0,dormitorio,dormitorio,80cm,80cm,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+125,373,Vidriera,cajonera asia,cajonera asia,60000.00,60000.0,0.00,0.0,dormitorio,dormitorio,80cm,80cm,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+126,14,Estacion,alacena,alacena,69700.00,69700.0,45000.00,45000.0,cocina,cocina,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+126,278,Longchamps,alacena,alacena,69700.00,69700.0,45000.00,45000.0,cocina,cocina,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+126,370,Vidriera,alacena,alacena,69700.00,69700.0,45000.00,45000.0,cocina,cocina,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+127,13,Estacion,bajo mesada,bajo mesada,108800.00,108800.0,0.00,0.0,cocina,cocina,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+127,261,Longchamps,bajo mesada,bajo mesada,108800.00,108800.0,0.00,0.0,cocina,cocina,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+127,369,Vidriera,bajo mesada,bajo mesada,108800.00,108800.0,0.00,0.0,cocina,cocina,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+128,55,Estacion,termotanque 45l,termotanque 45l,294000.00,294000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,gas,gas,escorial,escorial,,,,,0
+128,269,Vidriera,termotanque 45l,termotanque 45l,294000.00,294000.0,0.00,0.0,electrodomesticos,electrodomesticos,,,Nuevo,Nuevo,,,gas,gas,escorial,escorial,,,,,0
+129,46,Estacion,mesa plegable,mesa plegable,69000.00,69000.0,0.00,0.0,comedor,comedor,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+129,121,Longchamps,mesa plegable,mesa plegable,69000.00,69000.0,0.00,0.0,comedor,comedor,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+129,312,Vidriera,mesa plegable,mesa plegable,69000.00,69000.0,0.00,0.0,comedor,comedor,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+130,43,Estacion,mesa plegable,mesa plegable,62000.00,62000.0,0.00,0.0,comedor,comedor,"1,50m","1,50m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+130,122,Longchamps,mesa plegable,mesa plegable,62000.00,62000.0,0.00,0.0,comedor,comedor,"1,50m","1,50m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+131,47,Estacion,combo quincho,combo quincho,130000.00,130000.0,0.00,0.0,jardin,jardin,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,1
+131,148,Longchamps,combo quincho,combo quincho,130000.00,130000.0,0.00,0.0,jardin,jardin,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,1
+131,315,Vidriera,combo quincho,combo quincho,130000.00,130000.0,0.00,0.0,jardin,jardin,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,1
+134,45,Estacion,banco plegable,banco plegable,34000.00,34000.0,0.00,0.0,comedor,comedor,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+134,124,Longchamps,banco plegable,banco plegable,34000.00,34000.0,0.00,0.0,comedor,comedor,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+134,314,Vidriera,banco plegable,banco plegable,34000.00,34000.0,0.00,0.0,comedor,comedor,2m,2m,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+135,39,Estacion,cama,cama,67500.00,67500.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,pino,pino,,,,,,,0
+135,283,Vidriera,cama,cama,67500.00,67500.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,pino,pino,,,,,,,0
+136,17,Estacion,silla eco,silla eco,15000.00,15000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,camila,camila,,,,,0
+136,129,Longchamps,silla eco,silla eco,15000.00,15000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,camila,camila,,,,,0
+137,72,Estacion,colchon silver,colchon silver,170000.00,170000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+137,212,Vidriera,colchon silver,colchon silver,170000.00,170000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+144,728,Vidriera,bordeadore electrica master,bordeadore electrica master,92000.00,92000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,verde,verde,,,trapp,trapp,,,,,0
+144,794,Longchamps,bordeadore electrica master,bordeadore electrica master,92000.00,92000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,verde,verde,,,trapp,trapp,,,,,0
+145,73,Estacion,colchon extra 18alto,colchon extra 18alto,118000.00,118000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+145,99,Longchamps,colchon extra 18alto,colchon extra 18alto,118000.00,118000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+145,210,Vidriera,colchon extra 18alto,colchon extra 18alto,118000.00,118000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+146,63,Estacion,mesada,mesada,123000.00,123000.0,0.00,0.0,cocina,cocina,"1,20m","1,20m",Nuevo,Nuevo,negro,negro,granitex,granitex,,,,,,,0
+146,431,Longchamps,mesada,mesada,123000.00,123000.0,0.00,0.0,cocina,cocina,"1,20m","1,20m",Nuevo,Nuevo,negro,negro,granitex,granitex,,,,,,,0
+147,66,Estacion,colchon standard 13alto,colchon standard 13alto,79000.00,79000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+147,98,Longchamps,colchon standard 13alto,colchon standard 13alto,79000.00,79000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+147,209,Vidriera,colchon standard 13alto,colchon standard 13alto,79000.00,79000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+148,68,Estacion,colchon eco 13alto,colchon eco 13alto,69000.00,69000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+148,97,Longchamps,colchon eco 13alto,colchon eco 13alto,69000.00,69000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+148,206,Vidriera,colchon eco 13alto,colchon eco 13alto,69000.00,69000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+149,70,Estacion,colchon palace con pillow,colchon palace con pillow,245000.00,245000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+149,100,Longchamps,colchon palace con pillow,colchon palace con pillow,245000.00,245000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+150,44,Estacion,combo quincho,combo quincho,115000.00,115000.0,0.00,0.0,jardin,jardin,"1,50m","1,50m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,1
+150,191,Longchamps,combo quincho,combo quincho,115000.00,115000.0,0.00,0.0,jardin,jardin,"1,50m","1,50m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,1
+151,80,Estacion,colchon real,colchon real,240000.00,240000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+151,232,Vidriera,colchon real,colchon real,240000.00,240000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+152,71,Estacion,colchon super lujo,colchon super lujo,205000.00,205000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+152,217,Vidriera,colchon super lujo,colchon super lujo,205000.00,205000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+153,9,Estacion,mesa de luz vintaje,mesa de luz vintaje,30000.00,30000.0,0.00,0.0,dormitorio,dormitorio,,,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+153,363,Vidriera,mesa de luz vintaje,mesa de luz vintaje,30000.00,30000.0,0.00,0.0,dormitorio,dormitorio,,,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+154,77,Estacion,colchon extra,colchon extra,137000.00,137000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+154,221,Vidriera,colchon extra,colchon extra,137000.00,137000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+155,76,Estacion,colchon standard 17 alto,colchon standard 17 alto,105000.00,105000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+155,220,Vidriera,colchon standard 17 alto,colchon standard 17 alto,105000.00,105000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+156,107,Longchamps,colchon palace sin pillow,colchon palace sin pillow,273000.00,273000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+156,224,Vidriera,colchon palace sin pillow,colchon palace sin pillow,273000.00,273000.0,0.00,0.0,dormitorio,dormitorio,1 1/2 plaza,1 1/2 plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+157,94,Longchamps,box,box,126000.00,126000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,negro,negro,chenille,chenille,taurus,taurus,,,,,0
+157,218,Vidriera,box,box,126000.00,126000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,negro,negro,chenille,chenille,taurus,taurus,,,,,0
+158,104,Longchamps,colchon equis,colchon equis,260000.00,260000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+158,215,Vidriera,colchon equis,colchon equis,260000.00,260000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+159,64,Estacion,colchon flow,colchon flow,123000.00,123000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+159,118,Longchamps,colchon flow,colchon flow,123000.00,123000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+159,211,Vidriera,colchon flow,colchon flow,123000.00,123000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+160,115,Longchamps,colchon super lujo,colchon super lujo,315000.00,315000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+160,82,Estacion,colchon super lujo,colchon super lujo,315000.00,315000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+160,236,Vidriera,colchon super lujo,colchon super lujo,315000.00,315000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,0
+161,83,Estacion,colchon silver,colchon silver,251000.00,251000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+161,113,Longchamps,colchon silver,colchon silver,251000.00,251000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+161,233,Vidriera,colchon silver,colchon silver,251000.00,251000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+165,729,Estacion,taladro percutor,taladro percutor,100000.00,100000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,rojo,rojo,,,omaha,omaha,tbat-20,tbat-20,,,0
+165,419,Vidriera,taladro percutor,taladro percutor,100000.00,100000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,rojo,rojo,,,omaha,omaha,,tbat-20,,,0
+166,141,Longchamps,biblioteca,biblioteca,38300.00,38300.0,0.00,0.0,living,living,40cm,40cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+166,366,Vidriera,biblioteca,biblioteca,38300.00,38300.0,0.00,0.0,living,living,40cm,40cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+167,128,Longchamps,silla franchesca,silla franchesca,25000.00,25000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+167,288,Vidriera,silla franchesca,silla franchesca,25000.00,25000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+168,149,Estacion,hamaca gemela,hamaca gemela,155000.00,155000.0,0.00,0.0,jardin,jardin,,,Nuevo,Nuevo,,,caño,caño,,,,,,,0
+168,319,Vidriera,hamaca gemela,hamaca gemela,155000.00,155000.0,0.00,0.0,jardin,jardin,,,Nuevo,Nuevo,,,caño,caño,,,,,,,0
+169,142,Longchamps,biblioteca,biblioteca,45000.00,45000.0,0.00,0.0,living,living,60cm,60cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+169,367,Vidriera,biblioteca,biblioteca,45000.00,45000.0,0.00,0.0,living,living,60cm,60cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+170,123,Longchamps,banco plegable,banco plegable,31000.00,31000.0,0.00,0.0,comedor,comedor,"1,50m","1,50m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+170,42,Estacion,banco plegable,banco plegable,31000.00,31000.0,0.00,0.0,comedor,comedor,"1,50m","1,50m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+171,167,Longchamps,placard macizo,placard macizo,102000.00,102000.0,0.00,0.0,dormitorio,dormitorio,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+171,351,Vidriera,placard macizo,placard macizo,102000.00,102000.0,0.00,0.0,dormitorio,dormitorio,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+172,168,Longchamps,placard macizo,placard macizo,210000.00,210000.0,0.00,0.0,dormitorio,dormitorio,"1,60m","1,60m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+172,356,Vidriera,placard macizo,placard macizo,210000.00,210000.0,0.00,0.0,dormitorio,dormitorio,"1,60m","1,60m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+173,171,Longchamps,alzada maciza,alzada maciza,100500.00,100500.0,0.00,0.0,cocina,cocina,"1,60m","1,60m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+173,354,Vidriera,alzada maciza,alzada maciza,100500.00,100500.0,0.00,0.0,cocina,cocina,"1,60m","1,60m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+174,189,Longchamps,silla plegable,silla plegable,19000.00,19000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+174,324,Vidriera,silla plegable,silla plegable,19000.00,19000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+175,190,Longchamps,mesa plegable,mesa plegable,39000.00,39000.0,0.00,0.0,comedor,comedor,70cm,70cm,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+175,325,Vidriera,mesa plegable,mesa plegable,39000.00,39000.0,0.00,0.0,comedor,comedor,70cm,70cm,Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+176,175,Longchamps,mesa,mesa,56500.00,56500.0,0.00,0.0,comedor,comedor,"1,40m","1,40m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+176,411,Estacion,mesa,mesa,56500.00,56500.0,0.00,0.0,comedor,comedor,"1,40m","1,40m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+178,117,Longchamps,colchon luxor,colchon luxor,490000.00,490000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+178,241,Vidriera,colchon luxor,colchon luxor,490000.00,490000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,0
+179,166,Longchamps,placard corredizo,placard corredizo,97000.00,97000.0,0.00,0.0,dormitorio,dormitorio,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+179,349,Vidriera,placard corredizo,placard corredizo,97000.00,97000.0,0.00,0.0,dormitorio,dormitorio,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+180,173,Longchamps,mesa,mesa,53500.00,53500.0,0.00,0.0,comedor,comedor,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+180,412,Estacion,mesa,mesa,53500.00,53500.0,0.00,0.0,comedor,comedor,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,ramon,ramon,,,,,0
+181,239,Longchamps,mesa plegable matera,mesa plegable matera,12000.00,12000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+181,334,Estacion,mesa plegable matera,mesa plegable matera,12000.00,12000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,machuca,machuca,,,,,0
+186,125,Longchamps,silla hindu eco,silla hindu eco,16500.00,16500.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+186,647,Vidriera,silla hindu eco,silla hindu eco,16500.00,16500.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+187,143,Longchamps,biblioteca,biblioteca,50300.00,50300.0,0.00,0.0,living,living,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+187,368,Vidriera,biblioteca,biblioteca,50300.00,50300.0,0.00,0.0,living,living,80cm,80cm,Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+189,249,Longchamps,cocina master style,cocina master style,658000.00,658000.0,0.00,0.0,cocina,cocina,,,Nuevo,Nuevo,negro,negro,acero,acero,escorial,escorial,,,,,0
+189,417,Vidriera,cocina master style,cocina master style,658000.00,658000.0,0.00,0.0,cocina,cocina,,,Nuevo,Nuevo,negro,negro,acero,acero,escorial,escorial,,,,,0
+189,638,Estacion,cocina master style,cocina master style,658000.00,658000.0,0.00,0.0,cocina,cocina,,,Nuevo,Nuevo,negro,negro,acero,acero,escorial,escorial,,,,,0
+190,297,Vidriera,silla ella,silla ella,67000.00,67000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,gris,gris,caño,caño,maña,maña,,,,,0
+190,556,Estacion,silla ella,silla ella,67000.00,67000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,gris,gris,caño,caño,maña,maña,,,,,0
+190,645,Longchamps,silla ella,silla ella,67000.00,67000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,gris,gris,caño,caño,maña,maña,,,,,0
+191,298,Vidriera,silla reyna,silla reyna,104000.00,104000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,flores,flores,caño,caño,lucy,lucy,,,,,0
+191,561,Estacion,silla reyna,silla reyna,104000.00,104000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,flores,flores,caño,caño,lucy,lucy,,,,,0
+191,648,Longchamps,silla reyna,silla reyna,104000.00,104000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,flores,flores,caño,caño,lucy,lucy,,,,,0
+207,730,Estacion,bolsa de herramienta,bolsa de herramienta,60000.00,60000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,azul,azul,,,wadfow,wadfow,28pcs/set,28pcs/set,,,0
+207,662,Vidriera,bolsa de herramienta,bolsa de herramienta,60000.00,60000.0,0.00,0.0,herramientas,herramientas,,,Nuevo,Nuevo,azul,azul,,,wadfow,wadfow,,28pcs/set,,,0
+208,300,Vidriera,silla la nueva,silla la nueva,58000.00,58000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,gris,gris,caño,caño,ezequiel,ezequiel,,,,,0
+208,557,Estacion,silla la nueva,silla la nueva,58000.00,58000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,gris,gris,caño,caño,ezequiel,ezequiel,,,,,0
+208,688,Longchamps,silla la nueva,silla la nueva,58000.00,58000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,gris,gris,caño,caño,ezequiel,ezequiel,,,,,0
+211,302,Vidriera,silla adriana,silla adriana,57000.00,57000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,marron,marron,caño,caño,ezequiel,ezequiel,,,,,0
+211,558,Estacion,silla adriana,silla adriana,57000.00,57000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,marron,marron,caño,caño,ezequiel,ezequiel,,,,,0
+211,684,Longchamps,silla adriana,silla adriana,57000.00,57000.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,marron,marron,caño,caño,ezequiel,ezequiel,,,,,0
+213,357,Vidriera,alzada corrediza,alzada corrediza,82000.00,82000.0,0.00,0.0,cocina,cocina,"1,60m","1,60m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+213,408,Longchamps,alzada corrediza,alzada corrediza,82000.00,82000.0,0.00,0.0,cocina,cocina,"1,60m","1,60m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+214,358,Vidriera,placard corredizo,placard corredizo,210000.00,210000.0,0.00,0.0,dormitorio,dormitorio,"1,60m","1,60m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+214,407,Longchamps,placard corredizo,placard corredizo,210000.00,210000.0,0.00,0.0,dormitorio,dormitorio,"1,60m","1,60m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+215,352,Vidriera,placard macizo,placard macizo,127500.00,127500.0,0.00,0.0,dormitorio,dormitorio,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+215,406,Longchamps,placard macizo,placard macizo,127500.00,127500.0,0.00,0.0,dormitorio,dormitorio,"1,20m","1,20m",Nuevo,Nuevo,,,pino,pino,pinitos,pinitos,,,,,0
+218,517,Vidriera,cocina compacta,cocina compacta,380000.00,380000.0,0.00,0.0,cocina,cocina,196x2m,196x2m,Nuevo,Nuevo,nebraska,nebraska,melamina,melamina,mosconi,mosconi,,,,,0
+218,534,Longchamps,cocina compacta,cocina compacta,380000.00,380000.0,0.00,0.0,cocina,cocina,196x2m,196x2m,Nuevo,Nuevo,nebraska,nebraska,melamina,melamina,mosconi,mosconi,,,,,0
+220,559,Estacion,silla cupula,silla cupula,47500.00,47500.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,gris,gris,caño,caño,ezequiel,ezequiel,,,,,0
+220,680,Longchamps,silla cupula,silla cupula,47500.00,47500.0,0.00,0.0,comedor,comedor,,,Nuevo,Nuevo,gris,gris,caño,caño,ezequiel,ezequiel,,,,,0
+221,628,Vidriera,combo sommier flow,combo sommier flow,240000.00,240000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,1
+221,629,Longchamps,combo sommier flow,combo sommier flow,240000.00,240000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,1
+223,630,Vidriera,combo sommier equis,combo sommier equis,374000.00,374000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,resosrte,resosrte,taurus,taurus,,,,,1
+223,631,Longchamps,combo sommier equis,combo sommier equis,374000.00,374000.0,0.00,0.0,dormitorio,dormitorio,1 plaza,1 plaza,Nuevo,Nuevo,,,resosrte,resosrte,taurus,taurus,,,,,1
+229,601,Longchamps,conjunto super lujo,conjunto super lujo,440000.00,440000.0,0.00,0.0,dormitorio,dormitorio,2 plazas 1/2,2 plazas 1/2,Nuevo,Nuevo,,,,,taurus,taurus,,,,,1
+229,602,Vidriera,conjunto super lujo,conjunto super lujo,440000.00,440000.0,0.00,0.0,dormitorio,dormitorio,2 plazas 1/2,2 plazas 1/2,Nuevo,Nuevo,,,,,taurus,taurus,,,,,1
+230,608,Longchamps,conjunto luxor,conjunto luxor,618000.00,618000.0,0.00,0.0,dormitorio,dormitorio,2 plazas 1/2,2 plazas 1/2,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,1
+230,609,Vidriera,conjunto luxor,conjunto luxor,618000.00,618000.0,0.00,0.0,dormitorio,dormitorio,2 plazas 1/2,2 plazas 1/2,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,1
+231,611,Longchamps,conjunto silver,conjunto silver,385000.00,385000.0,0.00,0.0,dormitorio,dormitorio,2 plazas 1/2,2 plazas 1/2,Nuevo,Nuevo,,,,,taurus,taurus,,,,,1
+231,612,Vidriera,conjunto silver,conjunto silver,385000.00,385000.0,0.00,0.0,dormitorio,dormitorio,2 plazas 1/2,2 plazas 1/2,Nuevo,Nuevo,,,,,taurus,taurus,,,,,1
+234,615,Longchamps,conjunto flow,conjunto flow,240000.00,240000.0,0.00,0.0,dormitorio,dormitorio,1plaza,1plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,1
+234,616,Vidriera,conjunto flow,conjunto flow,240000.00,240000.0,0.00,0.0,dormitorio,dormitorio,1plaza,1plaza,Nuevo,Nuevo,,,espuma,espuma,taurus,taurus,,,,,1
+235,613,Longchamps,conjunto equis,conjunto equis,374000.00,374000.0,0.00,0.0,dormitorio,dormitorio,1plaza,1plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,1
+235,614,Vidriera,conjunto equis,conjunto equis,374000.00,374000.0,0.00,0.0,dormitorio,dormitorio,1plaza,1plaza,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,1
+236,636,Longchamps,combo sommier equis,combo sommier equis,374000.00,374000.0,0.00,0.0,dormitorio,dormitorio,medida,medida,Nuevo,Nuevo,,,resosrte,resosrte,taurus,taurus,,,,,1
+236,639,Vidriera,combo sommier equis,combo sommier equis,374000.00,374000.0,0.00,0.0,dormitorio,dormitorio,medida,medida,Nuevo,Nuevo,,,resosrte,resosrte,taurus,taurus,,,,,1
+237,654,Vidriera,combo sommier silver,combo sommier silver,385000.00,385000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,1
+237,655,Longchamps,combo sommier silver,combo sommier silver,385000.00,385000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resorte,resorte,taurus,taurus,,,,,1
+243,656,Vidriera,combo sommier luxor,combo sommier luxor,615000.00,615000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resosrte,resosrte,taurus,taurus,,,,,1
+243,657,Longchamps,combo sommier luxor,combo sommier luxor,615000.00,615000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resosrte,resosrte,taurus,taurus,,,,,1
+244,659,Vidriera,combo sommier quantium,combo sommier quantium,1129000.00,1129000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resortes,resortes,taurus,taurus,,,,,1
+244,660,Longchamps,combo sommier quantium,combo sommier quantium,1129000.00,1129000.0,0.00,0.0,dormitorio,dormitorio,2 1/2 plazas,2 1/2 plazas,Nuevo,Nuevo,,,resortes,resortes,taurus,taurus,,,,,1

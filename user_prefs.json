@@ -1,0 +1,59 @@
+{
+  "remember": true,
+  "username": "Cane",
+  "login_window": {
+    "geometry": "AdnQywADAAAAAAG9AAABXgAABO0AAAPcAAABvgAAAX0AAATsAAAD2wAAAAAAAAAACgAAAAG+AAABfQAABOwAAAPb",
+    "maximized": false
+  },
+  "stock_window": {
+    "geometry": "AdnQywADAAAAAAG9AAAAlgAACf0AAASrAAABvgAAALUAAAn8AAAEqgAAAAAAAAAACgAAAAG+AAAAtQAACfwAAASq",
+    "maximized": false
+  },
+  "ventas_history": {
+    "remember_time": false
+  },
+  "role": "local",
+  "local": "Cane",
+  "stock_table": {
+    "order": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "widths": {
+      "0": 340,
+      "1": 90,
+      "2": 170,
+      "3": 150,
+      "4": 140,
+      "5": 140,
+      "6": 140,
+      "7": 50,
+      "8": 50,
+      "9": 130,
+      "10": 0
+    }
+  },
+  "product_selector_size": {
+    "w": 1000,
+    "h": 1209
+  },
+  "stock_form_field_order": [
+    "nombre",
+    "categoria",
+    "fabricante",
+    "medida",
+    "estado",
+    "cantidad",
+    "precio",
+    "add"
+  ]
+}
