@@ -4,7 +4,6 @@ import os
 import re
 import threading
 import time
-import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -166,7 +165,6 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from config import get_locales
 from models import db as db_mod
 from models import offline_store
 from models import stock_model as sm
@@ -192,15 +190,15 @@ logger = logging.getLogger(__name__)
 # ==================== CONSTANTES Y CONFIGURACIÓN ====================
 
 # Medidas por tipo
-PLAZAS = ["1 plaza", "1 1/2 plaza", "2 plazas", "2 1/2 plazas", "queen", "king"]
+PLAZAS = ["1 plaza", "1 1/2 plaza", "2 plazas", "2 1/2 plazas", "Queen", "King"]
 RODADOS = [
-    'rodado 12"',
-    'rodado 14"',
-    'rodado 16"',
-    'rodado 20"',
-    'rodado 24"',
-    'rodado 26"',
-    'rodado 29"',
+    'Rodado 12"',
+    'Rodado 14"',
+    'Rodado 16"',
+    'Rodado 20"',
+    'Rodado 24"',
+    'Rodado 26"',
+    'Rodado 29"',
 ]
 PULGADAS = [
     '32"',
@@ -234,7 +232,7 @@ CAMA_KEYWORDS = [
 BICI_KEYWORDS = ["bicicleta", "bici", "bicis", "bicicl eta", " rodado"]
 
 ESTADOS = sm.ESTADOS
-LOCALES = get_locales()  # respaldo si no cargan desde BD
+LOCALES = ["Cane", "Vidriera", "Longchamps", "Glew"]  # respaldo si no cargan desde BD
 LOW_STOCK_THRESHOLD = int(os.environ.get("MANAREY_LOW_STOCK_THRESHOLD", "3"))
 _APPDATA = os.environ.get("APPDATA")
 if _APPDATA:
@@ -277,24 +275,14 @@ def _dedupe(seq):
 _WORD_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 
-def _unaccent(text: str) -> str:
-    """Quita tildes/diacríticos para comparaciones sin acento."""
-    try:
-        return (
-            unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("ascii")
-        )
-    except Exception:
-        return text
-
-
 def _split_search_terms(text: str) -> list:
-    return _WORD_RE.findall(_unaccent(text or "").lower())
+    return _WORD_RE.findall((text or "").lower())
 
 
 def _match_terms_prefix(text: str, terms: list) -> bool:
     if not terms:
         return True
-    words = _WORD_RE.findall(_unaccent(text or "").lower())
+    words = _WORD_RE.findall((text or "").lower())
     if not words:
         return False
     for term in terms:
@@ -415,9 +403,7 @@ class LoadingThread(QThread):
                 self.error_occurred.emit(str(e))
             except Exception:
                 pass
-            # NO emitir data_loaded con lista vacía: si hay datos en caché
-            # ya visibles en la tabla, no los pisamos por un error de conexión.
-            # _on_loading_error se encarga de mostrar el aviso y ocultar el spinner.
+            self.data_loaded.emit(self.load_id, [])
 
 
 class ClickableLabel(QLabel):
@@ -1868,10 +1854,8 @@ class AdvancedTableWidget(QTableWidget):
         # ── Paleta de colores de alto contraste
 
         BG_ALT = "#222229"
-
-        TEXT_
         GRID = "#3e3e44"
-        HEAD_
+        HEAD_BG = _T("TH_BG", "#1a1a22")
         PRIMARY = "#C9A040"
 
         self.setStyleSheet(
@@ -1957,8 +1941,6 @@ class AdvancedTableWidget(QTableWidget):
 class StockView(QMainWindow):
     """Vista principal de stock con todas las mejoras + validación en tiempo real"""
 
-    PAGE_SIZE = 50  # Productos por página en la tabla
-
     def __init__(self, username: str, role: str, local_name: str, back_command=None):
         super().__init__()
         self.username = username
@@ -1980,13 +1962,6 @@ class StockView(QMainWindow):
             self.read_only = True
         self.back_command = back_command
 
-        # Paginación virtual
-        self._current_page = 0
-        self._all_filtered_products = []
-        # Set completo devuelto por la BD (sin filtro de texto).
-        # El search box filtra este set en el cliente, sin volver a la BD.
-        self._all_products_raw = []
-
         # Estado
         self.loading_thread = None
         self.last_search_time = 0
@@ -1995,6 +1970,9 @@ class StockView(QMainWindow):
         self._products_by_id = {}
         self._row_by_product_id = {}
         self._totals = {"productos": 0, "unidades": 0, "valor": 0}
+        self._page = 0
+        self._page_size = 50
+        self._all_products_full = []
 
         # Workers para operaciones de stock
         # Cola centralizada para procesar operaciones (evita crear Hilos por clic)
@@ -2030,7 +2008,9 @@ class StockView(QMainWindow):
 
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
-        self._search_timer.timeout.connect(self._delayed_search)
+        self._search_timer.timeout.connect(
+            lambda: self._delayed_search(self.last_search_time)
+        )
 
         # Timer para limpiar resaltados sin crear timers por celda
         self._highlight_timer = QTimer(self)
@@ -2052,7 +2032,7 @@ class StockView(QMainWindow):
 
         # Ventana MÁS GRANDE
         self.setWindowTitle(
-            f"Stock - {self.local if self.role=='local' else 'Administrador'}"
+            f"Stock - {self.local if self.role == 'local' else 'Administrador'}"
         )
         self.setProperty("manarey_no_scale", False)
         self.setMinimumSize(1100, 650)
@@ -2211,59 +2191,21 @@ class StockView(QMainWindow):
             pass
 
     def _load_locales(self, current_local):
-        """Carga lista de locales: usa LOCALES fijo inmediatamente (no bloquea UI).
-
-        Antes esto llamaba a get_all_locals() de forma síncrona en el constructor,
-        lo que bloqueaba la UI 10-30+ segundos mientras Firestore/Postgres respondía.
-        Ahora usamos la constante LOCALES (respaldo rápido) + el local actual,
-        y refrescamos desde la BD en background (_refresh_locales_async).
-        """
-        locs = list(LOCALES)
-        if current_local:
-            clean = self._clean_local_label(current_local)
-            if clean and clean not in locs:
-                locs.append(clean)
+        """Carga lista de locales desde BD; usa LOCALES como respaldo."""
+        try:
+            locs = [l for l in get_all_locals() if l]
+        except Exception:
+            locs = []
+        if current_local and current_local not in locs:
+            locs.append(current_local)
+        if not locs:
+            locs = LOCALES[:]
+        # normaliza y elimina duplicados preservando orden
         norm = []
         for l in locs:
             l = self._clean_local_label(l)
             l = (l or "").strip() or "Sin local"
             norm.append(l)
-        # Kick-off refresh asíncrono (no bloquea el constructor)
-        try:
-            import threading
-
-            def _bg():
-                try:
-                    real = [l for l in (get_all_locals() or []) if l]
-                    if not real:
-                        return
-                    cleaned = _dedupe(
-                        [
-                            (self._clean_local_label(l) or "").strip() or "Sin local"
-                            for l in real
-                        ]
-                    )
-                    # Actualizar self.locales en el próximo tick del main thread
-                    try:
-                        from PyQt5.QtCore import QMetaObject, Qt, QTimer
-
-                        def _apply():
-                            try:
-                                self.locales = cleaned
-                            except Exception:
-                                pass
-
-                        QTimer.singleShot(0, _apply)
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
-
-            threading.Thread(
-                target=_bg, daemon=True, name="stock_locales_refresh"
-            ).start()
-        except Exception:
-            pass
         return _dedupe(norm)
 
     def create_search_bar(self):
@@ -2766,38 +2708,6 @@ class StockView(QMainWindow):
         self.edit_btn.setVisible(True)
         local_row.addWidget(self.edit_btn)
 
-        # Checkbox para mostrar/ocultar el formulario de agregar producto.
-        # Solo aparece cuando el usuario desbloqueó edición con contraseña.
-        # Así puede editar precios sin que el formulario ocupe espacio visual.
-        from PyQt5.QtWidgets import QCheckBox as _QCB
-
-        self._show_add_form_cb = _QCB("Agregar producto")
-        self._show_add_form_cb.setVisible(False)  # oculto hasta que se desbloquee
-        self._show_add_form_cb.setCursor(Qt.PointingHandCursor)
-        try:
-            import app_theme as _at_cb
-
-            _c_cb = _at_cb._palette(_at_cb.is_dark_mode())
-            self._show_add_form_cb.setStyleSheet(
-                f"QCheckBox{{color:{_c_cb['TEXT']};font-weight:700;padding:3px 8px;"
-                f"background:{_c_cb['SURFACE']};border:1px solid {_c_cb['BORDER']};"
-                f"border-radius:8px;spacing:6px;}}"
-                f"QCheckBox::indicator{{width:15px;height:15px;border-radius:3px;"
-                f"border:1.5px solid {_c_cb['BORDER_H']};background:{_c_cb['INPUT_BG']};}}"
-                f"QCheckBox::indicator:checked{{background:{_c_cb['GOLD']};border-color:{_c_cb['GOLD']};}}"
-                f"QCheckBox:hover{{border-color:{_c_cb['GOLD']};}}"
-            )
-        except Exception:
-            self._show_add_form_cb.setStyleSheet(
-                "QCheckBox{color:#ECECF1;font-weight:700;padding:3px 8px;"
-                "background:#252530;border:1px solid #3e3e44;border-radius:8px;spacing:6px;}"
-                "QCheckBox::indicator{width:15px;height:15px;border-radius:3px;"
-                "border:1.5px solid #4a4a55;background:#1f1f22;}"
-                "QCheckBox::indicator:checked{background:#C9A040;border-color:#C9A040;}"
-            )
-        self._show_add_form_cb.toggled.connect(self._apply_edit_lock_state)
-        local_row.addWidget(self._show_add_form_cb)
-
         self.combo_btn = QPushButton("Crear combos")
         self.combo_btn.setToolTip("Crear combos de productos")
         self.combo_btn.setStyleSheet(
@@ -3124,142 +3034,44 @@ class StockView(QMainWindow):
         table_layout.addWidget(self.table)
         self.main_layout.addWidget(self.table_container, 1)
 
-        # --- Barra de paginación ---
-        self._pagination_bar = QWidget()
-        self._pagination_bar.setVisible(False)
-        pagination_layout = QHBoxLayout(self._pagination_bar)
-        pagination_layout.setContentsMargins(0, 4, 0, 4)
-        pagination_layout.setSpacing(12)
+        # Barra de paginación
+        pag_widget = QWidget()
+        pag_layout = QHBoxLayout(pag_widget)
+        pag_layout.setContentsMargins(0, 4, 0, 0)
+        pag_layout.setSpacing(8)
 
-        self._btn_prev_page = QPushButton("← Anterior")
-        self._btn_prev_page.setCursor(Qt.PointingHandCursor)
-        self._btn_prev_page.setFixedHeight(34)
-        self._btn_prev_page.setStyleSheet(
-            "QPushButton { background: #1a1a22; color: #fbbf24; border: 1px solid #3e3e44;"
-            " border-radius: 8px; padding: 4px 16px; font-weight: 600; }"
-            "QPushButton:hover { background: #2a2a35; border-color: #fbbf24; }"
-            "QPushButton:disabled { color: #555; border-color: #333; }"
+        self._prev_page_btn = QPushButton("◀ Anterior")
+        self._prev_page_btn.setFixedHeight(32)
+        self._prev_page_btn.setCursor(Qt.PointingHandCursor)
+        self._prev_page_btn.setStyleSheet(
+            "QPushButton{background:#232329;color:#C9A040;border:1px solid #3e3e44;"
+            "border-radius:8px;padding:4px 14px;font-weight:700;}"
+            "QPushButton:hover{background:#34343a;}"
+            "QPushButton:disabled{color:#555;border-color:#2a2a2a;}"
         )
-        self._btn_prev_page.clicked.connect(self._go_prev_page)
+        self._prev_page_btn.clicked.connect(self._go_prev_page)
+        pag_layout.addWidget(self._prev_page_btn)
 
-        self._pagination_label = QLabel("")
-        self._pagination_label.setAlignment(Qt.AlignCenter)
-        self._pagination_label.setStyleSheet(
-            "color: #94a3b8; font-size: 13px; font-weight: 600;"
+        self._page_label = QLabel("")
+        self._page_label.setAlignment(Qt.AlignCenter)
+        self._page_label.setStyleSheet("color:#a0a0a8;font-size:13px;padding:0 8px;")
+        pag_layout.addWidget(self._page_label)
+
+        self._next_page_btn = QPushButton("Siguiente ▶")
+        self._next_page_btn.setFixedHeight(32)
+        self._next_page_btn.setCursor(Qt.PointingHandCursor)
+        self._next_page_btn.setStyleSheet(
+            "QPushButton{background:#232329;color:#C9A040;border:1px solid #3e3e44;"
+            "border-radius:8px;padding:4px 14px;font-weight:700;}"
+            "QPushButton:hover{background:#34343a;}"
+            "QPushButton:disabled{color:#555;border-color:#2a2a2a;}"
         )
+        self._next_page_btn.clicked.connect(self._go_next_page)
+        pag_layout.addWidget(self._next_page_btn)
 
-        self._btn_next_page = QPushButton("Siguiente →")
-        self._btn_next_page.setCursor(Qt.PointingHandCursor)
-        self._btn_next_page.setFixedHeight(34)
-        self._btn_next_page.setStyleSheet(
-            "QPushButton { background: #1a1a22; color: #fbbf24; border: 1px solid #3e3e44;"
-            " border-radius: 8px; padding: 4px 16px; font-weight: 600; }"
-            "QPushButton:hover { background: #2a2a35; border-color: #fbbf24; }"
-            "QPushButton:disabled { color: #555; border-color: #333; }"
-        )
-        self._btn_next_page.clicked.connect(self._go_next_page)
-
-        pagination_layout.addStretch()
-        pagination_layout.addWidget(self._btn_prev_page)
-        pagination_layout.addWidget(self._pagination_label)
-        pagination_layout.addWidget(self._btn_next_page)
-        pagination_layout.addStretch()
-
-        self.main_layout.addWidget(self._pagination_bar)
-        self.main_layout.addSpacing(20)
-
-    def _update_pagination_bar(self):
-        """Actualiza la barra de paginación según el estado actual."""
-        try:
-            total = len(self._all_filtered_products)
-            if total <= self.PAGE_SIZE:
-                self._pagination_bar.setVisible(False)
-                return
-            total_pages = max(1, (total + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
-            current_display = self._current_page + 1
-            self._pagination_label.setText(
-                f"Página {current_display} de {total_pages}  ({total} productos)"
-            )
-            self._btn_prev_page.setEnabled(self._current_page > 0)
-            self._btn_next_page.setEnabled(self._current_page < total_pages - 1)
-            self._pagination_bar.setVisible(True)
-        except Exception:
-            pass
-
-    def _go_prev_page(self):
-        """Retrocede a la página anterior."""
-        if self._current_page > 0:
-            self._current_page -= 1
-            self._render_current_page()
-
-    def _go_next_page(self):
-        """Avanza a la página siguiente."""
-        total = len(self._all_filtered_products)
-        total_pages = max(1, (total + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
-        if self._current_page < total_pages - 1:
-            self._current_page += 1
-            self._render_current_page()
-
-    def _render_current_page(self):
-        """Renderiza la página actual de _all_filtered_products en la tabla."""
-        try:
-            start = self._current_page * self.PAGE_SIZE
-            end = start + self.PAGE_SIZE
-            page_products = self._all_filtered_products[start:end]
-
-            table = self.table
-            prev_sorting = False
-            try:
-                prev_sorting = table.isSortingEnabled()
-                table.setSortingEnabled(False)
-            except Exception:
-                pass
-            table.blockSignals(True)
-            table.setRowCount(0)
-            self._editing_enabled = False
-            self._products_by_id = {}
-            self._row_by_product_id = {}
-            self._duplicate_keys = {}
-
-            try:
-                table.setUpdatesEnabled(False)
-            except Exception:
-                pass
-
-            self._pending_products = list(page_products)
-            self._pending_fill_index = 0
-            self._actions_lazy = True
-            total_page = len(page_products)
-            self._fill_chunk_size = 20 if total_page >= 200 else 60
-            self._skip_duplicate_highlight = total_page >= 1200
-
-            row_h = int(table.verticalHeader().defaultSectionSize() or 40)
-            try:
-                visible_rows = max(10, int(table.viewport().height() / max(1, row_h)))
-            except Exception:
-                visible_rows = 30
-            first_chunk = max(80, visible_rows + 20)
-            self._fill_table_chunk(first_chunk)
-
-            self._editing_enabled = True
-            self._update_pagination_bar()
-            try:
-                table.setSortingEnabled(prev_sorting)
-            except Exception:
-                pass
-            table.blockSignals(False)
-            try:
-                table.viewport().setUpdatesEnabled(True)
-            except Exception:
-                pass
-            table.setUpdatesEnabled(True)
-            # Volver al tope de la tabla al cambiar página
-            try:
-                table.scrollToTop()
-            except Exception:
-                pass
-        except Exception:
-            pass
+        pag_layout.addStretch()
+        self.main_layout.addWidget(pag_widget)
+        self._update_pagination_ui()
 
     def create_actions_row(self):
         """Fila inferior para acciones (Excel / Editar / Crear combos)."""
@@ -3562,45 +3374,6 @@ class StockView(QMainWindow):
         uniq.sort(key=self._measure_sort_key)
         return uniq
 
-    def _matches_stock_search(self, product: dict, search_terms: list[str]) -> bool:
-        """Mantiene la búsqueda cliente alineada con los campos visibles."""
-        if not search_terms:
-            return True
-        searchable = " ".join(
-            str(product.get(field) or "")
-            for field in (
-                "nombre",
-                "material",
-                "categoria",
-                "fabricante",
-                "color",
-                "medida",
-                "estado",
-                "codigo",
-            )
-        )
-        return _match_terms_prefix(searchable, search_terms)
-
-    def _matches_consolidated_search(
-        self, key: tuple, data: dict, search_terms: list[str]
-    ) -> bool:
-        if not search_terms:
-            return True
-        searchable = " ".join(
-            str(v or "")
-            for v in (
-                key[0] if len(key) > 0 else "",
-                key[1] if len(key) > 1 else "",
-                key[2] if len(key) > 2 else "",
-                key[3] if len(key) > 3 else "",
-                key[4] if len(key) > 4 else "",
-                key[5] if len(key) > 5 else "",
-                key[6] if len(key) > 6 else "",
-                data.get("codigo") or "",
-            )
-        )
-        return _match_terms_prefix(searchable, search_terms)
-
     def _maybe_add_custom_medida(self, text: str):
         try:
             mode = getattr(self, "_measure_mode", "metro")
@@ -3624,49 +3397,6 @@ class StockView(QMainWindow):
                 combo.blockSignals(False)
         except Exception:
             pass
-
-    def _populate_action_buttons_all(self, *_args):
-        """Renderiza botones de acciones en TODAS las filas (usado al terminar la carga inicial)."""
-        t0 = time.perf_counter()
-        try:
-            logger.info("_populate_action_buttons_all: start")
-            try:
-                if os.environ.get("MANAREY_DISABLE_ACTION_BUTTONS", "0") == "1":
-                    return
-            except Exception:
-                pass
-            if getattr(self, "read_only", False):
-                return
-            if not getattr(self, "_actions_lazy", False):
-                return
-            table = self.table
-            row_count = table.rowCount()
-            if row_count == 0:
-                return
-            if table.columnCount() <= 11:
-                return
-            for row in range(row_count):
-                if table.cellWidget(row, 9) is not None:
-                    continue
-                item = table.item(row, 0)
-                if not item:
-                    continue
-                pid = item.data(Qt.ItemDataRole.UserRole)
-                if pid is None:
-                    continue
-                product = self._products_by_id.get(pid)
-                if not product:
-                    continue
-                self.add_action_buttons_new(row, product)
-        except Exception:
-            pass
-        finally:
-            try:
-                logger.info(
-                    f"_populate_action_buttons_all: done in {time.perf_counter() - t0:.3f}s"
-                )
-            except Exception:
-                pass
 
     def _populate_action_buttons_visible(self, *_args):
         """Renderiza botones de acciones solo en filas visibles para acelerar la carga."""
@@ -3770,10 +3500,7 @@ class StockView(QMainWindow):
                 except Exception:
                     pass
                 QTimer.singleShot(0, self._highlight_duplicates)
-                # Poblar botones en TODAS las filas al terminar la carga (evita race con rowAt)
-                QTimer.singleShot(0, self._populate_action_buttons_all)
-                # Reintento diferido por si Qt aún no terminó de pintar en el primer tick
-                QTimer.singleShot(200, self._populate_action_buttons_all)
+                QTimer.singleShot(0, self._populate_action_buttons_visible)
         except Exception:
             pass
 
@@ -4388,11 +4115,7 @@ class StockView(QMainWindow):
     def _can_add_product(self) -> bool:
         if self.role == "admin":
             return bool(self._admin_add_unlocked)
-        # Para locales: edición desbloqueada + checkbox "Agregar producto" marcado
-        if not self._can_edit_stock():
-            return False
-        cb = getattr(self, "_show_add_form_cb", None)
-        return bool(cb is not None and cb.isChecked())
+        return self._can_edit_stock()
 
     def _get_cash_password(self) -> str:
         pwd_db = vm.get_cash_withdraw_password(default="")
@@ -4483,13 +4206,6 @@ class StockView(QMainWindow):
         if self._edit_unlocked:
             self._edit_unlocked = False
             self._edit_timeout_timer.stop()
-            # Ocultar y desmarcar el checkbox de agregar producto al bloquear
-            cb = getattr(self, "_show_add_form_cb", None)
-            if cb is not None:
-                cb.blockSignals(True)
-                cb.setChecked(False)
-                cb.setVisible(False)
-                cb.blockSignals(False)
         else:
             dlg = QDialog(self)
             dlg.setWindowTitle("Editar stock")
@@ -4651,10 +4367,6 @@ class StockView(QMainWindow):
                 return
             self._edit_unlocked = True
             self._reset_edit_timeout()
-            # Mostrar el checkbox de agregar producto cuando se desbloquea edición
-            cb = getattr(self, "_show_add_form_cb", None)
-            if cb is not None:
-                cb.setVisible(True)
         self._update_edit_button()
         self._apply_edit_lock_state()
 
@@ -6120,13 +5832,6 @@ class StockView(QMainWindow):
                 return
             if self._edit_unlocked:
                 self._edit_unlocked = False
-                # Ocultar y desmarcar el checkbox de agregar al auto-bloquear
-                cb = getattr(self, "_show_add_form_cb", None)
-                if cb is not None:
-                    cb.blockSignals(True)
-                    cb.setChecked(False)
-                    cb.setVisible(False)
-                    cb.blockSignals(False)
                 self._update_edit_button()
                 self._apply_edit_lock_state()
         except Exception:
@@ -6362,8 +6067,8 @@ class StockView(QMainWindow):
         try:
             self._combo_sync_running = False
             if ok:
-                # Delay generoso para evitar recargas en cascada
-                self._schedule_reload(800)
+                # refrescar sin bloquear
+                self._schedule_reload(50)
         except Exception:
             pass
 
@@ -7748,6 +7453,18 @@ class StockView(QMainWindow):
 
     def create_form(self):
         """Crea el formulario para agregar productos"""
+        # Checkbox para mostrar/ocultar el formulario
+        self._hide_form_cb = QCheckBox("Ocultar barra de agregar productos")
+        self._hide_form_cb.setStyleSheet(
+            "QCheckBox{color:#a0a0a8;font-size:13px;}"
+            "QCheckBox::indicator{width:16px;height:16px;border:1px solid #3e3e44;"
+            "border-radius:4px;background:#1a1a22;}"
+            "QCheckBox::indicator:checked{background:#C9A040;border-color:#C9A040;}"
+        )
+        self._hide_form_cb.setCursor(Qt.PointingHandCursor)
+        self._hide_form_cb.stateChanged.connect(self._on_hide_form_toggled)
+        self.main_layout.addWidget(self._hide_form_cb)
+
         form_frame = QFrame()
         self.form_frame = form_frame
         try:
@@ -8716,62 +8433,17 @@ class StockView(QMainWindow):
         self.on_search_changed()
 
     def on_search_changed(self):
-        """Filtra el set en memoria sin ir a la BD.
-
-        El buscador opera sobre _all_products_raw (devuelto por la última
-        consulta a la BD) para dar feedback instantáneo en todas las páginas.
-        El timer de 150ms evita refrescos excesivos mientras se escribe.
-        """
+        """Maneja cambios en búsqueda con delay"""
+        current_time = time.time()
+        self.last_search_time = current_time
+        # Recargar después de 300ms de inactividad (reutilizando timer)
         self._search_timer.stop()
-        self._search_timer.start(150)
+        self._search_timer.start(300)
 
-    def _delayed_search(self, timestamp=None):
-        """Aplica el filtro de texto sobre _all_products_raw en el cliente."""
-        self._apply_client_search()
-
-    def _apply_client_search(self):
-        """Filtra _all_products_raw por el texto del buscador y refresca la tabla.
-
-        Si _all_products_raw aún no fue cargado (None = nunca se cargó),
-        dispara una carga completa desde la BD.  Si ya está cargado (lista
-        vacía o con elementos) filtra directamente sin ir a la BD.
-        """
-        try:
-            raw = getattr(self, "_all_products_raw", None)
-            if raw is None:
-                # Primera carga — la BD todavía no respondió
-                self.load_data()
-                return
-
-            search_text = ""
-            if hasattr(self, "search_input"):
-                search_text = self.search_input.text()
-            search_terms = _split_search_terms(search_text)
-
-            if search_terms:
-                products = [
-                    p for p in raw if self._matches_stock_search(p, search_terms)
-                ]
-            else:
-                products = list(raw)
-
-            # Ordenar: primero con stock > 0, luego sin stock, ambos grupos por nombre
-            try:
-                products.sort(
-                    key=lambda p: (
-                        0 if int(p.get("cantidad", 0) or 0) > 0 else 1,
-                        (p.get("nombre") or "").lower(),
-                    )
-                )
-            except Exception:
-                pass
-
-            self._all_filtered_products = products
-            self._current_page = 0
-            self._render_current_page()
-            self._update_filter_chip()
-        except Exception as e:
-            logger.error(f"_apply_client_search error: {e}")
+    def _delayed_search(self, timestamp):
+        """Ejecuta búsqueda si no ha habido cambios recientes"""
+        if timestamp == self.last_search_time:
+            self.load_data()
 
     def edit_price(self, product_id, row):
         """Edita precio"""
@@ -8942,7 +8614,7 @@ class StockView(QMainWindow):
                 if precio <= 0:
                     raise ValueError("Precio invOKlido")
 
-            # Normalizar categoría (texto libre — cualquier valor es válido)
+            # Bloquear categorias fuera de la base
             def _norm(val: str) -> str:
                 return (val or "").strip().lower()
 
@@ -8950,18 +8622,16 @@ class StockView(QMainWindow):
             if not categoria_norm:
                 QMessageBox.warning(self, "Error", "La categoria no puede estar vacia")
                 return
-            # Si es una categoría nueva, agregarla al caché local y a la BD
             try:
-                if categoria_norm not in {
-                    sm._norm_cat(c) for c in self.categories_cache if c
-                }:
-                    try:
-                        sm.insert_tipo_si_no_existe(categoria_norm)
-                    except Exception:
-                        pass
-                    if categoria_norm not in self.categories_cache:
-                        self.categories_cache.append(categoria_norm)
-                        self.categories_cache = sorted(set(self.categories_cache))
+                allowed = self.categories_cache or sorted(set(sm.get_all_tipos()))
+                allowed_norm = {sm._norm_cat(c) for c in allowed if c}
+                if allowed_norm and categoria_norm not in allowed_norm:
+                    QMessageBox.warning(
+                        self,
+                        "Categoria invalida",
+                        "La categoria no existe en la base. Selecciona una categoria existente.",
+                    )
+                    return
             except Exception:
                 pass
 
@@ -9728,8 +9398,7 @@ class StockView(QMainWindow):
             # Obtener filtros
             force_filters = getattr(self, "_force_next_filters", None)
             if force_filters:
-                # search nunca se envía a la BD; se aplica client-side
-                search = ""
+                search = force_filters.get("search", "")
                 categoria = force_filters.get("categoria", "")
                 fabricante = force_filters.get("fabricante", "")
                 color = force_filters.get("color", "")
@@ -9741,10 +9410,9 @@ class StockView(QMainWindow):
                 except Exception:
                     pass
             else:
-                # El texto de búsqueda NO se envía a la BD: se aplica solo en el
-                # cliente sobre _all_products_raw, para que sea instantáneo y
-                # abarque TODOS los productos sin importar en qué página están.
                 search = ""
+                if hasattr(self, "search_input"):
+                    search = self.search_input.text()
 
                 categoria = ""
                 if hasattr(self, "category_combo"):
@@ -9807,12 +9475,12 @@ class StockView(QMainWindow):
                             pass
 
             sig = None
-            # Firma de los filtros de BD (sin search: ese es solo cliente).
-            # Evita recargas redundantes cuando cambia solo el texto de búsqueda.
+            # Firmas para evitar recargas redundantes
             try:
                 sig = (
                     self.view_local,
                     self._get_stock_view_mode(),
+                    search,
                     categoria,
                     fabricante,
                     estado,
@@ -10053,7 +9721,7 @@ class StockView(QMainWindow):
                 rows = [
                     (key, data)
                     for key, data in rows
-                    if self._matches_consolidated_search(key, data, search_terms)
+                    if _match_terms_prefix((key[0] or ""), search_terms)
                 ]
 
             if categoria_filter:
@@ -10123,48 +9791,14 @@ class StockView(QMainWindow):
             self.load_data()
 
     def _on_loading_error(self, msg: str):
-        """Handler para errores de carga provenientes del LoadingThread.
-
-        Como ya no emitimos data_loaded([]) en caso de error, somos nosotros
-        los responsables de ocultar el spinner y mostrar el aviso al usuario.
-        Los datos en caché que ya están visibles en la tabla se conservan.
-        """
+        """Handler para errores de carga provenientes del LoadingThread."""
         try:
             logger.error(f"LoadingThread reported error: {msg}")
         except Exception:
             pass
-        # Ocultar spinner (antes lo hacía on_data_loaded, ahora no se llama al fallar)
         try:
-            self.loading_bar.setVisible(False)
-        except Exception:
-            pass
-        # Re-habilitar señales de tabla por si quedaron bloqueadas
-        try:
-            self.table.blockSignals(False)
-            self.table.setUpdatesEnabled(True)
-        except Exception:
-            pass
-        # Mostrar aviso de conexión amigable
-        try:
-            is_conn_err = any(
-                kw in msg.lower()
-                for kw in (
-                    "connect",
-                    "timeout",
-                    "network",
-                    "server",
-                    "closed",
-                    "unreachable",
-                    "refused",
-                )
-            )
-            if is_conn_err:
-                self._show_toast(
-                    "⚠️ Sin conexión a la base de datos — mostrando datos guardados",
-                    persistent=True,
-                )
-            else:
-                self._show_toast(f"Error cargando stock: {msg}", persistent=True)
+            # Mostrar mensaje persistente para que el usuario sepa que hubo un error
+            self._show_toast(f"Error cargando stock: {msg}", persistent=True)
         except Exception:
             pass
 
@@ -10355,13 +9989,18 @@ class StockView(QMainWindow):
                 self.table.setUpdatesEnabled(False)
             except Exception:
                 pass
-            # Aviso de conexión cuando el local genuinamente no tiene productos.
-            # IMPORTANTE: is_online() hace un socket con timeout de 2s → NO llamar
-            # desde el hilo de UI. Si hay error de conexión real, ya lo reporta
-            # _on_loading_error (que se llama desde el hilo de carga).
-            # Aquí solo avisamos si products=[] Y la carga terminó correctamente
-            # (es decir, el local sí respondió pero está vacío).
-            # No hacemos ningún socket call en este hilo.
+            # Aviso de conexión (solo si no hay datos)
+            try:
+                if not products and not offline_store.is_online():
+                    now_ts = time.time()
+                    last_ts = getattr(self, "_last_offline_warn_ts", 0) or 0
+                    if now_ts - last_ts > 30:
+                        self._last_offline_warn_ts = now_ts
+                        self._show_toast(
+                            "⚠️ Sin conexión a la base de datos", persistent=True
+                        )
+            except Exception:
+                pass
             skip_client = getattr(self, "_skip_client_filters_once", False)
             if skip_client:
                 try:
@@ -10369,41 +10008,6 @@ class StockView(QMainWindow):
                 except Exception:
                     pass
 
-            # Ordenar: primero con stock > 0, luego sin stock, ambos por nombre
-            try:
-                products.sort(
-                    key=lambda p: (
-                        0 if int(p.get("cantidad", 0) or 0) > 0 else 1,
-                        (p.get("nombre") or "").lower(),
-                    )
-                )
-            except Exception:
-                pass
-
-            # Guardar el set completo devuelto por la BD (sin filtro de texto).
-            # El search box filtra este set en el cliente de forma instantánea.
-            self._all_products_raw = list(products)
-
-            # Actualizar categories_cache con TODAS las categorías presentes en los
-            # productos cargados (no solo los filtrados).  Esto garantiza que el
-            # formulario de alta/edición muestre todas las categorías reales y que
-            # la validación no bloquee categorías válidas como "cocina".
-            try:
-                cats_from_load = sorted(
-                    {
-                        (p.get("categoria") or "").strip().lower()
-                        for p in self._all_products_raw
-                        if (p.get("categoria") or "").strip()
-                    }
-                )
-                if cats_from_load:
-                    merged = sorted(set(self.categories_cache) | set(cats_from_load))
-                    if merged != self.categories_cache:
-                        self.categories_cache = merged
-            except Exception:
-                pass
-
-            # Aplicar filtro de texto del cliente sobre el set completo
             if not skip_client:
                 search_terms = _split_search_terms(
                     (self.search_input.text() if hasattr(self, "search_input") else "")
@@ -10412,39 +10016,17 @@ class StockView(QMainWindow):
                     products = [
                         p
                         for p in products
-                        if self._matches_stock_search(p, search_terms)
+                        if _match_terms_prefix((p.get("nombre") or ""), search_terms)
                     ]
             total = len(products)
 
-            # Guardar todos los productos filtrados y resetear paginación
-            self._all_filtered_products = list(products)
-            self._current_page = 0
-
-            # Obtener solo la página actual
-            page_products = self._all_filtered_products[: self.PAGE_SIZE]
-
-            self._pending_products = list(page_products)
-            self._pending_fill_index = 0
-            self._actions_lazy = True
-            # Ajustar tamaño de chunk según volumen para evitar bloqueos
-            page_total = len(page_products)
-            self._fill_chunk_size = 20 if page_total >= 200 else 60
-            self._skip_duplicate_highlight = page_total >= 1200
-
-            row_h = int(self.table.verticalHeader().defaultSectionSize() or 40)
-            try:
-                visible_rows = max(
-                    10, int(self.table.viewport().height() / max(1, row_h))
-                )
-            except Exception:
-                visible_rows = 30
-            first_chunk = max(80, visible_rows + 20)
-            self._fill_table_chunk(first_chunk)
+            self._all_products_full = list(products)
+            self._page = 0
+            self._render_page()
 
             self._editing_enabled = True
             self._actions_lazy = True
             self._update_filter_chip()
-            self._update_pagination_bar()
             if getattr(self, "role", "") != "admin":
                 self._load_reservas_sections()
             if getattr(self, "_pending_reload", False):
@@ -10457,7 +10039,7 @@ class StockView(QMainWindow):
             table.blockSignals(False)
             try:
                 logger.info(
-                    f"on_data_loaded: done rows={total} (page 1 of {max(1,(total+self.PAGE_SIZE-1)//self.PAGE_SIZE)}) active_threads={QThread.activeThreadCount()}"
+                    f"on_data_loaded: done rows={total} active_threads={QThread.activeThreadCount()}"
                 )
             except Exception:
                 pass
@@ -10570,7 +10152,79 @@ class StockView(QMainWindow):
         except Exception:
             pass
 
-    # Paginación eliminada
+    def _render_page(self):
+        """Pinta en la tabla solo los productos de la página actual."""
+        try:
+            page_products = self._all_products_full[
+                self._page * self._page_size : (self._page + 1) * self._page_size
+            ]
+            total = len(page_products)
+            table = self.table
+            try:
+                table.setSortingEnabled(False)
+            except Exception:
+                pass
+            table.blockSignals(True)
+            table.setRowCount(0)
+            self._products_by_id = {}
+            self._row_by_product_id = {}
+            self._duplicate_keys = {}
+            self._pending_products = list(page_products)
+            self._pending_fill_index = 0
+            self._actions_lazy = True
+            self._fill_chunk_size = 50
+            self._skip_duplicate_highlight = False
+            self._fill_table_chunk(50)
+            table.blockSignals(False)
+            self._update_pagination_ui()
+        except Exception as e:
+            logger.error(f"_render_page error: {e}")
+
+    def _update_pagination_ui(self):
+        """Actualiza los controles y la etiqueta de paginación."""
+        try:
+            total_products = len(getattr(self, "_all_products_full", []))
+            page_size = self._page_size
+            total_pages = max(1, (total_products + page_size - 1) // page_size)
+            cur = self._page + 1
+
+            if hasattr(self, "_page_label"):
+                if total_products == 0:
+                    self._page_label.setText("Sin productos")
+                else:
+                    start = self._page * page_size + 1
+                    end = min((self._page + 1) * page_size, total_products)
+                    self._page_label.setText(
+                        f"Página {cur} de {total_pages}  ({start}-{end} de {total_products})"
+                    )
+            if hasattr(self, "_prev_page_btn"):
+                self._prev_page_btn.setEnabled(self._page > 0)
+            if hasattr(self, "_next_page_btn"):
+                self._next_page_btn.setEnabled(cur < total_pages)
+        except Exception:
+            pass
+
+    def _go_prev_page(self):
+        if self._page > 0:
+            self._page -= 1
+            self._render_page()
+
+    def _go_next_page(self):
+        total_pages = max(
+            1,
+            (len(self._all_products_full) + self._page_size - 1) // self._page_size,
+        )
+        if self._page + 1 < total_pages:
+            self._page += 1
+            self._render_page()
+
+    def _on_hide_form_toggled(self, state):
+        try:
+            hidden = bool(state)
+            if hasattr(self, "form_frame"):
+                self.form_frame.setVisible(not hidden)
+        except Exception:
+            pass
 
     def _load_table_prefs(self):
         """Carga orden y anchos de columnas desde prefs."""
