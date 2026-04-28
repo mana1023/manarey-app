@@ -2708,6 +2708,19 @@ class StockView(QMainWindow):
         self.edit_btn.setVisible(True)
         local_row.addWidget(self.edit_btn)
 
+        # Checkbox ocultar formulario — solo visible cuando el modo edición está activo
+        self._hide_form_cb = QCheckBox("Ocultar formulario")
+        self._hide_form_cb.setStyleSheet(
+            "QCheckBox{color:#a0a0a8;font-size:12px;}"
+            "QCheckBox::indicator{width:14px;height:14px;border:1px solid #3e3e44;"
+            "border-radius:3px;background:#1a1a22;}"
+            "QCheckBox::indicator:checked{background:#C9A040;border-color:#C9A040;}"
+        )
+        self._hide_form_cb.setCursor(Qt.PointingHandCursor)
+        self._hide_form_cb.stateChanged.connect(self._on_hide_form_toggled)
+        self._hide_form_cb.setVisible(False)
+        local_row.addWidget(self._hide_form_cb)
+
         self.combo_btn = QPushButton("Crear combos")
         self.combo_btn.setToolTip("Crear combos de productos")
         self.combo_btn.setStyleSheet(
@@ -3034,18 +3047,19 @@ class StockView(QMainWindow):
         table_layout.addWidget(self.table)
         self.main_layout.addWidget(self.table_container, 1)
 
-        # Barra de paginación
+        # Barra de paginación — centrada al pie de la tabla
         pag_widget = QWidget()
         pag_layout = QHBoxLayout(pag_widget)
-        pag_layout.setContentsMargins(0, 4, 0, 0)
-        pag_layout.setSpacing(8)
+        pag_layout.setContentsMargins(0, 6, 0, 6)
+        pag_layout.setSpacing(10)
+        pag_layout.addStretch()
 
         self._prev_page_btn = QPushButton("◀ Anterior")
-        self._prev_page_btn.setFixedHeight(32)
+        self._prev_page_btn.setFixedHeight(34)
         self._prev_page_btn.setCursor(Qt.PointingHandCursor)
         self._prev_page_btn.setStyleSheet(
             "QPushButton{background:#232329;color:#C9A040;border:1px solid #3e3e44;"
-            "border-radius:8px;padding:4px 14px;font-weight:700;}"
+            "border-radius:8px;padding:4px 18px;font-weight:700;font-size:13px;}"
             "QPushButton:hover{background:#34343a;}"
             "QPushButton:disabled{color:#555;border-color:#2a2a2a;}"
         )
@@ -3054,15 +3068,16 @@ class StockView(QMainWindow):
 
         self._page_label = QLabel("")
         self._page_label.setAlignment(Qt.AlignCenter)
-        self._page_label.setStyleSheet("color:#a0a0a8;font-size:13px;padding:0 8px;")
+        self._page_label.setMinimumWidth(220)
+        self._page_label.setStyleSheet("color:#a0a0a8;font-size:13px;padding:0 12px;")
         pag_layout.addWidget(self._page_label)
 
         self._next_page_btn = QPushButton("Siguiente ▶")
-        self._next_page_btn.setFixedHeight(32)
+        self._next_page_btn.setFixedHeight(34)
         self._next_page_btn.setCursor(Qt.PointingHandCursor)
         self._next_page_btn.setStyleSheet(
             "QPushButton{background:#232329;color:#C9A040;border:1px solid #3e3e44;"
-            "border-radius:8px;padding:4px 14px;font-weight:700;}"
+            "border-radius:8px;padding:4px 18px;font-weight:700;font-size:13px;}"
             "QPushButton:hover{background:#34343a;}"
             "QPushButton:disabled{color:#555;border-color:#2a2a2a;}"
         )
@@ -6032,10 +6047,13 @@ class StockView(QMainWindow):
                 self.edit_btn.setText("Agregar producto")
                 self.edit_btn.setToolTip("Mostrar formulario para agregar productos")
             return
-        if self._can_edit_stock():
+        unlocked = self._can_edit_stock()
+        if unlocked:
             self.edit_btn.setText("Dejar de editar")
         else:
             self.edit_btn.setText("Editar")
+        if hasattr(self, "_hide_form_cb"):
+            self._hide_form_cb.setVisible(unlocked and not self.read_only)
 
     def _trigger_combo_sync(self):
         try:
@@ -7453,18 +7471,6 @@ class StockView(QMainWindow):
 
     def create_form(self):
         """Crea el formulario para agregar productos"""
-        # Checkbox para mostrar/ocultar el formulario
-        self._hide_form_cb = QCheckBox("Ocultar barra de agregar productos")
-        self._hide_form_cb.setStyleSheet(
-            "QCheckBox{color:#a0a0a8;font-size:13px;}"
-            "QCheckBox::indicator{width:16px;height:16px;border:1px solid #3e3e44;"
-            "border-radius:4px;background:#1a1a22;}"
-            "QCheckBox::indicator:checked{background:#C9A040;border-color:#C9A040;}"
-        )
-        self._hide_form_cb.setCursor(Qt.PointingHandCursor)
-        self._hide_form_cb.stateChanged.connect(self._on_hide_form_toggled)
-        self.main_layout.addWidget(self._hide_form_cb)
-
         form_frame = QFrame()
         self.form_frame = form_frame
         try:
