@@ -2,7 +2,7 @@
 !include "WinMessages.nsh"
 
 !define APP_NAME "Manarey"
-!define APP_VERSION "1.0.81"
+!define APP_VERSION "1.0.82"
 !define APP_PUBLISHER "Manarey"
 !define APP_EXE "Manarey.exe"
 !define ROOT_DIR "C:\Users\USUARIO\Desktop\Manarey"
@@ -36,6 +36,11 @@ ShowUninstDetails show
 
 Section "Manarey" SEC01
   SetRegView 64
+  ; Esperar a que el proceso anterior (Manarey.exe) haya cerrado antes de
+  ; intentar sobreescribir el ejecutable. Sin esta pausa, Windows bloquea
+  ; el exe y NSIS lo programa para "reemplazar al reiniciar" en vez de
+  ; instalarlo ahora.
+  Sleep 2000
   SetOutPath "$INSTDIR"
   File /r "${ROOT_DIR}\\dist\\Manarey\\*"
   File /nonfatal "${ROOT_DIR}\\config.json"

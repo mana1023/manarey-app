@@ -443,15 +443,10 @@ def _run_installer_and_wait(exe_path: str) -> bool:
             logger.warning("ShellExecuteExW: UAC cancelado o error")
             return False
 
-        # Esperar hasta 5 minutos a que el instalador termine
-        WAIT_TIMEOUT = 0x00000102
-        res = ctypes.windll.kernel32.WaitForSingleObject(sei.hProcess, 300_000)
+        # Cerramos el handle y salimos YA, antes de que NSIS intente copiar
+        # los archivos. Si esperamos a que termine, Manarey.exe sigue bloqueado
+        # y Windows no puede sobreescribirlo (usa "reemplazar al reiniciar").
         ctypes.windll.kernel32.CloseHandle(sei.hProcess)
-
-        if res == WAIT_TIMEOUT:
-            logger.warning("Instalador excedió 5 minutos")
-
-        # El NSIS ya lanzó Manarey.exe. Cerrar la app vieja.
         os._exit(0)
         return True
 
