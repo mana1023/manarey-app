@@ -305,6 +305,7 @@ class LocalWindow(QMainWindow):
         self.role = role or "local"
         self.local = local or ""
         self.child = None
+        self._skip_quit = False
 
         self.setWindowTitle(f"Manarey — {self.local}")
         self.setProperty("manarey_no_scale", True)
@@ -894,12 +895,13 @@ class LocalWindow(QMainWindow):
             pass
         self._persist_window_state()
         super().closeEvent(event)
-        try:
-            from PyQt5.QtWidgets import QApplication
+        if not self._skip_quit:
+            try:
+                from PyQt5.QtWidgets import QApplication
 
-            QApplication.quit()
-        except Exception:
-            pass
+                QApplication.quit()
+            except Exception:
+                pass
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -979,7 +981,7 @@ class LocalWindow(QMainWindow):
         try:
             from views.login_view import LoginWindow
 
-            self._login_win = LoginWindow(skip_autologin=True)
+            self._login_win = LoginWindow(skip_autologin=True, prev_window=self)
             self._login_win.show()
             self.hide()
         except Exception as e:

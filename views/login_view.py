@@ -587,15 +587,18 @@ class GlassCard(QFrame):
 
 
 class LoginWindow(QMainWindow):
-    def __init__(self, skip_autologin: bool = False):
+    def __init__(self, skip_autologin: bool = False, prev_window=None):
         super().__init__()
         self._skip_autologin = bool(skip_autologin)
+        self._login_success = False
+        self._prev_window = prev_window
 
         self.setWindowTitle("Manarey — Iniciar sesión")
         self.setProperty("manarey_no_scale", True)
         self.setProperty("manarey_no_autoresize", False)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
-        self.setMinimumSize(640, 480)
+        self.setMinimumSize(760, 520)
+        self.resize(1040, 680)
 
         self.setStyleSheet(global_styles())
 
@@ -616,17 +619,8 @@ class LoginWindow(QMainWindow):
         self._load_prefs()
 
         self._window_restored = self._restore_window_state()
-        # Siempre abrir en pantalla completa para adaptarse a cualquier resolución
-        QTimer.singleShot(0, self._fill_screen)
-
-    def _fill_screen(self):
-        try:
-            screen = self.screen()
-            if screen:
-                self.setGeometry(screen.geometry())
-            self.showFullScreen()
-        except Exception:
-            self.showMaximized()
+        if not self._window_restored:
+            self.center()
 
     def center(self):
         qr = self.frameGeometry()
@@ -1037,15 +1031,22 @@ class LoginWindow(QMainWindow):
     def closeEvent(self, event):
         self._persist_window_state()
         super().closeEvent(event)
-        try:
-            from PyQt5.QtWidgets import QApplication
+        if not self._login_success:
+            try:
+                from PyQt5.QtWidgets import QApplication
 
-            # No cerrar la app si se cerró por login exitoso
-            if getattr(self, "_successful_login", False):
-                return
-            QApplication.quit()
-        except Exception:
-            pass
+                QApplication.quit()
+            except Exception:
+                pass
+
+    def _close_prev_window(self):
+        if self._prev_window is not None:
+            try:
+                self._prev_window._skip_quit = True
+                self._prev_window.close()
+            except Exception:
+                pass
+            self._prev_window = None
 
     def eventFilter(self, watched, event):
         # Hide left panel if width small
@@ -1334,12 +1335,13 @@ class LoginWindow(QMainWindow):
 
             # Mantener referencia para evitar GC
             self._child_window = w
+            self._login_success = True
             w.show()
-
-            self._successful_login = True
+            self._close_prev_window()
             self.close()
 
         except Exception as e:
+            self._login_success = False
             self.show_error(f"Error al abrir admin: {e}")
 
     def _open_local(self, user: dict):
@@ -1356,10 +1358,11 @@ class LoginWindow(QMainWindow):
 
             # Mantener referencia para evitar GC
             self._child_window = w
+            self._login_success = True
             w.show()
-
-            self._successful_login = True
+            self._close_prev_window()
             self.close()
 
         except Exception as e:
+            self._login_success = False
             self.show_error(f"Error al abrir local: {e}")

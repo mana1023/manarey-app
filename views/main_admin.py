@@ -112,9 +112,10 @@ class AdminWindow(QMainWindow):
         super().__init__()
         self.username = username
         self.role = role or "admin"
-        self.local = local or ""  # local “por defecto” de trabajo (si aplica)
+        self.local = local or ""  # local "por defecto" de trabajo (si aplica)
         self.child = None  # ventana hija (Stock/Historial/etc.)
         self._presence_timer = None
+        self._skip_quit = False
 
         self.setWindowTitle("Panel de Administración")
         self.setProperty("manarey_no_scale", True)
@@ -474,7 +475,7 @@ class AdminWindow(QMainWindow):
         self.child = child
         self.child.setWindowTitle(title)
 
-        # armo botón “Volver” dentro de la vista hija con callback a _back_to_menu()
+        # armo botón "Volver" dentro de la vista hija con callback a _back_to_menu()
         def back():
             try:
                 self.child.close()
@@ -604,13 +605,13 @@ class AdminWindow(QMainWindow):
 
     def open_updates(self):
         """
-        Abre la vista de “Mandar actualizaciones” si existe; si no, muestra un aviso.
+        Abre la vista de "Mandar actualizaciones" si existe; si no, muestra un aviso.
         """
         try:
             dlg = UpdateDialog(self)
             dlg.exec_()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Falló ‘Mandar actualizaciones’:\n{e}")
+            QMessageBox.critical(self, "Error", f"Falló 'Mandar actualizaciones':\n{e}")
 
     def open_problemas(self):
         """Abre la vista de mensajes de locales."""
@@ -1141,7 +1142,7 @@ class AdminWindow(QMainWindow):
             self.hide()
             from views.login_view import LoginWindow
 
-            self._login_win = LoginWindow(skip_autologin=True)
+            self._login_win = LoginWindow(skip_autologin=True, prev_window=self)
             self._login_win.show()
         except Exception:
             self.close()
