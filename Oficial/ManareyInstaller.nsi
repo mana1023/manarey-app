@@ -2,7 +2,7 @@
 !include "WinMessages.nsh"
 
 !define APP_NAME "Manarey"
-!define APP_VERSION "1.0.78"
+!define APP_VERSION "1.0.80"
 !define APP_PUBLISHER "Manarey"
 !define APP_EXE "Manarey.exe"
 !define ROOT_DIR "C:\Users\USUARIO\Desktop\Manarey"
@@ -38,8 +38,8 @@ Section "Manarey" SEC01
   SetRegView 64
   SetOutPath "$INSTDIR"
   File /r "${ROOT_DIR}\\dist\\Manarey\\*"
-  File "${ROOT_DIR}\\config.json"
-  File "${ROOT_DIR}\\.dburl"
+  File /nonfatal "${ROOT_DIR}\\config.json"
+  File /nonfatal "${ROOT_DIR}\\.dburl"
 
   ; Instalar VC++ Runtime si está disponible (evita crashes de Qt)
   IfFileExists "${VCRUNTIME}" 0 +4
@@ -85,6 +85,8 @@ Section "Uninstall"
   DeleteRegKey HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_NAME}"
   DeleteRegKey HKLM "Software\\${APP_NAME}"
 SectionEnd
+
+
 
 
 

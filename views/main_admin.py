@@ -5,58 +5,8 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Tuple
 
-from PyQt5.QtCore import QByteArray, QDate, Qt, QTimer, QUrl, pyqtSignal
+from PyQt5.QtCore import QByteArray, QDate, Qt, QTimer, QUrl
 from PyQt5.QtGui import QColor, QDesktopServices, QFont
-
-try:
-    import app_theme as _theme
-
-    def _T(k, fallback):
-        return _theme.get_palette_value(k) or fallback
-
-except ImportError:
-
-    def _T(k, fallback):
-        return fallback
-
-
-# ── Constantes de color dinámicas (se recalculan al arrancar) ────────────────
-def _colors():
-    return {
-        "DORADO": _T("GOLD", "#C9A040"),
-        "DARK": _T("BG", "#1f1f22"),
-        "CARD": _T("CARD", "#232327"),
-        "BORDER": _T("BORDER", "#34343a"),
-        "TEXT": _T("TEXT", "#ECECF1"),
-        "MUTED": _T("TEXT_MUTED", "#c9c9cf"),
-        "BG": _T("BG", "#0f0f14"),
-        "BG_ALT": _T("BG_ALT", "#1a1a22"),
-        "CARD_BG": _T("CARD", "#1a1a22"),
-        "CARD_BORDER": _T("BORDER", "rgba(201,160,64,0.18)"),
-        "ACCENT": _T("GOLD", "#C9A040"),
-        "TEXT_MUTED": _T("TEXT_MUTED", "#a0a0a8"),
-        "PRIMARY": _T("GOLD", "#C9A040"),
-        "GREEN": "#5E8B6F",
-    }
-
-
-_c = _colors()
-DORADO = _c["DORADO"]
-DARK = _c["DARK"]
-CARD = _c["CARD"]
-BORDER = _c["BORDER"]
-TEXT = _c["TEXT"]
-MUTED = _c["MUTED"]
-BG = _c["BG"]
-BG_ALT = _c["BG_ALT"]
-CARD_BG = _c["CARD_BG"]
-CARD_BORDER = _c["CARD_BORDER"]
-ACCENT = _c["ACCENT"]
-TEXT_MUTED = _c["TEXT_MUTED"]
-PRIMARY = _c["PRIMARY"]
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -84,6 +34,14 @@ from models import db as db_mod
 from models import problemas_model as pm
 from models import ventas_model as vm
 
+BG = "#0f131a"
+BG_ALT = "#141b26"
+CARD_BG = "#151d2a"
+CARD_BORDER = "rgba(255,255,255,0.08)"
+TEXT = "#e5e7eb"
+TEXT_MUTED = "#a1a1aa"
+ACCENT = "#f59e0b"
+
 
 class AdminCard(QFrame):
     def __init__(self, icon: str, title: str, desc: str, color: str, callback=None):
@@ -92,17 +50,17 @@ class AdminCard(QFrame):
         self._callback = callback
 
         self.setCursor(Qt.PointingHandCursor)
-        self.setMinimumHeight(120)
+        self.setMinimumHeight(150)
         self.setStyleSheet(
             f"""
             QFrame {{
-                background: {_T('CARD', '#1a1a22')};
-                border: 1px solid {_T('BORDER', 'rgba(201,160,64,0.18)')};
+                background: {CARD_BG};
+                border: 1px solid {CARD_BORDER};
                 border-radius: 16px;
             }}
             QFrame:hover {{
                 border: 1px solid {color};
-                background: {_T('BG_ALT', '#252530')};
+                background: #1b2535;
             }}
         """
         )
@@ -123,14 +81,12 @@ class AdminCard(QFrame):
 
         self.title_lbl = QLabel(title)
         self.title_lbl.setFont(QFont("Segoe UI", 14, QFont.Bold))
-        self.title_lbl.setStyleSheet(f"color: {_T('TEXT', '#ECECF1')};")
+        self.title_lbl.setStyleSheet(f"color: {TEXT};")
         layout.addWidget(self.title_lbl)
 
         desc_lbl = QLabel(desc)
         desc_lbl.setWordWrap(True)
-        desc_lbl.setStyleSheet(
-            f"color: {_T('TEXT_MUTED', '#a0a0a8')}; font-size: 11px;"
-        )
+        desc_lbl.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px;")
         layout.addWidget(desc_lbl)
 
         layout.addStretch()
@@ -147,117 +103,35 @@ class AdminCard(QFrame):
         super().mousePressEvent(event)
 
 
-# ─── Botón de actualización disponible (banner de cabecera) ──────────────────
-class UpdateBanner(QFrame):
-    """Banda dorada que aparece cuando hay una nueva versión de la app."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("update_banner")
-        self.hide()
-        self.setStyleSheet(
-            "QFrame#update_banner {"
-            "  background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            "    stop:0 #1A160A, stop:0.5 #2A2010, stop:1 #1A160A);"
-            "  border: 1px solid rgba(214,179,106,0.7);"
-            "  border-radius: 12px;"
-            "}"
-        )
-
-        lay = QHBoxLayout(self)
-        lay.setContentsMargins(16, 10, 16, 10)
-        lay.setSpacing(14)
-
-        icon_lbl = QLabel("⬆")
-        icon_lbl.setStyleSheet(
-            "font-size: 22px; color: #D6B36A; background: transparent;"
-        )
-        lay.addWidget(icon_lbl)
-
-        self._msg_lbl = QLabel("Nueva versión disponible")
-        self._msg_lbl.setStyleSheet(
-            "color: #E8D48A; font-size: 13px; font-weight: 600; background: transparent;"
-        )
-        lay.addWidget(self._msg_lbl, 1)
-
-        self._btn = QPushButton("Instalar ahora")
-        self._btn.setCursor(Qt.PointingHandCursor)
-        self._btn.setFixedHeight(34)
-        self._btn.setStyleSheet(
-            "QPushButton {"
-            "  background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            "    stop:0 #B8913A, stop:1 #D6B36A);"
-            "  color: #0f0f14; font-size: 12px; font-weight: 700;"
-            "  border: none; border-radius: 8px; padding: 0 18px;"
-            "}"
-            "QPushButton:hover { background: #E8C86A; }"
-            "QPushButton:pressed { background: #A07828; }"
-        )
-        lay.addWidget(self._btn)
-
-        btn_dismiss = QPushButton("✕")
-        btn_dismiss.setCursor(Qt.PointingHandCursor)
-        btn_dismiss.setFixedSize(28, 28)
-        btn_dismiss.setToolTip("Ignorar por ahora")
-        btn_dismiss.setStyleSheet(
-            "QPushButton { background: transparent; color: rgba(214,179,106,0.5);"
-            "border: none; font-size: 14px; }"
-            "QPushButton:hover { color: #D6B36A; }"
-        )
-        btn_dismiss.clicked.connect(self.hide)
-        lay.addWidget(btn_dismiss)
-
-    def set_version(self, version: str):
-        self._msg_lbl.setText(f"Nueva versión disponible: v{version}")
-        self._btn.setText(f"⬆  Actualizar a v{version}")
-
-    def connect_install(self, callback):
-        self._btn.clicked.connect(callback)
-
-
 # ----------------------------------------------------------
 # Ventana principal de Administrador
 # Acepta (username, role, local) como pedía login_view.py
 # ----------------------------------------------------------
 class AdminWindow(QMainWindow):
-    # Señales thread-safe para comunicar del bg thread al main thread (UI)
-    _update_available_signal = pyqtSignal(str)  # arg: version
-    _update_retry_signal = pyqtSignal(int)  # arg: retry index
-
     def __init__(self, username: str, role: str, local: str = None):
         super().__init__()
         self.username = username
         self.role = role or "admin"
-        self.local = local or ""  # local "por defecto" de trabajo (si aplica)
+        self.local = local or ""  # local “por defecto” de trabajo (si aplica)
         self.child = None  # ventana hija (Stock/Historial/etc.)
         self._presence_timer = None
-        # Conectar señales de updates (se disparan desde bg thread → slot en main thread)
-        self._update_available_signal.connect(self._on_update_available_slot)
-        self._update_retry_signal.connect(self._on_update_retry_slot)
 
         self.setWindowTitle("Panel de Administración")
         self.setProperty("manarey_no_scale", True)
-        self.setProperty("manarey_no_autoresize", True)
+        self.setProperty("manarey_no_autoresize", False)
         self.setProperty("manarey_no_kiosk", True)
-        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
         self.setMinimumSize(860, 580)
+        self.resize(1100, 760)
         self._initial_maximize_pending = True
         self._restore_window_state()
         self.setStyleSheet(
             f"""
             QMainWindow {{
-                background: {_T('BG', '#0f0f14')};
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 {BG}, stop:1 {BG_ALT});
             }}
-            QWidget {{ background: transparent; color:{_T('TEXT', '#ECECF1')}; }}
-            QLabel {{ color:{_T('TEXT', '#ECECF1')}; background: transparent; }}
-            QPushButton {{
-                font-size:14px; font-weight:600;
-                background: {_T('SURFACE', '#252530')}; color:{_T('TEXT', '#ECECF1')};
-                border: 1px solid {_T('BORDER', '#3e3e44')}; border-radius: 10px;
-                padding: 8px 16px;
-            }}
-            QPushButton:hover {{ background: {_T('BG_ALT', '#34343a')}; }}
-            QScrollArea {{ background: {_T('BG', '#0f0f14')}; border: none; }}
+            QLabel {{ color:{TEXT}; }}
+            QPushButton {{ font-size:16px; font-weight:600; }}
         """
         )
 
@@ -279,42 +153,36 @@ class AdminWindow(QMainWindow):
         head_wrap.setStyleSheet(
             f"""
             QFrame {{
-                background: {_T('TH_BG', '#141420')};
-                border: 1px solid {_T('BORDER', 'rgba(201,160,64,0.18)')};
+                background: #0b111b;
+                border: 1px solid {CARD_BORDER};
                 border-radius: 16px;
                 padding: 14px;
             }}
         """
         )
-        self._head_wrap = head_wrap
         head_lay = QVBoxLayout(head_wrap)
         head_lay.setContentsMargins(16, 14, 16, 14)
         head_lay.setSpacing(6)
 
         head = QLabel(f"Administrador — {self.username}")
         head.setFont(QFont("Segoe UI", 26, QFont.Black))
-        head.setStyleSheet(f"color:{_T('GOLD', '#C9A040')};")
+        head.setStyleSheet(f"color:{ACCENT};")
         head_lay.addWidget(head)
 
         sub_text = "Centro de control de ventas, stock y mensajes."
         if self.local:
             sub_text = f"Local por defecto: {self.local} · {sub_text}"
         sub = QLabel(sub_text)
-        sub.setStyleSheet(f"color:{_T('TEXT_MUTED', '#a0a0a8')}; font-size: 12px;")
+        sub.setStyleSheet(f"color:{TEXT_MUTED}; font-size: 12px;")
         head_lay.addWidget(sub)
 
         self.root.addWidget(head_wrap)
-
-        # Banner de actualización (oculto hasta que se detecte update)
-        self._update_banner = UpdateBanner()
-        self._update_banner.connect_install(self._install_app_update)
-        self.root.addWidget(self._update_banner)
 
         self.root.addSpacing(8)
 
         section = QLabel("Acciones principales")
         section.setStyleSheet(
-            f"color:{_T('TEXT_MUTED', '#a0a0a8')}; font-size: 12px; letter-spacing: 1px;"
+            f"color:{TEXT_MUTED}; font-size: 12px; letter-spacing: 1px;"
         )
         self.root.addWidget(section)
 
@@ -356,7 +224,7 @@ class AdminWindow(QMainWindow):
                 "📣",
                 "Mandar actualizaciones",
                 "Envía avisos a todos los locales.",
-                "#7697B8",
+                "#38bdf8",
                 self.open_updates,
             ),
             (
@@ -393,10 +261,6 @@ class AdminWindow(QMainWindow):
         self.root.addStretch()
         self._start_presence_pings()
         QTimer.singleShot(1200, self._check_updates)
-        # Re-check periódico cada 30 min mientras la app esté abierta
-        self._updates_timer = QTimer(self)
-        self._updates_timer.timeout.connect(lambda: self._check_updates(_retry=0))
-        self._updates_timer.start(30 * 60 * 1000)
         QTimer.singleShot(1500, self._notify_new_messages)
         self._messages_timer = QTimer(self)
         self._messages_timer.timeout.connect(self._update_messages_badge)
@@ -407,6 +271,18 @@ class AdminWindow(QMainWindow):
         # Cerrar sesión
         row_logout = QHBoxLayout()
         row_logout.addStretch()
+
+        self._update_btn = QPushButton("⬆  Actualizar")
+        self._update_btn.setCursor(Qt.PointingHandCursor)
+        self._update_btn.setFixedHeight(34)
+        self._update_btn.hide()
+        self._update_btn.setStyleSheet(
+            "QPushButton{background:#1a2a1a;color:#4CAF7D;border:1px solid #4CAF7D;"
+            "border-radius:8px;padding:4px 14px;font-weight:bold;}"
+            "QPushButton:hover{background:#4CAF7D;color:#fff;}"
+        )
+        self._update_btn.clicked.connect(self._install_app_update)
+        row_logout.addWidget(self._update_btn)
 
         btn_settings = QPushButton("⚙️")
         btn_settings.setCursor(Qt.PointingHandCursor)
@@ -435,26 +311,17 @@ class AdminWindow(QMainWindow):
 
     def _start_presence_pings(self):
         try:
-            import threading
-
             from models import update_center, user_model
 
-            username_ref = self.username
-
             def ping():
-                """Dispara el ping en background para no bloquear la UI."""
-
-                def _bg():
-                    try:
-                        user_model.update_last_seen(username_ref)
-                    except Exception:
-                        pass
-                    try:
-                        update_center.latest_update()
-                    except Exception:
-                        pass
-
-                threading.Thread(target=_bg, daemon=True).start()
+                try:
+                    user_model.update_last_seen(self.username)
+                except Exception:
+                    pass
+                try:
+                    update_center.latest_update()
+                except Exception:
+                    pass
 
             ping()
             self._presence_timer = QTimer(self)
@@ -552,62 +419,32 @@ class AdminWindow(QMainWindow):
         except Exception:
             return (0,)
 
-    def _check_updates(self, _retry: int = 0):
-        """Consulta si hay versión nueva del app en background para no bloquear la UI.
-
-        Reintenta hasta 3 veces con delay creciente si falla (red lenta, config no encontrado).
-
-        IMPORTANTE: la comunicación bg thread → main thread usa pyqtSignal
-        (thread-safe). Usar QTimer.singleShot desde un threading.Thread NO
-        funciona porque ese hilo no tiene un event loop de Qt.
-        """
-        import threading
-
-        parent_ref = self
-
-        def _bg():
-            try:
-                from updater import get_pending_update, refresh_update_state
-
-                manifest = refresh_update_state()
-                if not manifest:
-                    manifest = get_pending_update()
-                if not manifest or not manifest.get("version"):
-                    if _retry < 3:
-                        parent_ref._update_retry_signal.emit(_retry + 1)
-                    return
-                version = manifest["version"]
-                parent_ref._update_available_signal.emit(str(version))
-            except Exception:
-                if _retry < 3:
-                    parent_ref._update_retry_signal.emit(_retry + 1)
-
-        threading.Thread(target=_bg, daemon=True).start()
-
-    def _on_update_available_slot(self, version: str):
-        """Slot ejecutado en el main thread cuando hay un update disponible."""
+    def _check_updates(self):
+        """Consulta GitHub/Supabase y muestra el botón de actualización si hay versión nueva."""
         try:
-            if hasattr(self, "_update_banner"):
-                self._update_banner.set_version(version)
-                self._update_banner.show()
-        except Exception:
-            pass
+            from updater import get_pending_update, refresh_update_state
 
-    def _on_update_retry_slot(self, next_retry: int):
-        """Slot ejecutado en el main thread para programar un reintento."""
-        try:
-            delays = [60_000, 120_000, 300_000]
-            idx = max(0, min(next_retry - 1, len(delays) - 1))
-            delay = delays[idx]
-            QTimer.singleShot(delay, lambda: self._check_updates(next_retry))
+            manifest = refresh_update_state()
+            if not manifest:
+                manifest = get_pending_update()
+            if not manifest or not manifest.get("version"):
+                return
+            version = manifest["version"]
+            if hasattr(self, "_update_btn"):
+                self._update_btn.setText(f"⬆  Actualizar a v{version}")
+                self._update_btn.show()
         except Exception:
             pass
 
     def _install_app_update(self):
-        """Abre el diálogo de instalación de la actualización pendiente."""
+        """Abre el diálogo de instalación y ejecuta el instalador si el usuario acepta."""
         try:
             from ui.ui_update_dialog import UpdateDialog as AppUpdateDialog
-            from updater import get_pending_update
+            from updater import (
+                get_current_version,
+                get_pending_update,
+                start_update_from_pending,
+            )
 
             pending = get_pending_update()
             if not pending:
@@ -615,10 +452,12 @@ class AdminWindow(QMainWindow):
             dlg = AppUpdateDialog(self)
             dlg.set_update_info(
                 version=pending.get("version", ""),
-                changelog=pending.get("changelog", ""),
+                changelog=pending.get("notes") or pending.get("changelog", ""),
                 mandatory=bool(pending.get("mandatory")),
+                current_version=get_current_version(),
             )
-            dlg.exec_()
+            if dlg.exec_() == AppUpdateDialog.Accepted:
+                start_update_from_pending(parent_widget=self)
         except Exception as exc:
             QMessageBox.critical(
                 self, "Error", f"No se pudo abrir la actualización:\n{exc}"
@@ -628,34 +467,23 @@ class AdminWindow(QMainWindow):
     # Navegación a sub-vistas
     # -------------------------
     def _push_view(self, child: QMainWindow, title: str):
-        # Oculta el menú de admin y muestra una vista hija con callback para volver
+        """
+        Oculta el menú de admin y muestra una vista hija (Stock/Historial/etc.)
+        con un callback para volver.
+        """
         self.child = child
         self.child.setWindowTitle(title)
 
-        # Propagar tema actual
-        try:
-            import app_theme as _at
-
-            _at.apply_to_app()
-            ss = _at.build_stylesheet(_at.is_dark_mode(), _at.get_font_size_px())
-            child.setStyleSheet(ss)
-            if hasattr(child, "refresh_theme"):
-                child.refresh_theme()
-        except Exception:
-            pass
-
-        # armo botón "Volver" dentro de la vista hija con callback a _back_to_menu()
+        # armo botón “Volver” dentro de la vista hija con callback a _back_to_menu()
         def back():
-            child = self.child
-            self.show()
-            self.raise_()
-            self.activateWindow()
             try:
-                if child is not None:
-                    child.close()
+                self.child.close()
             except Exception:
                 pass
             self.child = None
+            self.show()
+            self.raise_()
+            self.activateWindow()
 
         # si la vista hija soporta un atributo back_command, lo usamos
         if hasattr(self.child, "back_command") and self.child.back_command is None:
@@ -673,16 +501,15 @@ class AdminWindow(QMainWindow):
 
     def _back_to_menu(self):
         """Vuelve al menú de admin (por si lo llaman directamente)."""
-        child = self.child
+        if self.child is not None:
+            try:
+                self.child.close()
+            except Exception:
+                pass
+            self.child = None
         self.show()
         self.raise_()
         self.activateWindow()
-        if child is not None:
-            try:
-                child.close()
-            except Exception:
-                pass
-        self.child = None
 
     # -------------------------
     # Acciones de los botones
@@ -777,13 +604,13 @@ class AdminWindow(QMainWindow):
 
     def open_updates(self):
         """
-        Abre la vista de "Mandar actualizaciones" si existe; si no, muestra un aviso.
+        Abre la vista de “Mandar actualizaciones” si existe; si no, muestra un aviso.
         """
         try:
             dlg = UpdateDialog(self)
             dlg.exec_()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Falló 'Mandar actualizaciones':\n{e}")
+            QMessageBox.critical(self, "Error", f"Falló ‘Mandar actualizaciones’:\n{e}")
 
     def open_problemas(self):
         """Abre la vista de mensajes de locales."""
@@ -803,31 +630,12 @@ class AdminWindow(QMainWindow):
         self._push_view(child, "Mensajes de locales")
         QTimer.singleShot(1200, self._update_messages_badge)
 
-    def refresh_theme(self):
-        """Aplica el tema global cuando cambia dark/light mode."""
-        try:
-            import app_theme as _at
-
-            dark = _at.is_dark_mode()
-            px = _at.get_font_size_px()
-            self.setStyleSheet(_at.build_stylesheet(dark, px))
-            # Re-apply head_wrap frame style
-            if hasattr(self, "_head_wrap"):
-                self._head_wrap.setStyleSheet(
-                    f"QFrame {{ background:{_at._palette(dark)['TH_BG']};"
-                    f" border:1px solid {_at._palette(dark)['BORDER']};"
-                    f" border-radius:16px; padding:14px; }}"
-                )
-        except Exception:
-            pass
-
     def open_settings(self):
         try:
             from views.settings_dialog import SettingsDialog
 
             dlg = SettingsDialog(self)
-            if dlg.exec_():
-                self.refresh_theme()
+            dlg.exec_()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo abrir ajustes:\n{e}")
 
@@ -910,9 +718,10 @@ class AdminWindow(QMainWindow):
         try:
             screen = self.screen()
             if screen is not None:
-                geo = screen.geometry()
+                geo = screen.availableGeometry()
                 self.setGeometry(geo)
-            self.showFullScreen()
+            self.setWindowState(self.windowState() | Qt.WindowMaximized)
+            self.showMaximized()
         except Exception:
             pass
         QTimer.singleShot(0, self._apply_responsive_layout)
@@ -1276,11 +1085,6 @@ class AdminWindow(QMainWindow):
             pass
         self._persist_window_state()
         super().closeEvent(event)
-        # Nota: NO llamamos a QApplication.quit() acá.
-        # Si lo hacemos, al cerrar sesión (que crea LoginWindow + hide() esta)
-        # la app entera muere cuando esta ventana se destruye. Qt ya termina
-        # la app automáticamente cuando se cierra la última ventana visible
-        # (quitOnLastWindowClosed = True por defecto).
 
     def _prefs_path(self):
         appdata = os.environ.get("APPDATA")
@@ -1334,33 +1138,12 @@ class AdminWindow(QMainWindow):
         except Exception:
             pass
         try:
-            # Desmarcar "recordarme" para evitar autologin al reabrir
-            try:
-                appdata = os.environ.get("APPDATA")
-                if appdata:
-                    prefs_path = os.path.join(appdata, "Manarey", "user_prefs.json")
-                else:
-                    prefs_path = os.path.join(
-                        os.path.expanduser("~"), ".manarey_prefs", "user_prefs.json"
-                    )
-                if os.path.exists(prefs_path):
-                    with open(prefs_path, "r", encoding="utf-8") as f:
-                        prefs = json.load(f) or {}
-                    prefs["remember"] = False
-                    with open(prefs_path, "w", encoding="utf-8") as f:
-                        json.dump(prefs, f, indent=2)
-            except Exception:
-                pass
-
+            self.hide()
             from views.login_view import LoginWindow
 
             self._login_win = LoginWindow(skip_autologin=True)
             self._login_win.show()
-            self.close()
         except Exception:
-            import traceback
-
-            traceback.print_exc()
             self.close()
 
 
