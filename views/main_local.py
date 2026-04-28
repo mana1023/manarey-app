@@ -1,9 +1,10 @@
 # views/main_local.py — Menú principal de local, estilo Mueblería Manarey
 import json
 import os
+import threading
 from datetime import datetime
 
-from PyQt5.QtCore import QByteArray, QSize, Qt, QTimer
+from PyQt5.QtCore import QByteArray, QObject, QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import (
     QBrush,
     QColor,
@@ -296,6 +297,8 @@ class NavButton(QPushButton):
 class LocalWindow(QMainWindow):
     """Panel principal de local — estilo Mueblería Manarey."""
 
+    _update_found = pyqtSignal(str)  # version string
+
     def __init__(self, username: str, role: str, local: str):
         super().__init__()
         self.username = username
@@ -352,6 +355,7 @@ class LocalWindow(QMainWindow):
 
         # Timers
         self._start_presence_pings()
+        self._update_found.connect(self._on_update_found)
         QTimer.singleShot(1500, self._check_updates)
         self._messages_timer = QTimer(self)
         self._messages_timer.timeout.connect(self._update_messages_badge)
@@ -1007,15 +1011,31 @@ class LocalWindow(QMainWindow):
 
     # ── Actualizaciones ───────────────────────────────────────────────────────
     def _check_updates(self):
-        try:
-            from updater import get_pending_update, refresh_update_state
+        """Lanza la verificación de updates en un hilo de fondo para no bloquear la UI."""
 
-            manifest = refresh_update_state()
-            if not manifest:
-                manifest = get_pending_update()
-            if not manifest or not manifest.get("version"):
-                return
-            version = manifest["version"]
+        def _worker():
+            try:
+                from updater import get_pending_update, refresh_update_state
+
+                manifest = refresh_update_state()
+                if not manifest:
+                    manifest = get_pending_update()
+                if not manifest or not manifest.get("version"):
+                    return
+                version = manifest["version"]
+                try:
+                    self._update_found.emit(version)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        t = threading.Thread(target=_worker, daemon=True)
+        t.start()
+
+    def _on_update_found(self, version: str):
+        """Slot en el hilo principal: muestra el botón de actualización."""
+        try:
             if hasattr(self, "_nav_update_btn"):
                 self._nav_update_btn.setText(f"⬆  Actualizar a v{version}")
                 self._nav_update_btn.show()
