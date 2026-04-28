@@ -1,6 +1,5 @@
 import logging
 import os
-import tempfile
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
@@ -11,7 +10,6 @@ from models import stock_queue_api as qa
 from models.db import get_connection as get_conn
 from models.db import is_postgres
 from models.db import put_connection as put_conn
-from utils.validators import validate_venta
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +32,18 @@ _APP_SETTINGS_SCHEMA_OK = None
 
 def _now_local() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _pdf_dir() -> str:
+    """Devuelve la carpeta donde se guardan los PDFs generados.
+
+    Usa LOCALAPPDATA/Manarey/boletas en lugar de tempfile para evitar que
+    visores como Edge bloqueen la apertura por política de seguridad en rutas temp.
+    """
+    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    path = os.path.join(base, "Manarey", "boletas")
+    os.makedirs(path, exist_ok=True)
+    return path
 
 
 def _generate_numero_venta() -> str:
@@ -2841,17 +2851,6 @@ def registrar_venta(
     tarjeta_interes_pct: float = 0,
     tarjeta_interes_monto: float = 0,
 ) -> Tuple[bool, str, Optional[int]]:
-    # Validar datos antes de tocar la DB o la cola offline
-    _venta_data_for_validation = dict(
-        local=local,
-        items=items,
-        forma_pago=forma_pago,
-        cliente_data=cliente_data,
-    )
-    _venta_ok, _venta_errores = validate_venta(_venta_data_for_validation)
-    if not _venta_ok:
-        return False, "Error: " + _venta_errores[0], None
-
     payload = dict(
         local=local,
         vendedor=vendedor,
@@ -3071,10 +3070,9 @@ def generar_pdf_boleta(venta_id: int) -> Tuple[bool, str]:
             if not payload:
                 return False, "Venta offline no encontrada"
             boleta = _boleta_from_payload(payload)
-            temp_dir = tempfile.mkdtemp(prefix="manarey_boleta_")
             fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             filepath = os.path.join(
-                temp_dir, f"boleta_offline_{offline_id}_{fecha_str}.pdf"
+                _pdf_dir(), f"boleta_offline_{offline_id}_{fecha_str}.pdf"
             )
             ok, res = generar_boleta_pdf_a4_duplicada(boleta, filepath)
             if not ok:
@@ -3085,9 +3083,8 @@ def generar_pdf_boleta(venta_id: int) -> Tuple[bool, str]:
         if not venta:
             return False, "Venta no encontrada"
 
-        temp_dir = tempfile.mkdtemp(prefix="manarey_boleta_")
         fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filepath = os.path.join(temp_dir, f"boleta_{venta_id}_{fecha_str}.pdf")
+        filepath = os.path.join(_pdf_dir(), f"boleta_{venta_id}_{fecha_str}.pdf")
         boleta = _build_boleta_dict_from_venta(venta)
 
         ok, res = generar_boleta_pdf_a4_duplicada(boleta, filepath)
@@ -3160,10 +3157,9 @@ def generar_pdf_completacion_pago(venta_id: int) -> Tuple[bool, str]:
             or "",
         }
 
-        temp_dir = tempfile.mkdtemp(prefix="manarey_boleta_completacion_")
         fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = os.path.join(
-            temp_dir, f"boleta_completacion_{venta_id}_{fecha_str}.pdf"
+            _pdf_dir(), f"boleta_completacion_{venta_id}_{fecha_str}.pdf"
         )
         ok, res = generar_boleta_pdf_a4_duplicada(boleta, filepath)
         if not ok:
@@ -3266,9 +3262,8 @@ def generar_pdf_remito(venta_id: int) -> Tuple[bool, str]:
         if not venta:
             return False, "Venta no encontrada"
 
-        temp_dir = tempfile.mkdtemp(prefix="manarey_remito_")
         fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filepath = os.path.join(temp_dir, f"remito_{venta_id}_{fecha_str}.pdf")
+        filepath = os.path.join(_pdf_dir(), f"remito_{venta_id}_{fecha_str}.pdf")
 
         ok, msg = generar_remito_pdf(venta, filepath)
         if not ok:
@@ -3297,9 +3292,8 @@ def generar_pdf_remitos(venta_ids: List[int]) -> Tuple[bool, str, List[str], Lis
         if not ventas:
             return False, "No hay ventas para imprimir", errors, []
 
-        temp_dir = tempfile.mkdtemp(prefix="manarey_remitos_")
         fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filepath = os.path.join(temp_dir, f"remitos_{fecha_str}.pdf")
+        filepath = os.path.join(_pdf_dir(), f"remitos_{fecha_str}.pdf")
 
         ok, msg = generar_remitos_pdf(ventas, filepath)
         if not ok:

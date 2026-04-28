@@ -69,16 +69,7 @@ class AdminView(QMainWindow):
 
         # Configurar tema
         self.theme = ThemeManager()
-        try:
-            import app_theme as _at_av
-
-            self.setStyleSheet(
-                _at_av.build_stylesheet(
-                    _at_av.is_dark_mode(), _at_av.get_font_size_px()
-                )
-            )
-        except Exception:
-            self.setStyleSheet(self.theme.get_stylesheet())
+        self.setStyleSheet(self.theme.get_stylesheet())
 
         # Configurar ventana principal
         self.central_widget = QWidget()
@@ -115,35 +106,7 @@ class AdminView(QMainWindow):
 
     def init_ui(self):
         """Inicializa la interfaz de usuario."""
-        # Header con botón volver + título
-        header = QHBoxLayout()
-        header.setSpacing(14)
-        if self.back_command:
-            back_btn = QPushButton("← Volver")
-            back_btn.setCursor(Qt.PointingHandCursor)
-            try:
-                import app_theme as _at_bk3
-
-                _c_bk3 = _at_bk3._palette(_at_bk3.is_dark_mode())
-                back_btn.setStyleSheet(
-                    f"QPushButton{{background:{_c_bk3['BG_ALT']};color:{_c_bk3['GOLD']};"
-                    f"border:1px solid {_c_bk3['BORDER']};border-radius:10px;padding:8px 14px;font-weight:700;}}"
-                    f"QPushButton:hover{{background:{_c_bk3['SURFACE']};border-color:{_c_bk3['GOLD']};}}"
-                )
-            except Exception:
-                back_btn.setStyleSheet(
-                    "QPushButton{background:#34343a;color:#C9A040;border:1px solid #3e3e44;"
-                    "border-radius:10px;padding:8px 14px;font-weight:700;}"
-                )
-            back_btn.clicked.connect(self._go_back)
-            header.addWidget(back_btn)
-        title_lbl = QLabel(f"Panel de Administración — {self.username}")
-        title_lbl.setStyleSheet("color:#C9A040;font-size:20px;font-weight:800;")
-        header.addWidget(title_lbl)
-        header.addStretch()
-        self.main_layout.addLayout(header)
-
-        # Barra de herramientas (sin botón volver)
+        # Barra de herramientas
         self.setup_toolbar()
 
         # Pestañas principales
@@ -166,6 +129,11 @@ class AdminView(QMainWindow):
     def setup_toolbar(self):
         """Configura la barra de herramientas."""
         toolbar = self.addToolBar("Herramientas")
+
+        # Botón volver al menú/admin
+        back_btn = QPushButton("← Volver")
+        back_btn.clicked.connect(self._go_back)
+        toolbar.addWidget(back_btn)
 
         # Botón de actualizar
         refresh_btn = QPushButton("Refrescar")
@@ -657,9 +625,14 @@ class AdminView(QMainWindow):
                 f"boleta_{boleta_dict.get('numero_boleta', 'reprint')}_{timestamp}.pdf"
             )
 
-            # Guardar en carpeta temporal (no se persiste en el proyecto)
-            temp_dir = tempfile.mkdtemp(prefix="manarey_boleta_")
-            out_path = os.path.join(temp_dir, filename)
+            # Guardar en LOCALAPPDATA/Manarey/boletas (accesible para todos los visores PDF)
+            boletas_dir = os.path.join(
+                os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"),
+                "Manarey",
+                "boletas",
+            )
+            os.makedirs(boletas_dir, exist_ok=True)
+            out_path = os.path.join(boletas_dir, filename)
 
             success, msg = generar_boleta_pdf_a4_duplicada(boleta_dict, out_path)
 
