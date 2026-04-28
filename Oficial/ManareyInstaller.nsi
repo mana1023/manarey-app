@@ -2,7 +2,7 @@
 !include "WinMessages.nsh"
 
 !define APP_NAME "Manarey"
-!define APP_VERSION "1.0.82"
+!define APP_VERSION "1.0.83"
 !define APP_PUBLISHER "Manarey"
 !define APP_EXE "Manarey.exe"
 !define ROOT_DIR "C:\Users\USUARIO\Desktop\Manarey"
