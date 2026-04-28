@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime
 
-from PyQt5.QtCore import QByteArray, QSize, Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import QByteArray, QSize, Qt, QTimer
 from PyQt5.QtGui import (
     QBrush,
     QColor,
@@ -175,9 +175,8 @@ class MenuCard(QFrame):
         self.color = color
         self._base_title = title
         self._hovered = False
-        self._icon_str = icon
 
-        self.setMinimumSize(120, 100)
+        self.setMinimumSize(160, 170)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setCursor(Qt.PointingHandCursor)
 
@@ -259,27 +258,6 @@ class MenuCard(QFrame):
             f"color: {c}; background: transparent; line-height: 130%;"
         )
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        # Escalar ícono y título según el tamaño actual de la tarjeta
-        h = max(100, self.height())
-        w = max(100, self.width())
-        # Ícono: entre 28px y 90px proporcional a la altura
-        icon_px = max(28, min(90, int(h * 0.30)))
-        self._icon_lbl.setStyleSheet(
-            f"background: transparent; font-size: {icon_px}px;"
-        )
-        # Título: entre 9pt y 18pt proporcional
-        title_pt = max(9, min(18, int(min(w, h) * 0.06)))
-        f = self._title_lbl.font()
-        f.setPointSize(title_pt)
-        self._title_lbl.setFont(f)
-        # Márgenes del layout internos adaptativos
-        pad_h = max(10, int(h * 0.08))
-        pad_w = max(10, int(w * 0.08))
-        self.layout().setContentsMargins(pad_w, pad_h, pad_w, pad_h)
-        self.layout().setSpacing(max(6, int(h * 0.05)))
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  Botón de barra de navegación superior
@@ -318,15 +296,8 @@ class NavButton(QPushButton):
 class LocalWindow(QMainWindow):
     """Panel principal de local — estilo Mueblería Manarey."""
 
-    # Señales thread-safe para comunicar del bg thread al main thread (UI)
-    _update_available_signal = pyqtSignal(str)  # arg: version
-    _update_retry_signal = pyqtSignal(int)  # arg: retry index
-
     def __init__(self, username: str, role: str, local: str):
         super().__init__()
-        # Conectar señales de updates (se disparan desde bg thread → slot en main thread)
-        self._update_available_signal.connect(self._on_update_available_slot)
-        self._update_retry_signal.connect(self._on_update_retry_slot)
         self.username = username
         self.role = role or "local"
         self.local = local or ""
@@ -382,10 +353,6 @@ class LocalWindow(QMainWindow):
         # Timers
         self._start_presence_pings()
         QTimer.singleShot(1500, self._check_updates)
-        # Re-check periódico cada 30 min mientras la app esté abierta
-        self._updates_timer = QTimer(self)
-        self._updates_timer.timeout.connect(lambda: self._check_updates(_retry=0))
-        self._updates_timer.start(30 * 60 * 1000)
         self._messages_timer = QTimer(self)
         self._messages_timer.timeout.connect(self._update_messages_badge)
         self._messages_timer.start(60_000)
@@ -400,9 +367,7 @@ class LocalWindow(QMainWindow):
 
         bar = QFrame()
         bar.setObjectName("nav_bar")
-        bar.setMinimumHeight(42)
-        bar.setMaximumHeight(64)
-        bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        bar.setFixedHeight(50)
         bar.setStyleSheet(
             f"QFrame#nav_bar {{ background: {bar_bg};"
             f"border-bottom: 1px solid {border}; }}"
@@ -592,9 +557,7 @@ class LocalWindow(QMainWindow):
 
         bar = QFrame()
         bar.setObjectName("status_bar")
-        bar.setMinimumHeight(28)
-        bar.setMaximumHeight(44)
-        bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        bar.setFixedHeight(36)
         bar.setStyleSheet(
             f"QFrame#status_bar {{ background: {bar_bg};"
             f"border-top: 1px solid {border}; }}"
@@ -660,9 +623,9 @@ class LocalWindow(QMainWindow):
     # ── Layout responsivo ─────────────────────────────────────────────────────
     def _card_columns(self) -> int:
         w = max(1, self.width())
-        if w < 600:
+        if w < 700:
             return 1
-        if w < 900:
+        if w < 1100:
             return 2
         return 3
 
@@ -724,15 +687,13 @@ class LocalWindow(QMainWindow):
 
         def back():
             try:
-                child = self.child
-                self.show()
-                self.raise_()
-                self.activateWindow()
-                if child is not None:
-                    child.hide()
+                self.child.hide()
             except Exception:
                 pass
             self.child = None
+            self.show()
+            self.raise_()
+            self.activateWindow()
 
         if hasattr(self.child, "back_command") and self.child.back_command is None:
             self.child.back_command = back
@@ -743,27 +704,12 @@ class LocalWindow(QMainWindow):
                 pass
 
         self.hide()
-        # Abrir sub-vista en pantalla completa para adaptarse a cualquier resolución
-        try:
-            screen = self.screen() or self.child.screen()
-            if screen:
-                geo = screen.geometry()
-                self.child.setGeometry(geo)
-        except Exception:
-            pass
-        self.child.showFullScreen()
+        self.child.show()
 
     def on_back(self):
-        child = self.child
+        if self.child:
+            self.child.close()
         self.show()
-        self.raise_()
-        self.activateWindow()
-        if child:
-            try:
-                child.close()
-            except Exception:
-                pass
-        self.child = None
 
     # ── Acciones de tarjetas ──────────────────────────────────────────────────
     def open_stock(self):
@@ -944,11 +890,12 @@ class LocalWindow(QMainWindow):
             pass
         self._persist_window_state()
         super().closeEvent(event)
-        # Nota: NO llamamos a QApplication.quit() acá.
-        # Si lo hacemos, al cerrar sesión (que crea LoginWindow + hide() esta)
-        # la app entera muere cuando esta ventana se destruye. Qt ya termina
-        # la app automáticamente cuando se cierra la última ventana visible
-        # (quitOnLastWindowClosed = True por defecto).
+        try:
+            from PyQt5.QtWidgets import QApplication
+
+            QApplication.quit()
+        except Exception:
+            pass
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -961,46 +908,6 @@ class LocalWindow(QMainWindow):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._apply_responsive_layout()
-        self._rescale_brand_images()
-
-    def _rescale_brand_images(self):
-        """Reescala logo y footer proporcionales al ancho de ventana."""
-        try:
-            w = max(400, self.width())
-            # Logo: 14% del ancho, entre 120px y 320px
-            logo_w = max(120, min(320, int(w * 0.14)))
-            if hasattr(self, "_logo_lbl"):
-                logo_path = os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "assets",
-                    "images",
-                    "logo_manarey_brand.png",
-                )
-                pix = QPixmap(logo_path)
-                if not pix.isNull():
-                    self._logo_lbl.setPixmap(
-                        pix.scaledToWidth(logo_w, Qt.SmoothTransformation)
-                    )
-        except Exception:
-            pass
-        try:
-            w = max(400, self.width())
-            # Footer: 30% del ancho, entre 200px y 520px
-            footer_w = max(200, min(520, int(w * 0.30)))
-            if hasattr(self, "_footer_lbl"):
-                footer_path = os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "assets",
-                    "images",
-                    "menu_footer.png",
-                )
-                pix = QPixmap(footer_path)
-                if not pix.isNull():
-                    self._footer_lbl.setPixmap(
-                        pix.scaledToWidth(footer_w, Qt.SmoothTransformation)
-                    )
-        except Exception:
-            pass
 
     def _force_fill_screen(self):
         try:
@@ -1066,29 +973,11 @@ class LocalWindow(QMainWindow):
         except Exception:
             pass
         try:
-            # Desmarcar "recordarme" para evitar autologin al reabrir
-            try:
-                appdata = os.environ.get("APPDATA")
-                if appdata:
-                    prefs_path = os.path.join(appdata, "Manarey", "user_prefs.json")
-                else:
-                    prefs_path = os.path.join(
-                        os.path.expanduser("~"), ".manarey_prefs", "user_prefs.json"
-                    )
-                if os.path.exists(prefs_path):
-                    with open(prefs_path, "r", encoding="utf-8") as f:
-                        prefs = json.load(f) or {}
-                    prefs["remember"] = False
-                    with open(prefs_path, "w", encoding="utf-8") as f:
-                        json.dump(prefs, f, indent=2)
-            except Exception:
-                pass
-
             from views.login_view import LoginWindow
 
             self._login_win = LoginWindow(skip_autologin=True)
             self._login_win.show()
-            self.close()
+            self.hide()
         except Exception as e:
             import traceback
 
@@ -1098,24 +987,15 @@ class LocalWindow(QMainWindow):
     # ── Presencia ─────────────────────────────────────────────────────────────
     def _start_presence_pings(self):
         try:
-            import threading
-
             from PyQt5.QtCore import QTimer as _QT
 
             from models import user_model
 
-            username_ref = self.username
-
             def ping():
-                """Dispara el ping en background para no bloquear la UI."""
-
-                def _bg():
-                    try:
-                        user_model.update_last_seen(username_ref)
-                    except Exception:
-                        pass
-
-                threading.Thread(target=_bg, daemon=True).start()
+                try:
+                    user_model.update_last_seen(self.username)
+                except Exception:
+                    pass
 
             ping()
             self._presence_timer = _QT(self)
@@ -1126,57 +1006,19 @@ class LocalWindow(QMainWindow):
             pass
 
     # ── Actualizaciones ───────────────────────────────────────────────────────
-    def _check_updates(self, _retry: int = 0):
-        """Chequea actualizaciones en background para no bloquear la UI.
-
-        Si el primer intento falla (sin red, config no encontrado, etc.)
-        reintenta automáticamente hasta 3 veces con delay creciente.
-
-        IMPORTANTE: la comunicación bg thread → main thread usa pyqtSignal
-        (thread-safe). Usar QTimer.singleShot desde un threading.Thread NO
-        funciona porque ese hilo no tiene un event loop de Qt.
-        """
-        import threading
-
-        parent_ref = self
-
-        def _bg():
-            try:
-                from updater import get_pending_update, refresh_update_state
-
-                manifest = refresh_update_state()
-                if not manifest:
-                    manifest = get_pending_update()
-                if not manifest or not manifest.get("version"):
-                    # Reintento si aún no hay update detectado — señal al main thread
-                    if _retry < 3:
-                        parent_ref._update_retry_signal.emit(_retry + 1)
-                    return
-                version = manifest["version"]
-                # Emitir al main thread para mostrar el botón
-                parent_ref._update_available_signal.emit(str(version))
-            except Exception:
-                if _retry < 3:
-                    parent_ref._update_retry_signal.emit(_retry + 1)
-
-        threading.Thread(target=_bg, daemon=True).start()
-
-    def _on_update_available_slot(self, version: str):
-        """Slot ejecutado en el main thread cuando hay un update disponible."""
+    def _check_updates(self):
         try:
+            from updater import get_pending_update, refresh_update_state
+
+            manifest = refresh_update_state()
+            if not manifest:
+                manifest = get_pending_update()
+            if not manifest or not manifest.get("version"):
+                return
+            version = manifest["version"]
             if hasattr(self, "_nav_update_btn"):
                 self._nav_update_btn.setText(f"⬆  Actualizar a v{version}")
                 self._nav_update_btn.show()
-        except Exception:
-            pass
-
-    def _on_update_retry_slot(self, next_retry: int):
-        """Slot ejecutado en el main thread para programar un reintento."""
-        try:
-            delays = [60_000, 120_000, 300_000]  # 1min, 2min, 5min
-            idx = max(0, min(next_retry - 1, len(delays) - 1))
-            delay = delays[idx]
-            QTimer.singleShot(delay, lambda: self._check_updates(next_retry))
         except Exception:
             pass
 

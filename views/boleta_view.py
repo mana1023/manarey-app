@@ -915,16 +915,15 @@ class ProductSelectionDialog(QDialog):
         except Exception:
             pass
 
-        # ── Ventana fullscreen ───────────────────────────────────────────────
-        self.setWindowTitle("Seleccionar productos")
+        # ── Ventana redimensionable (maximizada por defecto) ─────────────────
+        self.setWindowTitle("Seleccionar productos — Agregar a boleta")
         self.setModal(True)
-        # Fullscreen sin bordes, encima de BoletaView (que es frameless)
-        try:
-            self.setWindowFlags(
-                Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-            )
-        except Exception:
-            pass
+        # Diálogo normal con barra de título: el botón Aceptar siempre es visible
+        self.setWindowFlags(
+            Qt.Dialog | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint
+        )
+        self.setMinimumSize(800, 580)
+
         try:
             import app_theme as _at_ps
 
@@ -940,13 +939,8 @@ class ProductSelectionDialog(QDialog):
 
         self._build_ui()
         self._load_filters_pref()
-        # Ajustar al tamaño de la pantalla
-        try:
-            screen = QGuiApplication.primaryScreen()
-            if screen:
-                self.setGeometry(screen.geometry())
-        except Exception:
-            self.showMaximized()
+        # Abrir maximizado para aprovechar toda la pantalla disponible
+        self.showMaximized()
         QTimer.singleShot(0, self.load_products)
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -1170,7 +1164,7 @@ class ProductSelectionDialog(QDialog):
         self.table.verticalHeader().setVisible(False)
         self.table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.table.setMinimumHeight(scale(420))
+        self.table.setMinimumHeight(scale(150))
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         try:
             import app_theme as _at
@@ -1228,14 +1222,34 @@ class ProductSelectionDialog(QDialog):
 
         # ── Botones Cancelar / Aceptar ────────────────────────────────────────
         btn_bar = QHBoxLayout()
+        btn_bar.setContentsMargins(0, 8, 0, 8)
+        btn_bar.setSpacing(12)
         btn_bar.addStretch()
+
         cancel_btn = QPushButton("Cancelar")
+        cancel_btn.setMinimumHeight(40)
+        cancel_btn.setMinimumWidth(120)
         cancel_btn.clicked.connect(self.reject)
+        cancel_btn.setStyleSheet(
+            f"QPushButton{{background:transparent;color:{_T('TEXT_MUTED','#a0a0a8')};"
+            f"border:1px solid {_T('BORDER','#34343a')};border-radius:8px;font-size:14px;padding:6px 20px;}}"
+            f"QPushButton:hover{{background:rgba(255,255,255,0.05);}}"
+        )
         btn_bar.addWidget(cancel_btn)
-        self.accept_btn = QPushButton("Aceptar Seleccion")
+
+        self.accept_btn = QPushButton("✔  Aceptar selección")
+        self.accept_btn.setMinimumHeight(42)
+        self.accept_btn.setMinimumWidth(180)
         self.accept_btn.clicked.connect(self.accept_selection)
         self.accept_btn.setEnabled(False)
+        self.accept_btn.setStyleSheet(
+            "QPushButton{background:#C9A040;color:#1a1208;border:none;border-radius:8px;"
+            "font-size:14px;font-weight:700;padding:8px 28px;}"
+            "QPushButton:hover{background:#e0b84a;}"
+            "QPushButton:disabled{background:#5a4a20;color:#8a7840;}"
+        )
         btn_bar.addWidget(self.accept_btn)
+
         root.addLayout(btn_bar)
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -1805,6 +1819,24 @@ class BoletaView(QMainWindow):
         # Carga en background apenas abre la vista, antes de que el usuario haga clic.
         self._prewarm_cache_worker = None
         QTimer.singleShot(400, self._prewarm_product_cache)
+
+    def closeEvent(self, event):
+        for w in getattr(self, "_prewarm_workers", []):
+            try:
+                if w and w.isRunning():
+                    w.requestInterruption()
+                    w.quit()
+                    w.wait(500)
+            except Exception:
+                pass
+        if self._emit_thread and self._emit_thread.isRunning():
+            try:
+                self._emit_thread.requestInterruption()
+                self._emit_thread.quit()
+                self._emit_thread.wait(500)
+            except Exception:
+                pass
+        super().closeEvent(event)
 
     def _prewarm_product_cache(self):
         """Pre-carga productos de TODOS los locales en background con stagger de 300ms.
