@@ -122,52 +122,19 @@ def list_users():
 # -------------------------
 # Productos / Stock
 # -------------------------
-def _resolve_exact_local_name(cur, local_input: str) -> str:
-    """Obtiene el nombre exacto del local tal como está guardado en la BD.
-
-    Hace una query DISTINCT (pequeña) y compara en Python ignorando acentos.
-    Ejemplo: 'Estacion' → 'Estación' si la BD tiene el acento.
-    """
-    import unicodedata as _ud
-
-    def _norm(s):
-        s = _ud.normalize("NFKD", (s or "").strip())
-        return "".join(c for c in s if not _ud.combining(c)).lower()
-
-    try:
-        cur.execute("SELECT DISTINCT local FROM productos WHERE local IS NOT NULL")
-        target = _norm(local_input)
-        for (db_local,) in cur.fetchall():
-            if _norm(db_local) == target:
-                return db_local
-    except Exception:
-        pass
-    return local_input
-
-
 def list_products_by_local(local, *args, **kwargs):
-    """Devuelve productos para un local usando WHERE con el nombre exacto de la BD.
-
-    Para manejar acentos (p.ej. 'Estacion' vs 'Estación') hacemos primero una
-    query ultraliviana DISTINCT local → resolvemos el nombre exacto en Python →
-    luego WHERE local = valor_exacto (usa índice, solo trae el local pedido).
-    """
+    """Devuelve productos para un local. Si local está vacío o 'Todos', devuelve todos."""
     try:
         with _get_conn() as conn:
             cur = conn.cursor()
             ph = _ph()
-
-            # Resolver nombre exacto en la BD (maneja diferencias de acentos)
-            filter_local = None
+            params = []
+            where = ""
             if local and local not in ("Todos", "Todos los locales"):
-                filter_local = _resolve_exact_local_name(cur, local)
-
+                where = f"WHERE local={ph}"
+                params.append(local)
             has_material = True
             has_fabricante = True
-
-            where = f"WHERE local = {ph}" if filter_local else ""
-            params = (filter_local,) if filter_local else ()
-
             sql = f"""
                 SELECT id, nombre, COALESCE(material,''), categoria, COALESCE(fabricante,''), COALESCE(medida,''), estado, COALESCE(color,''),
                        COALESCE(cantidad,0), COALESCE(precio_venta,0), local,
@@ -178,7 +145,10 @@ def list_products_by_local(local, *args, **kwargs):
                 ORDER BY nombre ASC
             """
             try:
-                cur.execute(sql, params)
+                if params:
+                    cur.execute(sql, tuple(params))
+                else:
+                    cur.execute(sql)
             except Exception:
                 has_fabricante = False
                 sql = f"""
@@ -191,7 +161,10 @@ def list_products_by_local(local, *args, **kwargs):
                     ORDER BY nombre ASC
                 """
                 try:
-                    cur.execute(sql, params)
+                    if params:
+                        cur.execute(sql, tuple(params))
+                    else:
+                        cur.execute(sql)
                 except Exception:
                     has_material = False
                     sql = f"""
@@ -203,9 +176,12 @@ def list_products_by_local(local, *args, **kwargs):
                         {where}
                         ORDER BY nombre ASC
                     """
-                    cur.execute(sql, params)
+                    if params:
+                        cur.execute(sql, tuple(params))
+                    else:
+                        cur.execute(sql)
             rows = cur.fetchall()
-            products = [
+            return [
                 {
                     "id": r[0],
                     "nombre": r[1],
@@ -257,9 +233,6 @@ def list_products_by_local(local, *args, **kwargs):
                 }
                 for r in rows
             ]
-            # WHERE ya filtró por local_exacto en la BD (con índice).
-            # No se necesita filtro extra en Python.
-            return products
     except Exception as e:
         logger.error(f"list_products_by_local error: {e}")
         return []
@@ -521,6 +494,32 @@ def get_stock_status_by_local(local: str) -> dict:
             return {"stock_agotado": agotado or 0, "stock_bajo": bajo or 0}
     except Exception:
         return {"stock_agotado": 0, "stock_bajo": 0}
+
+
+def get_sales_by_day_by_local(start_date=None, end_date=None):
+    """Ventas agrupadas por (fecha, local) para el gráfico del dashboard admin."""
+    try:
+        start_d = _parse_date(start_date) or date.min
+        end_d = _parse_date(end_date) or date.max
+        with _get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT fecha::date AS dia, local, COALESCE(SUM(total), 0) AS total_dia
+                FROM ventas
+                WHERE fecha::date BETWEEN %s AND %s
+                GROUP BY dia, local
+                ORDER BY dia, local
+                """,
+                (start_d.isoformat(), end_d.isoformat()),
+            )
+            return [
+                {"date": str(r[0]), "local": r[1] or "Sin local", "total": float(r[2])}
+                for r in cur.fetchall()
+            ]
+    except Exception as e:
+        logger.error(f"get_sales_by_day_by_local error: {e}")
+        return []
 
 
 def get_sales_stats(start_date=None, end_date=None):

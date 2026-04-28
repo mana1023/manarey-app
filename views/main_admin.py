@@ -793,6 +793,36 @@ class AdminWindow(QMainWindow):
         summary_layout.addLayout(self.summary_cards)
         self.root.addWidget(self.summary_group)
 
+        # Gráfico de ventas por día
+        chart_wrap = QGroupBox("Ventas por día")
+        chart_wrap.setStyleSheet(
+            """
+            QGroupBox {
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 12px;
+                padding: 10px;
+                background: #0b111b;
+                color: #a1a1aa;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 6px;
+                color: #e5e7eb;
+                font-weight: 700;
+            }
+        """
+        )
+        chart_lay = QVBoxLayout(chart_wrap)
+        chart_lay.setContentsMargins(4, 4, 4, 4)
+        self._chart_container = QWidget()
+        self._chart_container.setMinimumHeight(220)
+        self._chart_container.setMaximumHeight(280)
+        self._chart_container_lay = QVBoxLayout(self._chart_container)
+        self._chart_container_lay.setContentsMargins(0, 0, 0, 0)
+        chart_lay.addWidget(self._chart_container)
+        summary_layout.addWidget(chart_wrap)
+
         # Top productos
         top_wrap = QGroupBox("Productos más vendidos")
         top_wrap.setStyleSheet(
@@ -936,12 +966,15 @@ class AdminWindow(QMainWindow):
                 item.widget().deleteLater()
 
         for title, value in [
-            ("Ventas totales", f"${stats.get('total_ventas', 0):,.2f}"),
+            ("Ventas totales", f"${stats.get('total_ventas', 0):,.0f}"),
             ("Unidades vendidas", f"{stats.get('total_productos', 0):,}"),
             ("Stock bajo", str(stock.get("stock_bajo", 0))),
             ("Agotados", str(stock.get("stock_agotado", 0))),
         ]:
             self.summary_cards.addWidget(self._summary_card(title, value))
+
+        # Gráfico de ventas por día
+        self._refresh_sales_chart(start, end)
 
         # Top productos vendidos (sin filtro temporal)
         try:
@@ -959,6 +992,144 @@ class AdminWindow(QMainWindow):
             self.top_table.setItem(
                 r, 2, QTableWidgetItem(str(row.get("cantidad") or 0))
             )
+
+    def _refresh_sales_chart(self, start, end):
+        """Dibuja un gráfico de barras apiladas de ventas por día y por local."""
+        try:
+            import matplotlib
+
+            matplotlib.use("Agg")
+            import datetime
+            from collections import defaultdict
+
+            import matplotlib.pyplot as plt
+            import matplotlib.ticker as mticker
+            from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+
+            rows = get_sales_by_day_by_local(start.isoformat(), end.isoformat())
+
+            # Construir mapa {local -> {date_str -> total}}
+            locales_set = []
+            by_local = defaultdict(dict)
+            for r in rows:
+                loc = r["local"]
+                if loc not in locales_set:
+                    locales_set.append(loc)
+                by_local[loc][r["date"]] = r["total"]
+
+            # Rango completo de fechas
+            days = []
+            cur = start
+            while cur <= end:
+                days.append(cur.isoformat())
+                cur += datetime.timedelta(days=1)
+
+            # Colores dorado/azul/verde/rojo por local
+            palette = [
+                "#C9A040",
+                "#3b82f6",
+                "#10b981",
+                "#f43f5e",
+                "#a855f7",
+                "#f97316",
+                "#06b6d4",
+                "#84cc16",
+            ]
+
+            fig, ax = plt.subplots(figsize=(8, 2.6))
+            fig.patch.set_facecolor("#0b111b")
+            ax.set_facecolor("#0b111b")
+
+            if not rows:
+                ax.text(
+                    0.5,
+                    0.5,
+                    "Sin ventas en el período",
+                    ha="center",
+                    va="center",
+                    color="#a1a1aa",
+                    fontsize=12,
+                    transform=ax.transAxes,
+                )
+            else:
+                x = range(len(days))
+                bottoms = [0.0] * len(days)
+                for idx, loc in enumerate(locales_set):
+                    vals = [by_local[loc].get(d, 0.0) for d in days]
+                    color = palette[idx % len(palette)]
+                    ax.bar(
+                        x,
+                        vals,
+                        bottom=bottoms,
+                        color=color,
+                        label=loc,
+                        width=0.7,
+                        alpha=0.92,
+                        zorder=3,
+                    )
+                    bottoms = [b + v for b, v in zip(bottoms, vals)]
+
+                # Eje X: mostrar etiquetas solo si el período no es muy largo
+                if len(days) <= 14:
+                    ax.set_xticks(list(x))
+                    ax.set_xticklabels(
+                        [d[5:] for d in days],  # MM-DD
+                        color="#a1a1aa",
+                        fontsize=8,
+                        rotation=45,
+                        ha="right",
+                    )
+                elif len(days) <= 31:
+                    step = max(1, len(days) // 10)
+                    ticks = list(range(0, len(days), step))
+                    ax.set_xticks(ticks)
+                    ax.set_xticklabels(
+                        [days[i][5:] for i in ticks],
+                        color="#a1a1aa",
+                        fontsize=8,
+                        rotation=45,
+                        ha="right",
+                    )
+                else:
+                    ax.set_xticks([])
+
+                ax.yaxis.set_major_formatter(
+                    mticker.FuncFormatter(lambda v, _: f"${v:,.0f}")
+                )
+                ax.tick_params(axis="y", colors="#a1a1aa", labelsize=8)
+                ax.spines[:].set_visible(False)
+                ax.yaxis.set_tick_params(length=0)
+                ax.xaxis.set_tick_params(length=0)
+                ax.set_axisbelow(True)
+                ax.yaxis.grid(True, color="rgba(255,255,255,0.06)", linewidth=0.6)
+
+                if locales_set:
+                    ax.legend(
+                        loc="upper left",
+                        fontsize=8,
+                        facecolor="#141b26",
+                        edgecolor="#3e3e44",
+                        labelcolor="#e5e7eb",
+                        framealpha=0.9,
+                        ncol=min(len(locales_set), 4),
+                    )
+
+            fig.tight_layout(pad=0.4)
+
+            # Reemplazar canvas anterior
+            while self._chart_container_lay.count():
+                item = self._chart_container_lay.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+
+            canvas = FigureCanvasQTAgg(fig)
+            canvas.setStyleSheet("background:#0b111b;")
+            self._chart_container_lay.addWidget(canvas)
+            plt.close(fig)
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning("Chart error: %s", exc)
 
     def _build_consolidated_inventory(self):
         """Devuelve (headers, rows) de inventario consolidado para reuso."""
@@ -1319,6 +1490,7 @@ from PyQt5.QtWidgets import QGroupBox, QHeaderView, QTableWidget, QTableWidgetIt
 
 from models.firestore_db import (
     get_all_locals,
+    get_sales_by_day_by_local,
     get_sales_stats,
     get_stock_status,
     list_products_by_local,
