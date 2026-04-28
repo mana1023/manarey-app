@@ -39,17 +39,41 @@ def _load_config() -> dict:
     return {}
 
 
+def _appdata_config_path() -> Path:
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return Path(base) / "Manarey" / "config.json"
+
+
 def _resolve_db_url(cfg: dict, cfg_path: Path) -> str:
-    """Obtiene la DB URL del config. Si está en texto plano la ofusca y guarda."""
+    """Obtiene la DB URL del config.
+
+    Si hay database_url_enc intenta decodificarlo con la clave de esta máquina
+    y valida que el resultado sea una URL de postgres. Si falla, usa el
+    database_url en texto plano como fallback.
+
+    La migración (encode + borrado del texto plano) SOLO se hace si el config
+    está en LOCALAPPDATA, nunca en el directorio de instalación, para que el
+    config distribuido vía installer siga siendo legible en cualquier máquina.
+    """
     try:
         from models.config_security import decode_url, migrate_config
 
         if cfg.get("database_url_enc"):
-            return decode_url(cfg["database_url_enc"]).strip()
+            try:
+                decoded = decode_url(cfg["database_url_enc"]).strip()
+                if decoded.lower().startswith("postgres"):
+                    return decoded
+                logger.warning(
+                    "database_url_enc decodificado pero no parece una URL de postgres; "
+                    "usando database_url en texto plano si existe"
+                )
+            except Exception as exc:
+                logger.warning("No se pudo decodificar database_url_enc: %s", exc)
 
         plain = cfg.get("database_url", "").strip()
         if plain:
-            migrate_config(cfg_path)
+            if cfg_path == _appdata_config_path():
+                migrate_config(cfg_path)
             return plain
     except Exception:
         return (cfg.get("database_url") or "").strip()
