@@ -39,8 +39,26 @@ def _load_config() -> dict:
     return {}
 
 
+def _resolve_db_url(cfg: dict, cfg_path: Path) -> str:
+    """Obtiene la DB URL del config. Si está en texto plano la ofusca y guarda."""
+    try:
+        from models.config_security import decode_url, migrate_config
+
+        if cfg.get("database_url_enc"):
+            return decode_url(cfg["database_url_enc"]).strip()
+
+        plain = cfg.get("database_url", "").strip()
+        if plain:
+            migrate_config(cfg_path)
+            return plain
+    except Exception:
+        return (cfg.get("database_url") or "").strip()
+    return ""
+
+
 _config = _load_config()
-_config_url = (_config.get("database_url") or "").strip()
+_config_path = next((p for p in CONFIG_PATHS if p.exists()), CONFIG_PATHS[0])
+_config_url = _resolve_db_url(_config, _config_path)
 
 DB_URL = os.environ.get("DATABASE_URL") or _config_url
 if not DB_URL:
@@ -150,29 +168,22 @@ def _init_pool_if_needed():
         raise _last_pool_fail_exc  # type: ignore[misc]
     _ensure_psycopg()
     max_pool = int(os.environ.get("MANAREY_PG_POOL_MAX", "10"))
-
-    # Construir lista de URLs a probar.
-    # Por defecto el pooler Supabase (aws-…pooler.supabase.com) va PRIMERO porque
-    # el host directo (db.<project>.supabase.co) no siempre resuelve DNS en planes
-    # sin IPv4 dedicada y causa un delay de varios segundos antes de fallar.
-    # La variable MANAREY_PG_PREFER_DIRECT=1 invierte el orden si se necesita.
     pool_urls = [DB_URL]
     fb = _supabase_direct_fallback(DB_URL)
-    prefer_direct = os.environ.get("MANAREY_PG_PREFER_DIRECT", "").strip() in (
+    # Si es pooler, probar directo primero para reducir latencia
+    prefer_pooler = os.environ.get("MANAREY_PG_PREFER_POOLER", "").strip() in (
         "1",
         "true",
         "yes",
     )
     if fb and fb not in pool_urls:
-        if prefer_direct:
-            # directo primero, pooler como fallback
-            pool_urls = [fb, DB_URL]
-        else:
-            # pooler primero (default), directo como fallback
+        if prefer_pooler:
             pool_urls.append(fb)
+        else:
+            pool_urls = [fb, DB_URL]
 
     last_exc = None
-    for idx, dsn in enumerate(pool_urls):
+    for dsn in pool_urls:
         try:
             dsn = _with_connect_params(dsn)
             _pool = ThreadedConnectionPool(
@@ -182,9 +193,9 @@ def _init_pool_if_needed():
                 sslmode="require",
             )
             DB_URL = dsn
-            if idx > 0:
+            if dsn != pool_urls[0]:
                 logger.warning(
-                    "URL primaria falló; usando URL alternativa para el pool."
+                    "Conexion por pooler fallo; usando host directo de Supabase."
                 )
             logger.info(f"Pool Postgres inicializado (max {max_pool})")
             return
@@ -274,17 +285,6 @@ def put_connection(conn):
         should_close = bool(getattr(conn, "closed", 0))
     except Exception:
         should_close = True
-    # Solo hacer rollback si la conexión tiene una transacción activa o abortada.
-    # Rollback incondicional agrega un round-trip de red en cada devolución.
-    if not should_close:
-        try:
-            status = conn.get_transaction_status()  # 0=idle, 2=intrans, 3=inerror
-            if status in (2, 3):  # INTRANS o INERROR → limpiar
-                conn.rollback()
-            elif status == 4:  # UNKNOWN → conexión rota
-                should_close = True
-        except Exception:
-            pass
     if _pool:
         try:
             _pool.putconn(conn, close=should_close)

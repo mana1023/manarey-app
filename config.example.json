@@ -1,0 +1,5 @@
+{
+  "database_type": "postgresql",
+  "database_url": "postgresql://usuario:contrasena@host:5432/postgres",
+  "firebase_only": false
+}

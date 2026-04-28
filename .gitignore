@@ -46,11 +46,12 @@ desktop.ini
 # Boletas generadas (opcional - comenta si quieres versionar)
 # boletas/*.pdf
 
-# Credenciales locales
+# Credenciales locales — nunca commitear
 .github_token
 .env
 .dburl
 config.json
+**/config.json
 
 # Instaladores y binarios compilados
 DESCARGABLE/
@@ -63,6 +64,3 @@ logs/
 
 # Worktrees de Claude
 .claude/worktrees/
-
-# GitHub Actions (requiere scope workflow para pushear)
-.github/
