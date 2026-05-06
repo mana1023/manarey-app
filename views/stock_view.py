@@ -1998,6 +1998,7 @@ class StockView(QMainWindow):
         self._combo_sync_last_ts = 0
         self._combo_sync_thread = None
         self._pending_reload = False
+        self._raw_cache: dict = {}
         self._last_filter_signature = None
         self._measure_options_cache = {}
 
@@ -2495,7 +2496,7 @@ class StockView(QMainWindow):
         self.category_combo.setMinimumWidth(scale(150))
         self.category_combo.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         _mark_filter(self.category_combo)
-        self.category_combo.currentIndexChanged.connect(self.load_data)
+        self.category_combo.currentIndexChanged.connect(self._apply_client_filters)
         row.addWidget(self.category_combo)
 
         # Fabricante
@@ -2504,7 +2505,7 @@ class StockView(QMainWindow):
         self.fabricante_combo.setMinimumWidth(scale(140))
         self.fabricante_combo.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         _mark_filter(self.fabricante_combo)
-        self.fabricante_combo.currentIndexChanged.connect(self.load_data)
+        self.fabricante_combo.currentIndexChanged.connect(self._apply_client_filters)
         _set_combo_popup_width(self.fabricante_combo)
         row.addWidget(self.fabricante_combo)
 
@@ -2520,7 +2521,7 @@ class StockView(QMainWindow):
         self.estado_filter.setMinimumWidth(scale(120))
         self.estado_filter.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         _mark_filter(self.estado_filter)
-        self.estado_filter.currentIndexChanged.connect(self.load_data)
+        self.estado_filter.currentIndexChanged.connect(self._apply_client_filters)
         _set_combo_popup_width(self.estado_filter)
         row.addWidget(self.estado_filter)
 
@@ -2530,7 +2531,7 @@ class StockView(QMainWindow):
         self.color_combo.setMinimumWidth(scale(120))
         self.color_combo.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         _mark_filter(self.color_combo)
-        self.color_combo.currentIndexChanged.connect(self.load_data)
+        self.color_combo.currentIndexChanged.connect(self._apply_client_filters)
         _set_combo_popup_width(self.color_combo)
         row.addWidget(self.color_combo)
 
@@ -2539,7 +2540,7 @@ class StockView(QMainWindow):
         self.filter_medida_combo.setMinimumWidth(scale(120))
         self.filter_medida_combo.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         _mark_filter(self.filter_medida_combo)
-        self.filter_medida_combo.currentIndexChanged.connect(self.load_data)
+        self.filter_medida_combo.currentIndexChanged.connect(self._apply_client_filters)
         _set_combo_popup_width(self.filter_medida_combo)
         row.addWidget(self.filter_medida_combo)
 
@@ -8287,6 +8288,7 @@ class StockView(QMainWindow):
         t0 = time.perf_counter()
         selected = self.ver_stock_combo.currentText()
         clean = self._clean_local_label(selected)
+        self._invalidate_cache(clean)
         if selected == "Todos los locales":
             clean = "Todos los locales"
 
@@ -8449,7 +8451,7 @@ class StockView(QMainWindow):
     def _delayed_search(self, timestamp):
         """Ejecuta búsqueda si no ha habido cambios recientes"""
         if timestamp == self.last_search_time:
-            self.load_data()
+            self._apply_client_filters()
 
     def edit_price(self, product_id, row):
         """Edita precio"""
@@ -9401,6 +9403,17 @@ class StockView(QMainWindow):
                 return
             self._apply_local_table_schema()
 
+            # Si no hay forzado de filtros: usar caché en memoria
+            force_filters = getattr(self, "_force_next_filters", None)
+            if not force_filters:
+                if self.view_local in self._raw_cache:
+                    self._apply_client_filters()
+                    return
+                self._load_all_for_local()
+                return
+
+            # Forzado de filtros (post-edición): invalidar caché y recargar desde DB
+            self._invalidate_cache()
             # Obtener filtros
             force_filters = getattr(self, "_force_next_filters", None)
             if force_filters:
@@ -10061,6 +10074,7 @@ class StockView(QMainWindow):
     def _schedule_reload(self, ms: int = 0):
         """Agenda una recarga de datos sin bloquear la UI."""
         try:
+            self._invalidate_cache()
             if ms and ms > 0:
                 if hasattr(self, "_reload_timer"):
                     self._reload_timer.start(int(ms))
@@ -10070,6 +10084,139 @@ class StockView(QMainWindow):
                 self.load_data()
         except Exception:
             self.load_data()
+
+    # ─── Caché en memoria ────────────────────────────────────────────────────
+
+    def _invalidate_cache(self, local=None):
+        key = local or getattr(self, "view_local", None)
+        if key and key in self._raw_cache:
+            del self._raw_cache[key]
+
+    def _load_all_for_local(self):
+        if not hasattr(self, "_load_counter"):
+            self._load_counter = 0
+        self._load_counter += 1
+        load_id = self._load_counter
+        self._current_load_id = load_id
+        try:
+            self._stop_thread_safe(getattr(self, "loading_thread", None), 800)
+        except Exception:
+            pass
+        try:
+            self.loading_bar.setVisible(True)
+        except Exception:
+            pass
+        t = LoadingThread(
+            self.view_local,
+            "",
+            "",
+            [],
+            "",
+            "",
+            "",
+            load_id=load_id,
+            apply_reservas=self._use_reservas_stock(),
+            parent=self,
+        )
+        t.data_loaded.connect(self._on_full_load_done)
+        try:
+            t.error_occurred.connect(self._on_loading_error)
+        except Exception:
+            pass
+        self.loading_thread = t
+        t.start()
+
+    def _on_full_load_done(self, load_id, products):
+        if load_id != getattr(self, "_current_load_id", -1):
+            return
+        self._raw_cache[self.view_local] = list(products or [])
+        try:
+            self._apply_filter_options(list(products or []))
+        except Exception:
+            pass
+        self._apply_client_filters()
+
+    def _apply_client_filters(self):
+        local = getattr(self, "view_local", None)
+        if not local or local not in self._raw_cache:
+            self._load_all_for_local()
+            return
+        products = list(self._raw_cache[local])
+
+        search = ""
+        if hasattr(self, "search_input"):
+            search = (self.search_input.text() or "").strip().lower()
+
+        categoria = ""
+        if hasattr(self, "category_combo"):
+            cat = self.category_combo.currentText()
+            if cat not in ("Todas las categorias", "Todas las categorías", ""):
+                categoria = cat
+
+        fabricante = ""
+        if hasattr(self, "fabricante_combo"):
+            fab = self.fabricante_combo.currentText()
+            if fab not in ("Fabricante", ""):
+                fabricante = fab
+
+        estado = ""
+        if hasattr(self, "estado_filter"):
+            est = self.estado_filter.currentText()
+            if est not in ("Estado", ""):
+                estado = est
+
+        color = ""
+        if hasattr(self, "color_combo"):
+            col = self.color_combo.currentText()
+            if col not in ("Color", ""):
+                color = col
+
+        medida = ""
+        codigo = ""
+        if getattr(self, "_filter_measure_mode", "metro") == "codigo":
+            if hasattr(self, "codigo_input"):
+                codigo = (self.codigo_input.text() or "").strip()
+        else:
+            if (
+                hasattr(self, "filter_medida_combo")
+                and self.filter_medida_combo.currentIndex() > 0
+            ):
+                m = self.filter_medida_combo.currentText()
+                if m and m != "Medida":
+                    medida = m
+
+        if search:
+            products = [
+                p for p in products if search in (p.get("nombre") or "").lower()
+            ]
+        if categoria:
+            products = [
+                p
+                for p in products
+                if (p.get("categoria") or "").strip().lower() == categoria.lower()
+            ]
+        if fabricante:
+            products = [
+                p for p in products if (p.get("fabricante") or "").strip() == fabricante
+            ]
+        if estado:
+            products = [p for p in products if (p.get("estado") or "") == estado]
+        if color:
+            products = [p for p in products if (p.get("color") or "") == color]
+        if medida:
+            products = [p for p in products if (p.get("medida") or "") == medida]
+        if codigo:
+            products = [
+                p for p in products if codigo.lower() in (p.get("codigo") or "").lower()
+            ]
+
+        try:
+            self._update_filter_chip()
+        except Exception:
+            pass
+        self.on_data_loaded(self._current_load_id, products)
+
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _stop_thread_safe(self, thread, wait_ms: int = 800):
         try:
