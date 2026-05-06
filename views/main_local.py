@@ -362,6 +362,7 @@ class LocalWindow(QMainWindow):
         self._messages_timer.timeout.connect(self._update_messages_badge)
         self._messages_timer.start(60_000)
         QTimer.singleShot(2000, self._update_messages_badge)
+        threading.Thread(target=self._prefetch_stock, daemon=True).start()
 
     def _build_nav_bar(self) -> QFrame:
         dark = _DARK()
@@ -721,6 +722,24 @@ class LocalWindow(QMainWindow):
         self.show()
         self.raise_()
         self.activateWindow()
+
+    # ── Prefetch ──────────────────────────────────────────────────────────────
+    def _prefetch_stock(self):
+        """Precarga el stock del local en background para que abra al instante."""
+        try:
+            local = getattr(self, "local", None)
+            if not local:
+                return
+            from views.stock_view import _stock_module_cache
+
+            if local in _stock_module_cache:
+                return
+            from models import stock_model as sm
+
+            products = sm.get_stock_filtered(local, "", "", [], "", "", "")
+            _stock_module_cache[local] = list(products or [])
+        except Exception:
+            pass
 
     # ── Acciones de tarjetas ──────────────────────────────────────────────────
     def open_stock(self):

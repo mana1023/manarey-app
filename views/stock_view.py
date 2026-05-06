@@ -11,6 +11,9 @@ from pathlib import Path
 _merge_last_run: dict = {}
 _MERGE_INTERVAL = 300  # segundos
 
+# Caché de módulo: persiste entre instancias de StockView (vive toda la sesión)
+_stock_module_cache: dict = {}  # {local: [products]}
+
 try:
     import app_theme as _theme
 
@@ -10091,8 +10094,23 @@ class StockView(QMainWindow):
         key = local or getattr(self, "view_local", None)
         if key and key in self._raw_cache:
             del self._raw_cache[key]
+        if key and key in _stock_module_cache:
+            del _stock_module_cache[key]
 
     def _load_all_for_local(self):
+        # Si hay datos en caché de módulo: mostrar al instante y refrescar en background
+        cached = _stock_module_cache.get(self.view_local)
+        if cached:
+            self._raw_cache[self.view_local] = list(cached)
+            try:
+                self._apply_filter_options(list(cached))
+            except Exception:
+                pass
+            self._apply_client_filters()
+            # Lanzar refresh silencioso para mantener datos frescos
+            self._start_background_refresh()
+            return
+
         if not hasattr(self, "_load_counter"):
             self._load_counter = 0
         self._load_counter += 1
@@ -10126,12 +10144,37 @@ class StockView(QMainWindow):
         self.loading_thread = t
         t.start()
 
+    def _start_background_refresh(self):
+        """Recarga silenciosa desde DB para actualizar el caché de módulo."""
+        if not hasattr(self, "_load_counter"):
+            self._load_counter = 0
+        self._load_counter += 1
+        load_id = self._load_counter
+        self._current_load_id = load_id
+        t = LoadingThread(
+            self.view_local,
+            "",
+            "",
+            [],
+            "",
+            "",
+            "",
+            load_id=load_id,
+            apply_reservas=self._use_reservas_stock(),
+            parent=self,
+        )
+        t.data_loaded.connect(self._on_full_load_done)
+        self.loading_thread = t
+        t.start()
+
     def _on_full_load_done(self, load_id, products):
         if load_id != getattr(self, "_current_load_id", -1):
             return
-        self._raw_cache[self.view_local] = list(products or [])
+        data = list(products or [])
+        self._raw_cache[self.view_local] = data
+        _stock_module_cache[self.view_local] = data
         try:
-            self._apply_filter_options(list(products or []))
+            self._apply_filter_options(data)
         except Exception:
             pass
         self._apply_client_filters()
