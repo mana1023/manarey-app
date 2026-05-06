@@ -713,8 +713,14 @@ class LocalWindow(QMainWindow):
 
     def on_back(self):
         if self.child:
-            self.child.close()
+            try:
+                self.child.hide()
+            except Exception:
+                pass
+        self.child = None
         self.show()
+        self.raise_()
+        self.activateWindow()
 
     # ── Acciones de tarjetas ──────────────────────────────────────────────────
     def open_stock(self):
