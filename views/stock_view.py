@@ -10098,7 +10098,13 @@ class StockView(QMainWindow):
             del _stock_module_cache[key]
 
     def _load_all_for_local(self):
-        # Si hay datos en caché de módulo: mostrar al instante y refrescar en background
+        if not hasattr(self, "_load_counter"):
+            self._load_counter = 0
+        self._load_counter += 1
+        load_id = self._load_counter
+        self._current_load_id = load_id
+
+        # Caché de módulo: mostrar al instante
         cached = _stock_module_cache.get(self.view_local)
         if cached:
             self._raw_cache[self.view_local] = list(cached)
@@ -10107,15 +10113,8 @@ class StockView(QMainWindow):
             except Exception:
                 pass
             self._apply_client_filters()
-            # Lanzar refresh silencioso para mantener datos frescos
-            self._start_background_refresh()
-            return
+            return  # datos frescos: _schedule_reload invalida si hay ediciones
 
-        if not hasattr(self, "_load_counter"):
-            self._load_counter = 0
-        self._load_counter += 1
-        load_id = self._load_counter
-        self._current_load_id = load_id
         try:
             self._stop_thread_safe(getattr(self, "loading_thread", None), 800)
         except Exception:
@@ -10141,29 +10140,6 @@ class StockView(QMainWindow):
             t.error_occurred.connect(self._on_loading_error)
         except Exception:
             pass
-        self.loading_thread = t
-        t.start()
-
-    def _start_background_refresh(self):
-        """Recarga silenciosa desde DB para actualizar el caché de módulo."""
-        if not hasattr(self, "_load_counter"):
-            self._load_counter = 0
-        self._load_counter += 1
-        load_id = self._load_counter
-        self._current_load_id = load_id
-        t = LoadingThread(
-            self.view_local,
-            "",
-            "",
-            [],
-            "",
-            "",
-            "",
-            load_id=load_id,
-            apply_reservas=self._use_reservas_stock(),
-            parent=self,
-        )
-        t.data_loaded.connect(self._on_full_load_done)
         self.loading_thread = t
         t.start()
 
