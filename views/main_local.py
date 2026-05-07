@@ -190,16 +190,16 @@ class MenuCard(QFrame):
         self._set_style(False)
 
         # Layout
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(16, 22, 16, 20)
-        lay.setSpacing(14)
-        lay.setAlignment(Qt.AlignCenter)
+        self._lay = QVBoxLayout(self)
+        self._lay.setContentsMargins(16, 22, 16, 20)
+        self._lay.setSpacing(14)
+        self._lay.setAlignment(Qt.AlignCenter)
 
         # Ícono — más grande
         self._icon_lbl = QLabel(icon)
         self._icon_lbl.setAlignment(Qt.AlignCenter)
         self._icon_lbl.setStyleSheet("background: transparent; font-size: 54px;")
-        lay.addWidget(self._icon_lbl)
+        self._lay.addWidget(self._icon_lbl)
 
         # Título
         self._title_lbl = QLabel(title)
@@ -210,7 +210,7 @@ class MenuCard(QFrame):
         self._title_lbl.setStyleSheet(
             f"color: {c_title}; background: transparent; line-height: 130%;"
         )
-        lay.addWidget(self._title_lbl)
+        self._lay.addWidget(self._title_lbl)
 
     def _card_colors(self, hovered: bool):
         dark = _DARK()
@@ -251,6 +251,27 @@ class MenuCard(QFrame):
     def set_title_badge(self, count: int):
         text = f"{self._base_title} ({count})" if count else self._base_title
         self._title_lbl.setText(text)
+
+    def adjust_compact(self, level: int):
+        """Ajusta tamaño según nivel: 0=normal, 1=medio, 2=compacto."""
+        if level == 2:
+            self.setMinimumSize(140, 110)
+            self._icon_lbl.setStyleSheet("background: transparent; font-size: 30px;")
+            self._title_lbl.setFont(QFont("Segoe UI", 10, QFont.Bold))
+            self._lay.setContentsMargins(10, 10, 10, 10)
+            self._lay.setSpacing(6)
+        elif level == 1:
+            self.setMinimumSize(150, 140)
+            self._icon_lbl.setStyleSheet("background: transparent; font-size: 40px;")
+            self._title_lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
+            self._lay.setContentsMargins(12, 16, 12, 14)
+            self._lay.setSpacing(10)
+        else:
+            self.setMinimumSize(160, 170)
+            self._icon_lbl.setStyleSheet("background: transparent; font-size: 54px;")
+            self._title_lbl.setFont(QFont("Segoe UI", 14, QFont.Bold))
+            self._lay.setContentsMargins(16, 22, 16, 20)
+            self._lay.setSpacing(14)
 
     def refresh_theme(self):
         self._set_style(False)
@@ -493,9 +514,9 @@ class LocalWindow(QMainWindow):
             "images",
             "logo_manarey_brand.png",
         )
-        pixmap = QPixmap(logo_path)
-        if not pixmap.isNull():
-            pixmap = pixmap.scaledToWidth(240, Qt.SmoothTransformation)
+        self._logo_pixmap_orig = QPixmap(logo_path)
+        if not self._logo_pixmap_orig.isNull():
+            pixmap = self._logo_pixmap_orig.scaledToWidth(240, Qt.SmoothTransformation)
             logo_lbl.setPixmap(pixmap)
         else:
             logo_lbl.setText("♛  MANAREY")
@@ -525,9 +546,11 @@ class LocalWindow(QMainWindow):
             "images",
             "menu_footer.png",
         )
-        pixmap = QPixmap(footer_path)
-        if not pixmap.isNull():
-            pixmap = pixmap.scaledToWidth(420, Qt.SmoothTransformation)
+        self._footer_pixmap_orig = QPixmap(footer_path)
+        if not self._footer_pixmap_orig.isNull():
+            pixmap = self._footer_pixmap_orig.scaledToWidth(
+                420, Qt.SmoothTransformation
+            )
             footer_lbl.setPixmap(pixmap)
         else:
             footer_lbl.setText("🛋️  🏮  🪑\n— Menú del Sistema —")
@@ -657,18 +680,69 @@ class LocalWindow(QMainWindow):
     def _apply_responsive_layout(self):
         try:
             w = max(1, self.width())
+            h = max(1, self.height())
+
+            # ── Márgenes y espaciado horizontal ──────────────────────────────
             if w < 860:
                 self._cards_layout.setContentsMargins(24, 0, 24, 0)
-                self._grid.setHorizontalSpacing(12)
-                self._grid.setVerticalSpacing(12)
+                h_gap = 10
             elif w < 1280:
                 self._cards_layout.setContentsMargins(40, 0, 40, 0)
-                self._grid.setHorizontalSpacing(16)
-                self._grid.setVerticalSpacing(16)
+                h_gap = 14
             else:
                 self._cards_layout.setContentsMargins(60, 0, 60, 0)
-                self._grid.setHorizontalSpacing(20)
-                self._grid.setVerticalSpacing(20)
+                h_gap = 18
+
+            # ── Nivel de compacidad según altura disponible ───────────────────
+            # Deducir espacio fijo: navbar(50) + statusbar(36) = 86px
+            usable = h - 86
+            if usable < 480:
+                compact = 2  # muy compacto: icono 30px, min_h 110
+                logo_w = 140
+                footer_w = 0  # ocultar footer
+                v_gap = 8
+            elif usable < 620:
+                compact = 1  # medio: icono 40px, min_h 140
+                logo_w = 180
+                footer_w = 220
+                v_gap = 10
+            else:
+                compact = 0  # normal: icono 54px, min_h 170
+                logo_w = 240
+                footer_w = 420
+                v_gap = h_gap
+
+            self._grid.setHorizontalSpacing(h_gap)
+            self._grid.setVerticalSpacing(v_gap)
+
+            # ── Logo ──────────────────────────────────────────────────────────
+            if hasattr(self, "_logo_lbl") and hasattr(self, "_logo_pixmap_orig"):
+                if not self._logo_pixmap_orig.isNull():
+                    px = self._logo_pixmap_orig.scaledToWidth(
+                        logo_w, Qt.SmoothTransformation
+                    )
+                    self._logo_lbl.setPixmap(px)
+
+            # ── Footer ────────────────────────────────────────────────────────
+            if hasattr(self, "_footer_lbl"):
+                if footer_w == 0:
+                    self._footer_lbl.hide()
+                else:
+                    self._footer_lbl.show()
+                    if (
+                        hasattr(self, "_footer_pixmap_orig")
+                        and not self._footer_pixmap_orig.isNull()
+                    ):
+                        px = self._footer_pixmap_orig.scaledToWidth(
+                            footer_w, Qt.SmoothTransformation
+                        )
+                        self._footer_lbl.setPixmap(px)
+
+            # ── Tarjetas ──────────────────────────────────────────────────────
+            for card in getattr(self, "menu_cards", []):
+                if hasattr(card, "adjust_compact"):
+                    card.adjust_compact(compact)
+
             self._reflow_cards()
         except Exception:
             pass
