@@ -477,7 +477,7 @@ def main():
                                 prefs.get("local", ""),
                             )
                         _needs_prebuild = True
-                        # ← NO llamamos window.show() todavía
+                        window.hide()  # forzar oculto: Qt puede mostrarlo al crear widgets hijos
                     except Exception:
                         from views.login_view import LoginWindow
 
