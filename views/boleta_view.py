@@ -1820,6 +1820,18 @@ class BoletaView(QMainWindow):
         self._prewarm_cache_worker = None
         QTimer.singleShot(400, self._prewarm_product_cache)
 
+    def set_back_command(self, cmd):
+        self.back_command = cmd
+        btn = getattr(self, "back_btn", None)
+        if btn is not None:
+            try:
+                btn.clicked.disconnect()
+            except Exception:
+                pass
+            if cmd:
+                btn.clicked.connect(cmd)
+            btn.setVisible(bool(cmd))
+
     def closeEvent(self, event):
         for w in getattr(self, "_prewarm_workers", []):
             try:

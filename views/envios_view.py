@@ -278,6 +278,7 @@ class EnviosWindow(QMainWindow):
                     "QPushButton:hover{background:#3e3e44;}"
                 )
             back_btn.clicked.connect(self.back_command)
+            self._back_btn_ref = back_btn
             header.addWidget(back_btn)
         title = QLabel("Envios")
         title.setFont(QFont("Segoe UI", 20, QFont.Bold))
@@ -393,6 +394,18 @@ class EnviosWindow(QMainWindow):
         header.resizeSection(7, 160)
         header.setSectionResizeMode(8, QHeaderView.Interactive)
         header.resizeSection(8, 220)
+
+    def set_back_command(self, cmd):
+        self.back_command = cmd
+        btn = getattr(self, "_back_btn_ref", None)
+        if btn is not None:
+            try:
+                btn.clicked.disconnect()
+            except Exception:
+                pass
+            if cmd:
+                btn.clicked.connect(cmd)
+            btn.setVisible(bool(cmd))
 
     def load_data(self):
         search = self.search_input.text().strip() if self.search_input else ""

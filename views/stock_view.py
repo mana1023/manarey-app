@@ -3209,6 +3209,18 @@ class StockView(QMainWindow):
         except Exception:
             pass
 
+    def set_back_command(self, cmd):
+        self.back_command = cmd
+        btn = getattr(self, "_back_btn_ref", None)
+        if btn is not None:
+            try:
+                btn.clicked.disconnect()
+            except Exception:
+                pass
+            if cmd:
+                btn.clicked.connect(cmd)
+            btn.setVisible(bool(cmd))
+
     def refresh_theme(self):
         """Llamado desde fuera cuando cambia el tema — refresca tabla, fondo y formulario."""
         try:

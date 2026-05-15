@@ -1059,6 +1059,18 @@ class HistoryWindow(QMainWindow):
             f"QMainWindow{{background:{_T('BG', '#1f1f22')};}} QLabel{{color:{_T('TEXT', '#ECECF1')};}}"
         )
 
+    def set_back_command(self, cmd):
+        self.back_command = cmd
+        btn = getattr(self, "_back_btn_ref", None)
+        if btn is not None:
+            try:
+                btn.clicked.disconnect()
+            except Exception:
+                pass
+            if cmd:
+                btn.clicked.connect(cmd)
+            btn.setVisible(bool(cmd))
+
     def refresh_theme(self):
         """Llamado desde apply_to_app() cuando cambia el tema."""
         self._apply_window_theme()
@@ -1082,6 +1094,7 @@ class HistoryWindow(QMainWindow):
                 "QPushButton:hover{background:#3e3e44;}"
             )
             btn_back.clicked.connect(self.back_command)
+            self._back_btn_ref = btn_back
             top.addWidget(btn_back)
 
         title = QLabel("Historial de movimientos")

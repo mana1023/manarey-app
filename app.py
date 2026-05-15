@@ -584,6 +584,8 @@ def _prebuild_all_views(window, splash, app_instance):
     local = getattr(window, "local", "") or getattr(window, "user_local", "")
     window._prebuilt = {}
 
+    _noop = lambda: None  # noqa: E731 – back_command placeholder para prebuild
+
     if is_local:
         builds = [
             (
@@ -591,42 +593,42 @@ def _prebuild_all_views(window, splash, app_instance):
                 "Precargando Gestión de Stock...",
                 lambda: __import__(
                     "views.stock_view", fromlist=["StockView"]
-                ).StockView(username, role, local),
+                ).StockView(username, role, local, back_command=_noop),
             ),
             (
                 "boleta",
                 "Precargando Emisión de Boleta...",
                 lambda: __import__(
                     "views.boleta_view", fromlist=["BoletaView"]
-                ).BoletaView(username, role, local),
+                ).BoletaView(username, role, local, back_command=_noop),
             ),
             (
                 "ventas",
                 "Precargando Historial de Ventas...",
                 lambda: __import__(
                     "views.ventas_history_view", fromlist=["VentasWindow"]
-                ).VentasWindow(username, role, local),
+                ).VentasWindow(username, role, local, back_command=_noop),
             ),
             (
                 "history",
                 "Precargando Historial de Movimientos...",
                 lambda: __import__(
                     "views.history_view", fromlist=["HistoryWindow"]
-                ).HistoryWindow(username, role, local),
+                ).HistoryWindow(username, role, local, back_command=_noop),
             ),
             (
                 "envios",
                 "Precargando Envíos...",
                 lambda: __import__(
                     "views.envios_view", fromlist=["EnviosWindow"]
-                ).EnviosWindow(username, role, local),
+                ).EnviosWindow(username, role, local, back_command=_noop),
             ),
             (
                 "problemas",
                 "Precargando Mensajes...",
                 lambda: __import__(
                     "views.problemas_view", fromlist=["ProblemasWindow"]
-                ).ProblemasWindow(username, role, local),
+                ).ProblemasWindow(username, role, local, back_command=_noop),
             ),
         ]
     else:  # admin
@@ -636,28 +638,28 @@ def _prebuild_all_views(window, splash, app_instance):
                 "Precargando Gestión de Stock...",
                 lambda: __import__(
                     "views.stock_view", fromlist=["StockView"]
-                ).StockView(username, role, local),
+                ).StockView(username, role, local, back_command=_noop),
             ),
             (
                 "ventas",
                 "Precargando Historial de Ventas...",
                 lambda: __import__(
                     "views.ventas_history_view", fromlist=["VentasWindow"]
-                ).VentasWindow(username, role, local or "Todos"),
+                ).VentasWindow(username, role, local or "Todos", back_command=_noop),
             ),
             (
                 "history",
                 "Precargando Historial de Movimientos...",
                 lambda: __import__(
                     "views.history_view", fromlist=["HistoryWindow"]
-                ).HistoryWindow(username, role, local or ""),
+                ).HistoryWindow(username, role, local or "", back_command=_noop),
             ),
             (
                 "problemas",
                 "Precargando Mensajes...",
                 lambda: __import__(
                     "views.problemas_view", fromlist=["ProblemasWindow"]
-                ).ProblemasWindow(username, role, local or "Todos"),
+                ).ProblemasWindow(username, role, local or "Todos", back_command=_noop),
             ),
         ]
 
@@ -665,6 +667,10 @@ def _prebuild_all_views(window, splash, app_instance):
         _msg(msg)
         try:
             view = builder()
+            view.hide()
+            # Flush deferred show* calls (showMaximized, etc.) then re-hide
+            if app_instance:
+                app_instance.processEvents()
             view.hide()
             window._prebuilt[key] = view
         except Exception:
