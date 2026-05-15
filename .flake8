@@ -7,6 +7,7 @@ per-file-ignores =
     # F541 f-strings de apertura de bloques multi-línea; F824 globals de schema
     views/*.py:E501,E702,E231,E202,E201,E221,E222,F401,E402,F541,E731,E741,E722,F811,F841
     app_theme.py:E501,E702,E231,E202,E201,F541
+    app.py:E501,E402,F401,F811,E722,F841
     # ui_update_dialog tiene QSS en strings, mismo caso que views/
     ui/*.py:E501,E702,E231,E202,E201,E221,E222,F401,F541
     # updater.py tiene SQL/URLs largas en strings

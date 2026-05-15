@@ -327,3 +327,46 @@ def cleanup_connections():
     if _pool:
         _pool.closeall()
         _pool = None
+
+
+_LAST_MAINTENANCE: float = 0.0
+_MAINTENANCE_INTERVAL: float = 86400.0  # 24 horas
+
+
+def run_daily_maintenance() -> None:
+    """Llama a run_maintenance() en la BD una vez por día por sesión."""
+    global _LAST_MAINTENANCE
+    if not is_postgres():
+        return
+    now = time.time()
+    if now - _LAST_MAINTENANCE < _MAINTENANCE_INTERVAL:
+        return
+    _LAST_MAINTENANCE = now
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        # Verificar si ya se ejecutó hoy en la BD (por si otra instancia lo hizo)
+        cur.execute("SELECT last_run FROM maintenance_log WHERE task = 'daily_cleanup'")
+        row = cur.fetchone()
+        if row:
+            last = row[0]
+            import datetime
+
+            if last.date() >= datetime.date.today():
+                put_connection(conn)
+                return
+        cur.execute("SELECT run_maintenance()")
+        result = cur.fetchone()
+        conn.commit()
+        logger.info("Mantenimiento diario: %s", result[0] if result else "ok")
+    except Exception as exc:
+        logger.warning("run_daily_maintenance error: %s", exc)
+        try:
+            if conn:
+                conn.rollback()
+        except Exception:
+            pass
+    finally:
+        if conn is not None:
+            put_connection(conn)

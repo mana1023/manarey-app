@@ -398,6 +398,15 @@ def main():
             put_connection(conn)
         except Exception as e:
             print(f"[WARN] No se pudo pre-calentar la conexión: {e}")
+        # Mantenimiento diario en background (purge historial, noti_buffer, etc.)
+        try:
+            import threading
+
+            threading.Thread(
+                target=db.run_daily_maintenance, daemon=True, name="db-maintenance"
+            ).start()
+        except Exception as e:
+            print(f"[WARN] No se pudo iniciar mantenimiento diario: {e}")
     except Exception as e:
         print(f"[ERROR] Al inicializar base de datos: {e}")
 
