@@ -2663,6 +2663,8 @@ def get_stock_filtered(
             offline_store.cache_stock(local, data)
         except Exception:
             pass
+        # Obtener reservas una sola vez para reutilizar en stock normal y combos
+        reservas = {}
         if apply_reservas and local and local not in ("Todos", "Todos los locales"):
             try:
                 reservas = get_reservas_por_producto(local)
@@ -2699,10 +2701,7 @@ def get_stock_filtered(
                     and local
                     and local not in ("Todos", "Todos los locales")
                 ):
-                    try:
-                        reservas = get_reservas_por_producto(local)
-                    except Exception:
-                        reservas = {}
+                    # Reutilizar reservas ya obtenidas arriba (evita segunda query)
                     if reservas:
                         for pid, res in reservas.items():
                             if pid in qty_map:

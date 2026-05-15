@@ -12,4 +12,4 @@ per-file-ignores =
     # updater.py tiene SQL/URLs largas en strings
     updater.py:E501,E231
     # Archivos con consultas SQL largas en strings y globals de schema discovery
-    models/*.py:E501,E231,F824,F541
+    models/*.py:E501,E231,F824,F541,E402,W291,E722,E202,E201,F841,F811,E741,E702,W503

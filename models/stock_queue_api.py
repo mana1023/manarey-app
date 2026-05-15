@@ -28,6 +28,11 @@ ALLOWED_FIELDS = {
 _PRODUCT_SCHEMA_OK = False
 _PRODUCT_SCHEMA_LOCK = threading.Lock()
 
+# Caché de columnas con TTL para evitar consultar information_schema en cada operación
+_PRODUCT_COLUMNS_CACHE: set = set()
+_PRODUCT_COLUMNS_CACHE_TIME: float = 0.0
+_PRODUCT_COLUMNS_CACHE_TTL: float = 300.0  # 5 minutos
+
 
 def _ensure_material_column():
     """Asegura que la columna material exista en productos (Postgres/SQLite)."""
@@ -82,16 +87,27 @@ def _now_local() -> str:
 
 
 def _get_product_columns(conn, cur) -> set:
+    global _PRODUCT_COLUMNS_CACHE, _PRODUCT_COLUMNS_CACHE_TIME
+    now = time.time()
+    if (
+        _PRODUCT_COLUMNS_CACHE
+        and (now - _PRODUCT_COLUMNS_CACHE_TIME) < _PRODUCT_COLUMNS_CACHE_TTL
+    ):
+        return _PRODUCT_COLUMNS_CACHE
     try:
         if isinstance(conn, sqlite3.Connection):
             cur.execute("PRAGMA table_info(productos)")
-            return {r[1] for r in cur.fetchall()}
-        cur.execute(
-            "SELECT column_name FROM information_schema.columns WHERE table_name='productos'"
-        )
-        return {r[0] for r in cur.fetchall()}
+            result = {r[1] for r in cur.fetchall()}
+        else:
+            cur.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='productos'"
+            )
+            result = {r[0] for r in cur.fetchall()}
+        _PRODUCT_COLUMNS_CACHE = result
+        _PRODUCT_COLUMNS_CACHE_TIME = now
+        return result
     except Exception:
-        return set()
+        return _PRODUCT_COLUMNS_CACHE or set()
 
 
 def _get_all_locals(conn, cur) -> list:
