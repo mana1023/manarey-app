@@ -441,8 +441,9 @@ def main():
 
     def _open_main_window():
         window = None
-        # Intentar autologin: si el usuario marcó 'Recordarme' abrimos directamente el menú
-        prefs_path = None
+        _needs_prebuild = False  # True si hay auto-login y conocemos usuario/local
+
+        # ── Crear ventana (sin mostrarla todavía) ─────────────────────────────
         try:
             appdata = os.environ.get("APPDATA")
             if appdata:
@@ -475,7 +476,8 @@ def main():
                                 prefs.get("role", "local"),
                                 prefs.get("local", ""),
                             )
-                        window.show()
+                        _needs_prebuild = True
+                        # ← NO llamamos window.show() todavía
                     except Exception:
                         from views.login_view import LoginWindow
 
@@ -496,13 +498,27 @@ def main():
 
             window = LoginWindow()
             window.show()
-        # Precargar todas las vistas secundarias mientras el splash está visible.
-        # Solo si hay auto-login (conocemos usuario/local). Si hubo login manual
-        # se precarga igual pero desde LocalWindow.__init__ con QTimer.
-        try:
-            _prebuild_all_views(window, _splash_ref, app)
-        except Exception:
-            pass
+
+        # ── Precargar vistas ANTES de mostrar el menú (splash sigue visible) ──
+        if _needs_prebuild and window is not None:
+            try:
+                _prebuild_all_views(window, _splash_ref, app)
+            except Exception:
+                pass
+            # Ahora sí abrimos el menú — todo precargado
+            try:
+                if _splash_ref:
+                    _splash_ref.showMessage(
+                        "¡Listo!",
+                        Qt.AlignBottom | Qt.AlignHCenter,
+                        QColor("#C9A040"),
+                    )
+                    app.processEvents()
+            except Exception:
+                pass
+            window.show()
+
+        # ── Cerrar splash ──────────────────────────────────────────────────────
         try:
             if _splash_ref and window:
                 _splash_ref.finish(window)
