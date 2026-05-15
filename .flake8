@@ -11,6 +11,6 @@ per-file-ignores =
     # ui_update_dialog tiene QSS en strings, mismo caso que views/
     ui/*.py:E501,E702,E231,E202,E201,E221,E222,F401,F541
     # updater.py tiene SQL/URLs largas en strings
-    updater.py:E501,E231
+    updater.py:E501,E231,E272,E201,E202
     # Archivos con consultas SQL largas en strings y globals de schema discovery
     models/*.py:E501,E231,F824,F541,E402,W291,E722,E202,E201,F841,F811,E741,E702,W503

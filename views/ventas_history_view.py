@@ -827,6 +827,10 @@ class VentasWindow(QMainWindow):
         self._init_time_filter_done = False
         # Cache de filas actualmente mostradas en la tabla (incluye pendientes siempre arriba)
         self._rows_cache = []
+        # Paginación de la tabla
+        self._all_model_rows = []
+        self._page_shown = 0
+        self._PAGE_SIZE = 200
         # Control de visibilidad de totales para locales
         self._totals_unlocked = self.role == "admin"
         self._totals_lock_enabled = self.role != "admin"
@@ -1078,6 +1082,18 @@ class VentasWindow(QMainWindow):
         self.refresh_theme()
         self.ventas_table.doubleClicked.connect(self.ver_detalles_venta)
         root.addWidget(self.ventas_table)
+
+        # Botón "Cargar más" para paginación
+        self._load_more_btn = QPushButton("Cargar más resultados")
+        self._load_more_btn.setVisible(False)
+        self._load_more_btn.setFixedHeight(34)
+        self._load_more_btn.setStyleSheet(
+            f"QPushButton {{ background: {_T('CARD', '#232327')}; color: {_T('GOLD', '#C9A040')};"
+            f" border: 1px solid {_T('GOLD', '#C9A040')}; border-radius: 8px; font-weight: 600; }}"
+            f"QPushButton:hover {{ background: {_T('GOLD', '#C9A040')}; color: #1f1f22; }}"
+        )
+        self._load_more_btn.clicked.connect(self._load_more_rows)
+        root.addWidget(self._load_more_btn)
 
         # Barra de totales del período
         self.totals_bar = QFrame()
@@ -1745,8 +1761,31 @@ class VentasWindow(QMainWindow):
                 }
             )
 
-        self.ventas_model.set_rows(model_rows)
+        self._all_model_rows = model_rows
+        self._page_shown = min(self._PAGE_SIZE, len(model_rows))
+        self.ventas_model.set_rows(model_rows[: self._page_shown])
+        self._update_load_more_btn()
         self.update_totals_bar(all_rows, local_arg, filtro_fecha)
+
+    def _update_load_more_btn(self):
+        total = len(self._all_model_rows)
+        shown = self._page_shown
+        if shown < total:
+            remaining = total - shown
+            self._load_more_btn.setText(
+                f"Cargar más  ({shown} de {total} ventas — {remaining} restantes)"
+            )
+            self._load_more_btn.setVisible(True)
+        else:
+            self._load_more_btn.setVisible(False)
+
+    def _load_more_rows(self):
+        total = len(self._all_model_rows)
+        new_shown = min(self._page_shown + self._PAGE_SIZE, total)
+        if new_shown > self._page_shown:
+            self._page_shown = new_shown
+            self.ventas_model.set_rows(self._all_model_rows[: self._page_shown])
+            self._update_load_more_btn()
 
     def update_totals_bar(self, ventas, local_arg, filtro_fecha, pendientes=None):
         """Actualiza la barra de totales (suma, promedio, señas, pendiente, desglose pagos)."""

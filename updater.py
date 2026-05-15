@@ -107,27 +107,42 @@ def _get_latest_release_from_github() -> Optional[Dict[str, Any]]:
                 if not version:
                     version = data.get("name", "").split()[-1]
 
-                # Buscar asset (preferir instalador .exe)
+                # Buscar assets: instalador .exe, delta.zip y checksum
                 download_url = None
-                for asset in data.get("assets", []):
-                    name = asset.get("name", "")
-                    if name.endswith(".exe") and "Manarey-Setup" in name:
-                        download_url = asset["browser_download_url"]
-                        break
+                delta_url = None
+                checksum_url = None
+                delta_checksum_url = None
+
+                assets = data.get("assets", [])
+                for asset in assets:
+                    name = asset.get("name", "").lower()
+                    url = asset["browser_download_url"]
+                    if name == "delta.zip":
+                        delta_url = url
+                    elif name == "delta.zip.sha256":
+                        delta_checksum_url = url
+                    elif name.endswith(".sha256") and "setup" in name:
+                        checksum_url = url
+                    elif name.endswith(".exe") and "setup" in name and not download_url:
+                        download_url = url
+
+                # Fallback: cualquier .exe si no encontró "setup"
                 if not download_url:
-                    for asset in data.get("assets", []):
-                        name = asset.get("name", "")
-                        if name.endswith(".exe"):
+                    for asset in assets:
+                        if asset.get("name", "").lower().endswith(".exe"):
                             download_url = asset["browser_download_url"]
                             break
 
-                if not download_url:
+                if not download_url and not delta_url:
                     logger.debug("No se encontraron assets en release")
                     return None
 
                 return {
                     "version": version,
                     "url": download_url,
+                    "delta_url": delta_url,
+                    "checksum_url": checksum_url,
+                    "delta_checksum_url": delta_checksum_url,
                     "notes": data.get("body", ""),
                     "published_at": str(data.get("published_at", "")),
                     "mandatory": bool(not data.get("prerelease")),
@@ -213,6 +228,7 @@ def _save_state(state: Dict[str, Any]) -> None:
 
 
 def _parse_dt(s: Optional[str]) -> Optional[datetime]:
+    """Parsea fecha y siempre devuelve datetime naive UTC para comparaciones seguras."""
     if not s:
         return None
     s = str(s).strip()
@@ -222,13 +238,24 @@ def _parse_dt(s: Optional[str]) -> Optional[datetime]:
         except Exception:
             continue
     try:
-        return datetime.fromisoformat(s)
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        # Convertir a naive UTC para evitar mezcla aware/naive
+        if dt.tzinfo is not None:
+            import calendar
+
+            ts = calendar.timegm(dt.utctimetuple())
+            return datetime.utcfromtimestamp(ts)
+        return dt
     except Exception:
         return None
 
 
+def _now_utc() -> datetime:
+    """Devuelve datetime naive en UTC."""
+    return datetime.utcnow()
+
+
 def _get_published_at(manifest: Dict[str, Any]) -> datetime:
-    # Prioridad: campo published_at -> mtime del manifest -> ahora
     dt = _parse_dt(manifest.get("published_at"))
     if dt:
         return dt
@@ -236,10 +263,10 @@ def _get_published_at(manifest: Dict[str, Any]) -> datetime:
         meta = manifest.get("_meta") or {}
         mtime = meta.get("manifest_mtime")
         if mtime:
-            return datetime.fromtimestamp(float(mtime))
+            return datetime.utcfromtimestamp(float(mtime))
     except Exception:
         pass
-    return datetime.now()
+    return _now_utc()
 
 
 def _force_after_days(manifest: Dict[str, Any]) -> int:
@@ -262,7 +289,7 @@ def _is_mandatory(manifest: Dict[str, Any]) -> bool:
     try:
         pub = _get_published_at(manifest)
         days = _force_after_days(manifest)
-        if datetime.now() - pub >= timedelta(days=days):
+        if _now_utc() - pub >= timedelta(days=days):
             return True
     except Exception:
         pass
@@ -310,60 +337,117 @@ def get_pending_update() -> Optional[Dict[str, Any]]:
         return None
 
 
+def _verify_checksum(file_path: str, expected_sha256: str) -> bool:
+    """Verifica SHA-256 del archivo descargado."""
+    import hashlib
+
+    try:
+        h = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 256), b""):
+                h.update(chunk)
+        return h.hexdigest().lower() == expected_sha256.strip().lower()
+    except Exception:
+        return False
+
+
+def _fetch_checksum_from_url(checksum_url: str) -> Optional[str]:
+    """Descarga archivo .sha256 y devuelve el hash (primera columna)."""
+    try:
+        req = urllib.request.Request(
+            checksum_url, headers={"User-Agent": "Manarey-Updater/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            content = resp.read().decode("utf-8").strip()
+        # Formato: "<hash>  <filename>" o solo "<hash>"
+        return content.split()[0] if content else None
+    except Exception:
+        return None
+
+
 def _download_to_temp(
     src: str,
     progress_cb=None,
     cancel_cb=None,
+    expected_sha256: Optional[str] = None,
+    min_size: int = 1024 * 1024,
 ) -> Optional[str]:
-    try:
-        # src puede ser ruta local (compartida) o URL http(s)
-        tmp_dir = tempfile.gettempdir()
-        fname = os.path.basename(src)
-        dst = os.path.join(tmp_dir, fname)
-        if src.lower().startswith(("http://", "https://")):
-            # Preferir requests si esta disponible (mejor manejo de redirects)
-            try:
-                import requests
+    """Descarga src a temp con reintentos (3x) y validación de checksum opcional."""
+    tmp_dir = tempfile.gettempdir()
+    fname = os.path.basename(src.split("?")[0]) or "manarey_update"
+    dst = os.path.join(tmp_dir, fname)
 
-                headers = {"User-Agent": "Manarey-Updater/1.0"}
-                with requests.get(
-                    src, headers=headers, stream=True, timeout=60, allow_redirects=True
-                ) as r:
-                    if r.status_code != 200:
-                        return None
-                    total = int(r.headers.get("Content-Length") or 0)
-                    done = 0
-                    with open(dst, "wb") as f:
-                        for chunk in r.iter_content(chunk_size=1024 * 256):
-                            if cancel_cb and cancel_cb():
-                                return None
-                            if chunk:
-                                f.write(chunk)
-                                done += len(chunk)
-                                if progress_cb:
-                                    progress_cb(done, total)
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            if src.lower().startswith(("http://", "https://")):
+                try:
+                    import requests
+
+                    headers = {"User-Agent": "Manarey-Updater/1.0"}
+                    with requests.get(
+                        src,
+                        headers=headers,
+                        stream=True,
+                        timeout=120,
+                        allow_redirects=True,
+                    ) as r:
+                        if r.status_code != 200:
+                            raise IOError(f"HTTP {r.status_code}")
+                        total = int(r.headers.get("Content-Length") or 0)
+                        done = 0
+                        with open(dst, "wb") as f:
+                            for chunk in r.iter_content(chunk_size=1024 * 256):
+                                if cancel_cb and cancel_cb():
+                                    return None
+                                if chunk:
+                                    f.write(chunk)
+                                    done += len(chunk)
+                                    if progress_cb:
+                                        progress_cb(done, total)
+                except ImportError:
+                    # Fallback urllib (sin progreso granular)
+                    req = urllib.request.Request(
+                        src, headers={"User-Agent": "Manarey-Updater/1.0"}
+                    )
+                    with urllib.request.urlopen(req, timeout=120) as resp, open(
+                        dst, "wb"
+                    ) as f:
+                        shutil.copyfileobj(resp, f)
+            else:
+                if os.path.exists(src):
+                    shutil.copy2(src, dst)
+                else:
+                    return None
+
+            # Validar tamaño mínimo
+            if os.path.getsize(dst) < min_size:
+                raise IOError(
+                    f"Archivo demasiado pequeño ({os.path.getsize(dst)} bytes)"
+                )
+
+            # Validar checksum si se proporcionó
+            if expected_sha256:
+                if not _verify_checksum(dst, expected_sha256):
+                    raise IOError("Checksum SHA-256 no coincide")
+
+            if progress_cb:
+                progress_cb(1, 1)
+            return dst
+
+        except Exception as e:
+            logger.warning(f"[Descarga intento {attempt}/{max_retries}] {e}")
+            try:
+                if os.path.exists(dst):
+                    os.remove(dst)
             except Exception:
-                # Fallback urllib
-                with urllib.request.urlopen(src, timeout=60) as resp, open(
-                    dst, "wb"
-                ) as f:
-                    shutil.copyfileobj(resp, f)
-        else:
-            if os.path.exists(src):
-                shutil.copy2(src, dst)
+                pass
+            if attempt < max_retries:
+                time.sleep(2**attempt)  # backoff: 2s, 4s
             else:
                 return None
-        # Validar tamaño minimo (evita guardar HTML de error)
-        try:
-            if os.path.getsize(dst) < 1024 * 1024:
-                return None
-        except Exception:
-            pass
-        if progress_cb:
-            progress_cb(1, 1)
-        return dst
-    except Exception:
-        return None
+
+    return None
 
 
 def refresh_update_state() -> Optional[Dict[str, Any]]:
@@ -457,7 +541,11 @@ def _run_installer_and_wait(exe_path: str) -> bool:
         return True
 
 
-def _download_and_install_with_progress(src: str, parent_widget=None) -> bool:
+def _download_and_install_with_progress(
+    src: str,
+    parent_widget=None,
+    expected_sha256: Optional[str] = None,
+) -> bool:
     """Descarga el instalador (.exe) y lo ejecuta con UAC, mostrando progreso en dos fases."""
     import threading
 
@@ -467,7 +555,7 @@ def _download_and_install_with_progress(src: str, parent_widget=None) -> bool:
         from ui.ui_update_dialog import UpdateProgressDialog
     except Exception:
         # Fallback sin UI
-        exe_path = _download_to_temp(src)
+        exe_path = _download_to_temp(src, expected_sha256=expected_sha256)
         if exe_path:
             return _run_installer_and_wait(exe_path)
         return False
@@ -487,6 +575,7 @@ def _download_and_install_with_progress(src: str, parent_widget=None) -> bool:
         src,
         progress_cb=download_progress_cb,
         cancel_cb=lambda: dlg.cancelled,
+        expected_sha256=expected_sha256,
     )
 
     if dlg.cancelled or not exe_path:
@@ -533,18 +622,238 @@ def _run_installer(exe_path: str) -> bool:
     return _run_installer_and_wait(exe_path)
 
 
-def _start_update_from_manifest(manifest: Dict[str, Any], parent_widget=None) -> bool:
-    """Descarga el instalador (.exe) y lo ejecuta."""
-    src = manifest.get("path") or manifest.get("url")
-    if not src:
+def _get_install_dir() -> str:
+    """Lee el directorio de instalación desde el registro HKLM o infiere por sys.argv."""
+    if os.name == "nt":
+        try:
+            import winreg
+
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"Software\Manarey",
+                0,
+                winreg.KEY_READ | winreg.KEY_WOW64_32KEY,
+            )
+            val, _ = winreg.QueryValueEx(key, "Install_Dir")
+            winreg.CloseKey(key)
+            if val and os.path.isdir(val):
+                return val
+        except Exception:
+            pass
+    # Fallback: directorio del ejecutable
+    try:
+        exe = sys.argv[0] if sys.argv else __file__
+        d = os.path.dirname(os.path.abspath(exe))
+        # Si corremos desde _internal/ subir un nivel
+        if os.path.basename(d).lower() == "_internal":
+            d = os.path.dirname(d)
+        return d
+    except Exception:
+        return os.path.join(
+            os.environ.get("PROGRAMFILES", "C:\\Program Files"), "Manarey"
+        )
+
+
+def _apply_delta_with_powershell(zip_path: str, install_dir: str) -> bool:
+    """
+    Aplica actualización delta: extrae zip sobre _internal/ después de que
+    Manarey.exe se cierra, luego lo relanza. Todo via un script PowerShell
+    transitorio que se autoejecuta y autoeimina.
+    """
+    if os.name != "nt":
         return False
 
+    exe_path = os.path.join(install_dir, "Manarey.exe")
+    internal_dir = os.path.join(install_dir, "_internal")
+
+    # Si no existe _internal/, extraer directamente en install_dir
+    if not os.path.isdir(internal_dir):
+        internal_dir = install_dir
+
+    script = f"""
+$zipPath = '{zip_path.replace("'", "''")}'
+$targetDir = '{internal_dir.replace("'", "''")}'
+$exePath = '{exe_path.replace("'", "''")}'
+
+# Esperar a que cierre Manarey.exe (max 30 seg)
+$waited = 0
+while ((Get-Process -Name 'Manarey' -ErrorAction SilentlyContinue) -and $waited -lt 30) {{
+    Start-Sleep -Seconds 1
+    $waited++
+}}
+
+# Extraer delta zip sobre _internal/
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+foreach ($entry in $zip.Entries) {{
+    if ($entry.FullName.EndsWith('/')) {{ continue }}
+    $dest = Join-Path $targetDir $entry.FullName
+    $destDir = Split-Path $dest -Parent
+    if (-not (Test-Path $destDir)) {{ New-Item -ItemType Directory -Path $destDir -Force | Out-Null }}
+    $stream = $entry.Open()
+    $fileStream = [System.IO.File]::Create($dest)
+    $stream.CopyTo($fileStream)
+    $fileStream.Close()
+    $stream.Close()
+}}
+$zip.Dispose()
+Remove-Item $zipPath -ErrorAction SilentlyContinue
+
+# Relanzar app
+if (Test-Path $exePath) {{
+    Start-Process $exePath
+}}
+
+# Autoeliminarse
+$scriptPath = $MyInvocation.MyCommand.Path
+Remove-Item $scriptPath -ErrorAction SilentlyContinue
+"""
+
     try:
-        # Descargar y ejecutar instalador
-        if src.lower().startswith(("http://", "https://")):
-            success = _download_and_install_with_progress(src, parent_widget)
+        script_path = os.path.join(tempfile.gettempdir(), "manarey_delta_apply.ps1")
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(script)
+
+        # Lanzar PowerShell elevado sin esperar, luego salir
+        import ctypes
+
+        SEE_MASK_NOCLOSEPROCESS = 0x00000040
+
+        class SHELLEXECUTEINFO(ctypes.Structure):
+            _fields_ = [
+                ("cbSize", ctypes.c_ulong),
+                ("fMask", ctypes.c_ulong),
+                ("hwnd", ctypes.c_void_p),
+                ("lpVerb", ctypes.c_wchar_p),
+                ("lpFile", ctypes.c_wchar_p),
+                ("lpParameters", ctypes.c_wchar_p),
+                ("lpDirectory", ctypes.c_wchar_p),
+                ("nShow", ctypes.c_int),
+                ("hInstApp", ctypes.c_void_p),
+                ("lpIDList", ctypes.c_void_p),
+                ("lpClass", ctypes.c_wchar_p),
+                ("hkeyClass", ctypes.c_void_p),
+                ("dwHotKey", ctypes.c_ulong),
+                ("hIconOrMonitor", ctypes.c_void_p),
+                ("hProcess", ctypes.c_void_p),
+            ]
+
+        params = f'-NonInteractive -ExecutionPolicy Bypass -File "{script_path}"'
+        sei = SHELLEXECUTEINFO()
+        sei.cbSize = ctypes.sizeof(sei)
+        sei.fMask = SEE_MASK_NOCLOSEPROCESS
+        sei.lpVerb = "runas"
+        sei.lpFile = "powershell.exe"
+        sei.lpParameters = params
+        sei.nShow = 0
+
+        ok = ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei))
+        if ok and sei.hProcess:
+            ctypes.windll.kernel32.CloseHandle(sei.hProcess)
+        os._exit(0)
+        return True
+    except Exception as e:
+        logger.error(f"Error aplicando delta: {e}")
+        return False
+
+
+def _download_and_apply_delta_with_progress(
+    delta_url: str,
+    delta_checksum_url: Optional[str],
+    parent_widget=None,
+) -> bool:
+    """Descarga delta.zip con barra de progreso y aplica la actualización delta."""
+    try:
+        from PyQt5.QtWidgets import QApplication
+
+        from ui.ui_update_dialog import UpdateProgressDialog
+
+        dlg = UpdateProgressDialog(parent_widget)
+        dlg.cancelled = False
+
+        def progress_cb(done: int, total: int):
+            if total:
+                dlg.update_progress(done, total, stage="download")
+            QApplication.processEvents()
+
+        dlg.show()
+
+        # Obtener checksum si hay asset disponible
+        expected_sha256 = None
+        if delta_checksum_url:
+            expected_sha256 = _fetch_checksum_from_url(delta_checksum_url)
+
+        zip_path = _download_to_temp(
+            delta_url,
+            progress_cb=progress_cb,
+            cancel_cb=lambda: dlg.cancelled,
+            expected_sha256=expected_sha256,
+            min_size=1024,  # delta puede ser pequeño
+        )
+
+        if dlg.cancelled or not zip_path:
+            try:
+                dlg.close()
+            except Exception:
+                pass
+            return False
+
+        try:
+            dlg.update_progress(100, 100, stage="download")
+            dlg.start_install_phase()
+            QApplication.processEvents()
+        except Exception:
+            pass
+
+        install_dir = _get_install_dir()
+        return _apply_delta_with_powershell(zip_path, install_dir)
+
+    except Exception:
+        # Fallback sin UI
+        expected_sha256 = None
+        if delta_checksum_url:
+            expected_sha256 = _fetch_checksum_from_url(delta_checksum_url)
+        zip_path = _download_to_temp(
+            delta_url, expected_sha256=expected_sha256, min_size=1024
+        )
+        if zip_path:
+            return _apply_delta_with_powershell(zip_path, _get_install_dir())
+        return False
+
+
+def _start_update_from_manifest(manifest: Dict[str, Any], parent_widget=None) -> bool:
+    """Descarga e instala la actualización: prefiere delta.zip si está disponible."""
+    delta_url = manifest.get("delta_url")
+    delta_checksum_url = manifest.get("delta_checksum_url")
+    full_url = manifest.get("path") or manifest.get("url")
+
+    try:
+        # Preferir delta si está disponible (más rápido, sin UAC completo)
+        if delta_url:
+            logger.info(f"Aplicando actualización delta desde {delta_url}")
+            success = _download_and_apply_delta_with_progress(
+                delta_url, delta_checksum_url, parent_widget
+            )
+            if success:
+                return True
+            logger.warning("Delta falló, intentando instalador completo")
+
+        if not full_url:
+            return False
+
+        # Instalador completo como fallback
+        if full_url.lower().startswith(("http://", "https://")):
+            # Obtener checksum del instalador si está disponible
+            checksum_url = manifest.get("checksum_url")
+            expected_sha256 = None
+            if checksum_url:
+                expected_sha256 = _fetch_checksum_from_url(checksum_url)
+
+            success = _download_and_install_with_progress(
+                full_url, parent_widget, expected_sha256=expected_sha256
+            )
         else:
-            success = _run_installer(src)
+            success = _run_installer(full_url)
 
         if not success:
             try:
@@ -593,7 +902,7 @@ def check_for_updates(parent_widget=None, show_ui: bool = True) -> None:
     mandatory = _is_mandatory(manifest)
     pub = _get_published_at(manifest)
     force_days = _force_after_days(manifest)
-    days_passed = max(0, int((datetime.now() - pub).days))
+    days_passed = max(0, int((_now_utc() - pub).days))
     days_left = max(0, force_days - days_passed)
 
     if not show_ui:

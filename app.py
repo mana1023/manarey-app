@@ -430,44 +430,58 @@ def main():
     except Exception:
         pass
 
-    # Intentar autologin: si el usuario marcó 'Recordarme' abrimos directamente el menú
-    prefs_path = None
-    try:
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            prefs_path = os.path.join(appdata, "Manarey", "user_prefs.json")
-        else:
-            prefs_path = os.path.join(
-                os.path.expanduser("~"), ".manarey_prefs", "user_prefs.json"
-            )
-        if prefs_path and os.path.exists(prefs_path):
-            with open(prefs_path, "r", encoding="utf-8") as f:
-                prefs = json.load(f) or {}
-            if prefs.get("remember") and prefs.get("role"):
-                # Abrir la ventana correspondiente (admin o local)
-                try:
-                    role = prefs.get("role")
-                    if role == "admin":
-                        from views.main_admin import MainAdminWindow
+    # Diferir la construcción de ventana al primer tick del event loop
+    # para que el splash quede visible antes de las importaciones pesadas.
+    splash.showMessage(
+        "Iniciando...", Qt.AlignBottom | Qt.AlignHCenter, QColor("#A0A0B0")
+    )
+    app.processEvents()
 
-                        window = MainAdminWindow(
-                            {
-                                "username": prefs.get("username", ""),
-                                "role": "admin",
-                                "local": prefs.get("local"),
-                            }
-                        )
-                    else:
-                        from views.main_local import LocalWindow
+    _splash_ref = splash  # capturar para el closure
 
-                        window = LocalWindow(
-                            prefs.get("username", ""),
-                            prefs.get("role", "local"),
-                            prefs.get("local", ""),
-                        )
-                    window.show()
-                except Exception:
-                    # Fallback a pantalla de login si falla abrir el menú
+    def _open_main_window():
+        window = None
+        # Intentar autologin: si el usuario marcó 'Recordarme' abrimos directamente el menú
+        prefs_path = None
+        try:
+            appdata = os.environ.get("APPDATA")
+            if appdata:
+                prefs_path = os.path.join(appdata, "Manarey", "user_prefs.json")
+            else:
+                prefs_path = os.path.join(
+                    os.path.expanduser("~"), ".manarey_prefs", "user_prefs.json"
+                )
+            if prefs_path and os.path.exists(prefs_path):
+                with open(prefs_path, "r", encoding="utf-8") as f:
+                    prefs = json.load(f) or {}
+                if prefs.get("remember") and prefs.get("role"):
+                    try:
+                        role = prefs.get("role")
+                        if role == "admin":
+                            from views.main_admin import MainAdminWindow
+
+                            window = MainAdminWindow(
+                                {
+                                    "username": prefs.get("username", ""),
+                                    "role": "admin",
+                                    "local": prefs.get("local"),
+                                }
+                            )
+                        else:
+                            from views.main_local import LocalWindow
+
+                            window = LocalWindow(
+                                prefs.get("username", ""),
+                                prefs.get("role", "local"),
+                                prefs.get("local", ""),
+                            )
+                        window.show()
+                    except Exception:
+                        from views.login_view import LoginWindow
+
+                        window = LoginWindow()
+                        window.show()
+                else:
                     from views.login_view import LoginWindow
 
                     window = LoginWindow()
@@ -477,22 +491,35 @@ def main():
 
                 window = LoginWindow()
                 window.show()
-        else:
+        except Exception:
             from views.login_view import LoginWindow
 
             window = LoginWindow()
             window.show()
-    except Exception:
-        from views.login_view import LoginWindow
+        try:
+            if _splash_ref and window:
+                _splash_ref.finish(window)
+        except Exception:
+            pass
+        return window
 
-        window = LoginWindow()
-        window.show()
-    try:
-        if splash and window:
-            splash.finish(window)
-    except Exception:
-        pass
+    _window_ref = [None]
 
+    def _deferred_start():
+        w = _open_main_window()
+        _window_ref[0] = w
+        _post_window_setup(app, w)
+
+    from PyQt5.QtCore import QTimer
+
+    QTimer.singleShot(50, _deferred_start)
+
+    exit_code = app.exec_()
+    sys.exit(exit_code)
+
+
+def _post_window_setup(app, window):
+    """Aplica escala y lanza threads de background. Llamado tras crear la ventana principal."""
     try:
         # Aplicar escala global centralizada
         try:
@@ -580,9 +607,6 @@ def main():
         sync_thread.start()
     except Exception:
         pass
-
-    exit_code = app.exec_()
-    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

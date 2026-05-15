@@ -107,7 +107,6 @@ if ($nsis -and (Test-Path $nsiFile)) {
 Write-Step "Buscando instalador Manarey-Setup-$Version.exe..."
 $installerPath = Join-Path $root "DESCARGABLE\Manarey-Setup-$Version.exe"
 if (-not (Test-Path $installerPath)) {
-    # Buscar el más reciente en DESCARGABLE
     $latest = Get-ChildItem -Path (Join-Path $root "DESCARGABLE") -Filter "Manarey-Setup-*.exe" -ErrorAction SilentlyContinue |
               Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if ($latest) {
@@ -123,9 +122,66 @@ if (-not (Test-Path $installerPath)) {
 $sizeMB = [math]::Round((Get-Item $installerPath).Length / 1MB, 1)
 Write-Ok "Instalador: $(Split-Path -Leaf $installerPath) ($sizeMB MB)"
 
-# ─── Paso 4: Calcular checksum ────────────────────────────────────────────────
+# ─── Paso 4: Calcular checksum del instalador ─────────────────────────────────
 $checksum = (Get-FileHash -Algorithm SHA256 -Path $installerPath).Hash.ToLower()
-Write-Ok "SHA256: $checksum"
+Write-Ok "SHA256 instalador: $checksum"
+
+# Guardar checksum en archivo para subirlo como asset
+$checksumFile = Join-Path $env:TEMP "Manarey-Setup-$Version.exe.sha256"
+"$checksum  Manarey-Setup-$Version.exe" | Out-File $checksumFile -Encoding ascii -NoNewline
+
+# ─── Paso 4b: Generar delta.zip (solo archivos de código de la app) ───────────
+Write-Step "Generando delta.zip con archivos de la app..."
+$internalDir = Join-Path $root "dist\Manarey\_internal"
+$deltaZipPath = Join-Path $env:TEMP "delta.zip"
+$deltaChecksumFile = Join-Path $env:TEMP "delta.zip.sha256"
+
+$deltaOk = $false
+if (Test-Path $internalDir) {
+    # Directorios de código de la app (sin runtime de Python ni PyQt5)
+    $appDirs = @("models", "views", "utils", "workers", "ui")
+    $appFiles = @("version.py", "version.pyc")
+
+    if (Test-Path $deltaZipPath) { Remove-Item $deltaZipPath -Force }
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zipStream = [System.IO.Compression.ZipFile]::Open($deltaZipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+
+    $addedFiles = 0
+    foreach ($dir in $appDirs) {
+        $dirPath = Join-Path $internalDir $dir
+        if (Test-Path $dirPath) {
+            Get-ChildItem -Recurse -File -Path $dirPath | ForEach-Object {
+                $relPath = $_.FullName.Substring($internalDir.Length + 1)
+                [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zipStream, $_.FullName, $relPath) | Out-Null
+                $addedFiles++
+            }
+        }
+    }
+    foreach ($fname in $appFiles) {
+        $fpath = Join-Path $internalDir $fname
+        if (Test-Path $fpath) {
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zipStream, $fpath, $fname) | Out-Null
+            $addedFiles++
+        }
+    }
+
+    $zipStream.Dispose()
+
+    if ($addedFiles -gt 0) {
+        $deltaSizeMB = [math]::Round((Get-Item $deltaZipPath).Length / 1MB, 2)
+        $deltaChecksum = (Get-FileHash -Algorithm SHA256 -Path $deltaZipPath).Hash.ToLower()
+        "$deltaChecksum  delta.zip" | Out-File $deltaChecksumFile -Encoding ascii -NoNewline
+        Write-Ok "delta.zip: $addedFiles archivos, $deltaSizeMB MB (SHA256: $deltaChecksum)"
+        $deltaOk = $true
+    } else {
+        Write-Warn "No se encontraron archivos de código en $internalDir — se omite delta.zip"
+        if (Test-Path $deltaZipPath) { Remove-Item $deltaZipPath -Force }
+    }
+} else {
+    Write-Warn "dist\Manarey\_internal\ no existe — se omite delta.zip"
+    Write-Warn "  Asegurate de compilar con PyInstaller antes de publicar."
+}
 
 # ─── Paso 5: Publicar en GitHub ───────────────────────────────────────────────
 Write-Step "Publicando en GitHub Releases..."
@@ -142,6 +198,47 @@ if (-not $downloadUrl -or $LASTEXITCODE -ne 0) {
     exit 1
 }
 Write-Ok "Publicado en GitHub: $downloadUrl"
+
+# ─── Paso 5b: Subir assets adicionales (checksum + delta) ─────────────────────
+Write-Step "Subiendo assets adicionales al release..."
+$apiHeaders = @{
+    Authorization  = "Bearer $GithubToken"
+    "User-Agent"   = "Manarey-Updater/1.0"
+    Accept         = "application/vnd.github.v3+json"
+}
+
+try {
+    $releaseInfo = Invoke-RestMethod `
+        -Uri "https://api.github.com/repos/$($env:GITHUB_REPO)/releases/tags/$tag" `
+        -Headers $apiHeaders
+    # upload_url tiene formato: https://uploads.github.com/repos/.../assets{?name,label}
+    $uploadBase = $releaseInfo.upload_url -replace '\{.*\}', ''
+
+    function Upload-Asset($filePath, $assetName, $contentType) {
+        try {
+            $up = Invoke-RestMethod `
+                -Uri "${uploadBase}?name=$assetName" `
+                -Method Post `
+                -Headers ($apiHeaders + @{ "Content-Type" = $contentType }) `
+                -InFile $filePath
+            Write-Ok "Subido: $assetName"
+            return $up.browser_download_url
+        } catch {
+            Write-Warn "No se pudo subir $assetName`: $($_.Exception.Message)"
+            return $null
+        }
+    }
+
+    Upload-Asset $checksumFile "Manarey-Setup-$Version.exe.sha256" "text/plain" | Out-Null
+
+    if ($deltaOk) {
+        Upload-Asset $deltaZipPath "delta.zip" "application/zip" | Out-Null
+        Upload-Asset $deltaChecksumFile "delta.zip.sha256" "text/plain" | Out-Null
+        Write-Ok "Assets de delta subidos al release"
+    }
+} catch {
+    Write-Warn "No se pudieron subir assets adicionales: $($_.Exception.Message)"
+}
 
 # ─── Paso 6: Registrar en Supabase (opcional) ─────────────────────────────────
 $pubScript = Join-Path $root "scripts\publish_update_url.py"
@@ -162,10 +259,14 @@ Write-Host "══════════════════════�
 Write-Host "   ✓ Actualización v$Version publicada" -ForegroundColor Green
 Write-Host "═══════════════════════════════════════════" -ForegroundColor DarkYellow
 Write-Host ""
-Write-Host "  URL     : $downloadUrl" -ForegroundColor White
-Write-Host "  Release : https://github.com/mana1023/manarey-updates/releases/tag/$tag" -ForegroundColor White
+Write-Host "  URL      : $downloadUrl" -ForegroundColor White
+if ($deltaOk) {
+    Write-Host "  Delta    : delta.zip subido (actualización rápida)" -ForegroundColor White
+}
+Write-Host "  Release  : https://github.com/mana1023/manarey-updates/releases/tag/$tag" -ForegroundColor White
 Write-Host ""
 Write-Host "  Las PCs con Manarey instalado recibirán la actualización" -ForegroundColor DarkGray
 Write-Host "  automáticamente en el próximo inicio de la app." -ForegroundColor DarkGray
+Write-Host "  Si hay delta.zip, la descarga será ~10x más rápida." -ForegroundColor DarkGray
 Write-Host ""
 Read-Host "  Presioná Enter para cerrar"
