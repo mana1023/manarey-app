@@ -574,6 +574,7 @@ class AdminWindow(QMainWindow):
                 self.local or "",
                 back_command=self._back_to_menu,
             ),
+            refresher=lambda w: w._fetch(),
         )
 
     def open_sales_history(self):

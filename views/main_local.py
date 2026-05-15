@@ -863,6 +863,7 @@ class LocalWindow(QMainWindow):
             ).HistoryWindow(
                 self.username, self.role, self.local, back_command=self.on_back
             ),
+            refresher=lambda w: w._fetch(),
         )
 
     def open_ventas_history(self):
