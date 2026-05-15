@@ -515,26 +515,42 @@ class AdminWindow(QMainWindow):
     # -------------------------
     # Acciones de los botones
     # -------------------------
-    def open_stock(self):
-        """
-        Abre la vista de Stock (por local) usando views/stock_view.StockView.
-        """
+    def _get_prebuilt(self, key):
+        """Devuelve la vista precargada si existe, o None."""
+        return getattr(self, "_prebuilt", {}).get(key)
+
+    def _open_view_cached(self, key, title, builder, refresher=None):
+        """Abre una vista usando caché de vistas precargadas si está disponible."""
         try:
-            from views.stock_view import StockView
+            win = self._get_prebuilt(key)
+            if win is not None:
+                if hasattr(win, "back_command"):
+                    win.back_command = None
+                if refresher:
+                    try:
+                        refresher(win)
+                    except Exception:
+                        pass
+            else:
+                win = builder()
+            self._push_view(win, title)
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"No se pudo abrir la vista de stock:\n{e}"
-            )
-            return
-        child = StockView(
-            self.username, self.role, self.local, back_command=self._back_to_menu
-        )
+            QMessageBox.critical(self, "Error", f"No se pudo abrir {title}:\n{e}")
+
+    def open_stock(self):
         title_local = (
             self.local
             if self.local
             else ("Administrador" if self.role == "admin" else "Local")
         )
-        self._push_view(child, f"Stock de {title_local}")
+        self._open_view_cached(
+            "stock",
+            f"Stock de {title_local}",
+            lambda: __import__("views.stock_view", fromlist=["StockView"]).StockView(
+                self.username, self.role, self.local, back_command=self._back_to_menu
+            ),
+            refresher=lambda w: w.load_data(),
+        )
 
     def open_inventory(self):
         """Abre el inventario consolidado (una fila por producto con cantidades por local)."""
@@ -547,40 +563,33 @@ class AdminWindow(QMainWindow):
             )
 
     def open_history(self):
-        """
-        Abre la vista de historial. Si existe views.history_view.HistoryWindow
-        con firma (username, role, local, back_command), la usamos.
-        """
-        try:
-            from views.history_view import HistoryWindow
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo abrir el historial:\n{e}")
-            return
-
-        child = HistoryWindow(
-            self.username, self.role, self.local or "", back_command=self._back_to_menu
+        self._open_view_cached(
+            "history",
+            "Historial de movimientos",
+            lambda: __import__(
+                "views.history_view", fromlist=["HistoryWindow"]
+            ).HistoryWindow(
+                self.username,
+                self.role,
+                self.local or "",
+                back_command=self._back_to_menu,
+            ),
         )
-        self._push_view(child, "Historial de movimientos")
 
     def open_sales_history(self):
-        """
-        Abre la vista de historial de ventas (todas o por local).
-        """
-        try:
-            from views.ventas_history_view import VentasWindow
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"No se pudo abrir historial de ventas:\n{e}"
-            )
-            return
-
-        child = VentasWindow(
-            self.username,
-            self.role,
-            self.local or "Todos",
-            back_command=self._back_to_menu,
+        self._open_view_cached(
+            "ventas",
+            "Historial de ventas",
+            lambda: __import__(
+                "views.ventas_history_view", fromlist=["VentasWindow"]
+            ).VentasWindow(
+                self.username,
+                self.role,
+                self.local or "Todos",
+                back_command=self._back_to_menu,
+            ),
+            refresher=lambda w: w.cargar_ventas(),
         )
-        self._push_view(child, "Historial de ventas")
 
     def open_users(self):
         """Abre la vista de administración de usuarios."""
@@ -614,21 +623,19 @@ class AdminWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Falló 'Mandar actualizaciones':\n{e}")
 
     def open_problemas(self):
-        """Abre la vista de mensajes de locales."""
-        try:
-            from views.problemas_view import ProblemasWindow
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"No se pudo abrir Mensajes locales:\n{e}"
-            )
-            return
-        child = ProblemasWindow(
-            self.username,
-            self.role,
-            self.local or "Todos",
-            back_command=self._back_to_menu,
+        self._open_view_cached(
+            "problemas",
+            "Mensajes de locales",
+            lambda: __import__(
+                "views.problemas_view", fromlist=["ProblemasWindow"]
+            ).ProblemasWindow(
+                self.username,
+                self.role,
+                self.local or "Todos",
+                back_command=self._back_to_menu,
+            ),
+            refresher=lambda w: w.load_data(),
         )
-        self._push_view(child, "Mensajes de locales")
         QTimer.singleShot(1200, self._update_messages_badge)
 
     def open_settings(self):

@@ -797,6 +797,34 @@ class LocalWindow(QMainWindow):
         self.raise_()
         self.activateWindow()
 
+    # ── Helpers de navegación con caché de vistas ────────────────────────────
+    def _get_prebuilt(self, key):
+        """Devuelve la vista precargada si existe, o None."""
+        return getattr(self, "_prebuilt", {}).get(key)
+
+    def _open_view(self, key, title, builder, refresher=None):
+        """
+        Abre una vista secundaria usando la instancia precargada si está disponible
+        (navegación instantánea), o la construye en el momento como fallback.
+        `refresher` es un callable opcional que recibe la vista para recargar datos.
+        """
+        try:
+            win = self._get_prebuilt(key)
+            if win is not None:
+                # Resetear back_command para que _push_child lo fije fresco
+                if hasattr(win, "back_command"):
+                    win.back_command = None
+                if refresher:
+                    try:
+                        refresher(win)
+                    except Exception:
+                        pass
+            else:
+                win = builder()
+            self._push_child(win, title)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo abrir {title}:\n{e}")
+
     # ── Prefetch ──────────────────────────────────────────────────────────────
     def _prefetch_stock(self):
         """Precarga el stock del local en background para que abra al instante."""
@@ -817,71 +845,71 @@ class LocalWindow(QMainWindow):
 
     # ── Acciones de tarjetas ──────────────────────────────────────────────────
     def open_stock(self):
-        try:
-            from views.stock_view import StockView
-
-            win = StockView(
+        self._open_view(
+            "stock",
+            "Gestión de Stock",
+            lambda: __import__("views.stock_view", fromlist=["StockView"]).StockView(
                 self.username, self.role, self.local, back_command=self.on_back
-            )
-            self._push_child(win, "Gestión de Stock")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo abrir Stock:\n{e}")
+            ),
+            refresher=lambda w: w.load_data(),
+        )
 
     def open_history(self):
-        try:
-            from views.history_view import HistoryWindow
-
-            win = HistoryWindow(
+        self._open_view(
+            "history",
+            "Historial de Movimientos",
+            lambda: __import__(
+                "views.history_view", fromlist=["HistoryWindow"]
+            ).HistoryWindow(
                 self.username, self.role, self.local, back_command=self.on_back
-            )
-            self._push_child(win, "Historial de Movimientos")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo abrir Historial:\n{e}")
+            ),
+        )
 
     def open_ventas_history(self):
-        try:
-            from views.ventas_history_view import VentasWindow
-
-            win = VentasWindow(
+        self._open_view(
+            "ventas",
+            "Historial de Ventas",
+            lambda: __import__(
+                "views.ventas_history_view", fromlist=["VentasWindow"]
+            ).VentasWindow(
                 self.username, self.role, self.local, back_command=self.on_back
-            )
-            self._push_child(win, "Historial de Ventas")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo abrir Ventas:\n{e}")
+            ),
+            refresher=lambda w: w.cargar_ventas(),
+        )
 
     def open_boleta(self):
-        try:
-            from views.boleta_view import BoletaView
-
-            win = BoletaView(self.username, self.role, self.local, back_command=None)
-            self._push_child(win, "Emitir Boleta")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo abrir Boleta:\n{e}")
+        self._open_view(
+            "boleta",
+            "Emitir Boleta",
+            lambda: __import__("views.boleta_view", fromlist=["BoletaView"]).BoletaView(
+                self.username, self.role, self.local, back_command=None
+            ),
+        )
 
     def open_envios(self):
-        try:
-            from views.envios_view import EnviosWindow
-
-            win = EnviosWindow(
+        self._open_view(
+            "envios",
+            "Envíos",
+            lambda: __import__(
+                "views.envios_view", fromlist=["EnviosWindow"]
+            ).EnviosWindow(
                 self.username, self.role, self.local, back_command=self.on_back
-            )
-            self._push_child(win, "Envíos")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo abrir Envíos:\n{e}")
+            ),
+            refresher=lambda w: w.load_data(),
+        )
 
     def open_problemas(self):
-        try:
-            from views.problemas_view import ProblemasWindow
-
-            win = ProblemasWindow(
+        self._open_view(
+            "problemas",
+            "Informar Problemas",
+            lambda: __import__(
+                "views.problemas_view", fromlist=["ProblemasWindow"]
+            ).ProblemasWindow(
                 self.username, self.role, self.local, back_command=self.on_back
-            )
-            self._push_child(win, "Informar Problemas")
-            QTimer.singleShot(1200, self._update_messages_badge)
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"No se pudo abrir Informar Problemas:\n{e}"
-            )
+            ),
+            refresher=lambda w: w.load_data(),
+        )
+        QTimer.singleShot(1200, self._update_messages_badge)
 
     def refresh_theme(self):
         """Reconstruye estilos del menú cuando cambia el tema."""

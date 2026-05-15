@@ -496,6 +496,13 @@ def main():
 
             window = LoginWindow()
             window.show()
+        # Precargar todas las vistas secundarias mientras el splash está visible.
+        # Solo si hay auto-login (conocemos usuario/local). Si hubo login manual
+        # se precarga igual pero desde LocalWindow.__init__ con QTimer.
+        try:
+            _prebuild_all_views(window, _splash_ref, app)
+        except Exception:
+            pass
         try:
             if _splash_ref and window:
                 _splash_ref.finish(window)
@@ -516,6 +523,136 @@ def main():
 
     exit_code = app.exec_()
     sys.exit(exit_code)
+
+
+def _prebuild_all_views(window, splash, app_instance):
+    """
+    Pre-construye todas las vistas secundarias mientras el splash está visible,
+    para que la navegación sea instantánea (hide/show en vez de construir en cada clic).
+    Solo actúa si hay auto-login (window es LocalWindow o MainAdminWindow).
+    Las vistas se guardan en window._prebuilt = {key: view_instance}.
+    """
+    if window is None:
+        return
+
+    def _msg(text):
+        try:
+            if splash:
+                splash.showMessage(
+                    text, Qt.AlignBottom | Qt.AlignHCenter, QColor("#A0A0B0")
+                )
+            if app_instance:
+                app_instance.processEvents()
+        except Exception:
+            pass
+
+    try:
+        from views.main_local import LocalWindow
+
+        is_local = isinstance(window, LocalWindow)
+    except Exception:
+        is_local = False
+
+    try:
+        from views.main_admin import MainAdminWindow
+
+        is_admin = isinstance(window, MainAdminWindow)
+    except Exception:
+        is_admin = False
+
+    if not (is_local or is_admin):
+        return  # LoginWindow — no hay credenciales todavía
+
+    username = getattr(window, "username", "")
+    role = getattr(window, "role", "local")
+    local = getattr(window, "local", "") or getattr(window, "user_local", "")
+    window._prebuilt = {}
+
+    if is_local:
+        builds = [
+            (
+                "stock",
+                "Precargando Gestión de Stock...",
+                lambda: __import__(
+                    "views.stock_view", fromlist=["StockView"]
+                ).StockView(username, role, local),
+            ),
+            (
+                "boleta",
+                "Precargando Emisión de Boleta...",
+                lambda: __import__(
+                    "views.boleta_view", fromlist=["BoletaView"]
+                ).BoletaView(username, role, local),
+            ),
+            (
+                "ventas",
+                "Precargando Historial de Ventas...",
+                lambda: __import__(
+                    "views.ventas_history_view", fromlist=["VentasWindow"]
+                ).VentasWindow(username, role, local),
+            ),
+            (
+                "history",
+                "Precargando Historial de Movimientos...",
+                lambda: __import__(
+                    "views.history_view", fromlist=["HistoryWindow"]
+                ).HistoryWindow(username, role, local),
+            ),
+            (
+                "envios",
+                "Precargando Envíos...",
+                lambda: __import__(
+                    "views.envios_view", fromlist=["EnviosWindow"]
+                ).EnviosWindow(username, role, local),
+            ),
+            (
+                "problemas",
+                "Precargando Mensajes...",
+                lambda: __import__(
+                    "views.problemas_view", fromlist=["ProblemasWindow"]
+                ).ProblemasWindow(username, role, local),
+            ),
+        ]
+    else:  # admin
+        builds = [
+            (
+                "stock",
+                "Precargando Gestión de Stock...",
+                lambda: __import__(
+                    "views.stock_view", fromlist=["StockView"]
+                ).StockView(username, role, local),
+            ),
+            (
+                "ventas",
+                "Precargando Historial de Ventas...",
+                lambda: __import__(
+                    "views.ventas_history_view", fromlist=["VentasWindow"]
+                ).VentasWindow(username, role, local or "Todos"),
+            ),
+            (
+                "history",
+                "Precargando Historial de Movimientos...",
+                lambda: __import__(
+                    "views.history_view", fromlist=["HistoryWindow"]
+                ).HistoryWindow(username, role, local or ""),
+            ),
+            (
+                "problemas",
+                "Precargando Mensajes...",
+                lambda: __import__(
+                    "views.problemas_view", fromlist=["ProblemasWindow"]
+                ).ProblemasWindow(username, role, local or "Todos"),
+            ),
+        ]
+
+    for key, msg, builder in builds:
+        _msg(msg)
+        try:
+            view = builder()
+            view.hide()
+            window._prebuilt[key] = view
+        except Exception:
+            pass  # Si falla una vista, el open_* hace fallback a construcción normal
 
 
 def _post_window_setup(app, window):
