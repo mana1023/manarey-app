@@ -1,8 +1,0 @@
-id,local,nombre,cantidad,precio_venta,precio_costo,accion
-86,Estacion,tobogan 4 escalones,1,228000.0,0.0,insert
-87,Estacion,tobogan 5 escalones,1,242000.0,0.0,update
-196,Longchamps,tobogan 3 escalones,5,130000.0,0.0,insert
-197,Longchamps,tobogan 4 escalones,4,228000.0,0.0,insert
-198,Longchamps,tobogan 6 escalones,7,242000.0,0.0,update
-318,Vidriera,tobogan 4 escalones,1,228000.0,0.0,insert
-382,Vidriera,tobogan 2 escalones,1,110000.0,0.0,update

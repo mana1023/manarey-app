@@ -1,66 +1,122 @@
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 *.egg-info/
-dist/
-build/
 
-# Virtual Environment
+# ── Entornos virtuales ────────────────────────────────────────────────────────
 .venv/
 venv/
 ENV/
 
-# IDE
+# ── IDEs ──────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
+.claude/
 
-# Base de datos
+# ── Build / compilados ────────────────────────────────────────────────────────
+dist/
+build/
+Manarey-*/
+*.exe
+*.zip
+DESCARGABLE/
+release/
+
+# ── Bases de datos locales ────────────────────────────────────────────────────
+*.db
+*.sqlite
 *.sqlite3
 manarey_backup.db
 *.db-journal
 
-# Archivos temporales
-*.log
-*.tmp
-test_*.py
-debug_*.py
-*_backup.py
-*_old.py
-*_test.py
-
-# Carpetas de prueba
-test_outputs/
-temp/
-tmp/
-
-# Sistema operativo
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Boletas generadas (opcional - comenta si quieres versionar)
-# boletas/*.pdf
-
-# Credenciales locales — nunca commitear
+# ── Credenciales — NUNCA commitear ────────────────────────────────────────────
 .github_token
 .env
 .dburl
 config.json
 **/config.json
 
-# Instaladores y binarios compilados
-DESCARGABLE/
-dist/
-*.exe
-*.zip
-
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────────────
 logs/
+*.log
 
-# Worktrees de Claude
-.claude/worktrees/
+# ── Tests temporales ──────────────────────────────────────────────────────────
+test_*.py
+debug_*.py
+*_backup.py
+*_old.py
+*_test.py
+pytest-cache-files-*/
+.pytest_cache/
+
+# ── Archivos de datos internos ────────────────────────────────────────────────
+backup_*.csv
+categoria_auto_report_*.txt
+ANALISIS_DUPLICADOS.json
+REPORTE_DUPLICADOS.html
+resultado_*.txt
+sintaxis_result.txt
+exports/
+Informe_*.pdf
+
+# ── Documentación interna (notas de desarrollo) ───────────────────────────────
+ACTUALIZADO_RESUMEN.md
+ANALISIS_COMPLETO_DUPLICADOS.md
+ARCHIVOS_Y_CAMBIOS.md
+AUDITORIA_COMPLETA.md
+CHEAT_SHEET.md
+CHECKLIST_*.md
+COMIENZA_AQUI.md
+CORRECCION_*.md
+DASHBOARD.md
+DEPLOY_QUEUE.md
+DEPLOYMENT_*.md
+EJEMPLOS_*.md
+FIXES_*.md
+FIX_*.md
+GITHUB_RELEASES_WORKFLOW.md
+GUIA_*.md
+IMPLEMENTACION_*.md
+INDICE_*.md
+INICIO.md
+INTEGRACION_*.md
+QUICK_START_*.md
+README_*.md
+RESUMEN_*.md
+SISTEMA_*.md
+SOLUCION_*.md
+TESTING_CHECKLIST.md
+WORKFLOW_*.md
+
+# ── Scripts de diagnóstico / debugging ───────────────────────────────────────
+diag_*.py
+ssl_probe*.py
+verify_*.py
+verificar_*.py
+inspect_*.py
+cert_info.py
+psy_connect*.py
+which_stock_model.py
+simulate_app_startup.py
+simple_verify.py
+demo_batching.py
+demo_stress_test.py
+analizar_*.py
+stock_widget_pyqt.py
+config_neon.py
+config_supabase_free.bat
+fix_test_e2e.py
+fix_init.py
+
+# ── Sistema operativo ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Assets de test ────────────────────────────────────────────────────────────
+assets/test.txt

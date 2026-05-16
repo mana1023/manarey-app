@@ -1,7 +1,6 @@
 {
-    "version": "1.0.71",
-    "path": "https://github.com/mana1023/manarey-updates/releases/download/v1.0.71/Manarey-Setup-1.0.71.exe",
-    "notes": "Correcciones en stock, selector de productos, historial de ventas y cierre de la app.",
-    "published_at": "2026-04-23 00:12:02",
+    "version": "1.0.87",
+    "notes": "Ver GitHub Releases para el historial completo de cambios.",
+    "published_at": "2026-05-16 00:00:00",
     "force_after_days": 2
 }
