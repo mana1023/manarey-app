@@ -694,8 +694,16 @@ class LocalWindow(QMainWindow):
                 h_gap = 18
 
             # ── Nivel de compacidad según altura disponible ───────────────────
-            # Deducir espacio fijo: navbar(50) + statusbar(36) = 86px
-            usable = h - 86
+            # Usar la altura real del contenedor de tarjetas cuando ya fue
+            # calculada por Qt (más preciso que restar elementos fijos porque
+            # incluye logo, footer y márgenes). Fallback a h-86 en la primera
+            # llamada antes de que el layout haya procesado.
+            cards_h = (
+                self._cards_container.height()
+                if hasattr(self, "_cards_container")
+                else 0
+            )
+            usable = cards_h if cards_h > 50 else max(1, h - 86)
             if usable < 480:
                 compact = 2  # muy compacto: icono 30px, min_h 110
                 logo_w = 140

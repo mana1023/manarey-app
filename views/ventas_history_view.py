@@ -2278,6 +2278,12 @@ class VentasWindow(QMainWindow):
                     fp = _norm_fp(v.get("forma_pago") or "")
                     monto_base = float(_get_display_total(v) or 0)
                     tipo_pago = (v.get("tipo_pago") or "").strip().lower()
+                    # Las ventas domicilio nunca se cobran en el punto de venta;
+                    # su monto se acredita en Longchamps sólo al confirmar entrega
+                    # mediante get_domicilio_retirados_total(). Contarlas aquí
+                    # también causaría doble suma.
+                    if tipo_pago == "domicilio":
+                        continue
                     if tipo_origen == "sena" and completion_monto > 0.01:
                         monto_inicial = max(
                             0.0, float(v.get("total") or 0) - completion_monto
