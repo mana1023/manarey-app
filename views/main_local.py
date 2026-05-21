@@ -694,31 +694,34 @@ class LocalWindow(QMainWindow):
                 h_gap = 18
 
             # ── Nivel de compacidad según altura disponible ───────────────────
-            # Usar la altura real del contenedor de tarjetas cuando ya fue
-            # calculada por Qt (más preciso que restar elementos fijos porque
-            # incluye logo, footer y márgenes). Fallback a h-86 en la primera
-            # llamada antes de que el layout haya procesado.
-            cards_h = (
-                self._cards_container.height()
-                if hasattr(self, "_cards_container")
-                else 0
-            )
-            usable = cards_h if cards_h > 50 else max(1, h - 86)
-            if usable < 480:
-                compact = 2  # muy compacto: icono 30px, min_h 110
-                logo_w = 140
-                footer_w = 0  # ocultar footer
-                v_gap = 8
-            elif usable < 620:
-                compact = 1  # medio: icono 40px, min_h 140
-                logo_w = 180
-                footer_w = 220
-                v_gap = 10
-            else:
-                compact = 0  # normal: icono 54px, min_h 170
-                logo_w = 240
-                footer_w = 420
-                v_gap = h_gap
+            # Calcula analíticamente qué nivel cabe usando las dimensiones reales
+            # de los pixmaps, sin depender del estado actual del layout.
+            def _pix_h(width, pix):
+                if pix.isNull() or pix.width() == 0:
+                    return width
+                return int(width * pix.height() / pix.width())
+
+            px_logo = getattr(self, "_logo_pixmap_orig", QPixmap())
+            px_footer = getattr(self, "_footer_pixmap_orig", QPixmap())
+            cols = self._card_columns()
+            n_cards = len(getattr(self, "menu_cards", []) or [])
+            rows = max(1, (n_cards + cols - 1) // cols) if cols > 0 else 2
+
+            # (compact, logo_w, footer_w, min_card_h, v_gap)
+            LEVELS = [
+                (0, 240, 420, 170, h_gap),
+                (1, 180, 220, 140, 10),
+                (2, 140, 0, 110, 8),
+            ]
+            compact, logo_w, footer_w, v_gap = 2, 140, 0, 8
+            for lvl, lw, fw, mch, vg in LEVELS:
+                brand_h = _pix_h(lw, px_logo) + 4  # +4 margen top brand
+                foot_h = (_pix_h(fw, px_footer) + 4) if fw > 0 else 0
+                cards_need = rows * mch + max(0, rows - 1) * vg + 8
+                available = h - 50 - 36 - brand_h - foot_h
+                if available >= cards_need:
+                    compact, logo_w, footer_w, v_gap = lvl, lw, fw, vg
+                    break
 
             self._grid.setHorizontalSpacing(h_gap)
             self._grid.setVerticalSpacing(v_gap)
