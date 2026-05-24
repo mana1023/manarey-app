@@ -1,7 +1,7 @@
 # models/boletas_model.py - PDF MEJORADO VERSIÓN FINAL
 import json
 import os
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal  # noqa: F401
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -10,12 +10,12 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
+from config import PDF_LOGO_Y_OFFSET  # noqa: F401
 from config import (
     PDF_LOGO_FALLBACK,
     PDF_LOGO_POSITION,
     PDF_LOGO_PRIMARY,
     PDF_LOGO_WIDTH_PT,
-    PDF_LOGO_Y_OFFSET,
 )
 from models import db as db_mod
 
@@ -508,21 +508,31 @@ def generar_boleta_pdf_a4_duplicada(boleta: dict, out_path: str) -> tuple:
             if cliente.get("localidad"):
                 partes_direccion.append(cliente.get("localidad"))
 
-            # Agregar entre calles a la dirección si hay envío
-            if boleta.get("precio_envio", 0) > 0 and cliente.get("entre_calles"):
+            # Agregar entre calles si existe (envío o retiro)
+            if cliente.get("entre_calles"):
                 entre_calles = cliente.get("entre_calles")
                 partes_direccion.append(f"(entre {entre_calles})")
 
+            y_offset = -20
             if partes_direccion:
                 direccion = ", ".join(partes_direccion)
                 # Dividir dirección si es muy larga
                 if len(direccion) > 50:
                     c.drawString(x_start + 5, y_cliente - 20, f"• {direccion[:50]}")
                     c.drawString(x_start + 5, y_cliente - 30, f"  {direccion[50:]}")
+                    y_offset = -40
                 else:
                     c.drawString(x_start + 5, y_cliente - 20, f"• {direccion}")
 
-            y_cursor -= 62
+            # Notas del domicilio / descripción
+            notas_boleta = (boleta.get("notas") or "").strip()
+            if notas_boleta:
+                c.drawString(
+                    x_start + 5, y_cliente + y_offset - 10, f"• Notas: {notas_boleta}"
+                )
+                y_cursor -= 72
+            else:
+                y_cursor -= 62
 
             # ============ ESTADO DE PAGO (DESTACADO) ============
             pago = boleta.get("pago", {})
@@ -946,17 +956,26 @@ def generar_boleta_pdf_a4_duplicada(boleta: dict, out_path: str) -> tuple:
                 partes_direccion.append(cliente.get("numero"))
             if cliente.get("localidad"):
                 partes_direccion.append(cliente.get("localidad"))
-            if boleta.get("precio_envio", 0) > 0 and cliente.get("entre_calles"):
+            if cliente.get("entre_calles"):
                 partes_direccion.append(f"(entre {cliente.get('entre_calles')})")
+            y_offset2 = -20
             if partes_direccion:
                 direccion = ", ".join(partes_direccion)
                 if len(direccion) > 70:
                     c.drawString(x_start + 5, y_cliente - 20, f"• {direccion[:70]}")
                     c.drawString(x_start + 5, y_cliente - 30, f"  {direccion[70:]}")
+                    y_offset2 = -40
                 else:
                     c.drawString(x_start + 5, y_cliente - 20, f"• {direccion}")
 
-            y_cursor -= 62
+            notas_boleta2 = (boleta.get("notas") or "").strip()
+            if notas_boleta2:
+                c.drawString(
+                    x_start + 5, y_cliente + y_offset2 - 10, f"• Notas: {notas_boleta2}"
+                )
+                y_cursor -= 72
+            else:
+                y_cursor -= 62
 
             # ============ ESTADO DE PAGO ==========
             pago = boleta.get("pago", {})
@@ -1174,7 +1193,7 @@ def generar_boleta_pdf_a4_duplicada(boleta: dict, out_path: str) -> tuple:
                     rows.append([""] * len(rows[0]))
                     rows.append(["", "", "TOTAL:", format_money(total), ""])
             elif (
-                show_totals
+                show_totals  # noqa: F821
                 and es_credito_personal
                 and _credito_personal_tiene_entrega(pago)
             ):

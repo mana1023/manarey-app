@@ -180,7 +180,19 @@ def _draw_remito(
     c.drawString(margin, y, "Cliente")
     y -= 14
     c.setFont("Helvetica", 10)
-    c.drawString(margin, y, f"Nombre: {_safe_str(venta.get('cliente_nombre'))}")
+    # Para ventas web con retiro en local, el nombre real está en notas
+    nombre_display = _safe_str(venta.get("cliente_nombre"))
+    notas_raw = _safe_str(venta.get("notas"))
+    if nombre_display == "Pagina Web" and notas_raw.startswith("WEB | Cliente:"):
+        # Extraer nombre real: "WEB | Cliente: Juan Pérez | Tel: ..."
+        partes = notas_raw.split("|")
+        for p in partes:
+            p = p.strip()
+            if p.startswith("Cliente:"):
+                nombre_display = p.replace("Cliente:", "").strip()
+                break
+
+    c.drawString(margin, y, f"Nombre: {nombre_display}")
     y -= 12
     c.drawString(margin, y, f"Telefono: {_safe_str(venta.get('cliente_telefono'))}")
     y -= 12
@@ -195,6 +207,20 @@ def _draw_remito(
     if entre:
         y -= 12
         c.drawString(margin, y, f"Entre calles: {entre}")
+    notas_mostrar = notas_raw
+    if notas_mostrar.startswith("WEB | Cliente:"):
+        # Quitar la parte del nombre ya mostrado, dejar solo descripción de domicilio
+        partes_n = [p.strip() for p in notas_mostrar.split("|") if p.strip()]
+        notas_mostrar = " | ".join(
+            p
+            for p in partes_n
+            if not p.startswith("WEB")
+            and not p.startswith("Cliente:")
+            and not p.startswith("Tel:")
+        )
+    if notas_mostrar:
+        y -= 12
+        c.drawString(margin, y, f"Notas: {notas_mostrar}")
 
     # Pago envio en local / checkboxes
     y -= 18

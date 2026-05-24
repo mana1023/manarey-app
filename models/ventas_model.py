@@ -3018,6 +3018,33 @@ def _fmt_money(value):
         return str(value)
 
 
+def _resolve_web_nombre(cliente_nombre: str, notas: str) -> str:
+    """Para ventas web con retiro en local, extrae el nombre real del campo notas."""
+    if (cliente_nombre or "").strip() != "Pagina Web":
+        return cliente_nombre or ""
+    for parte in (notas or "").split("|"):
+        parte = parte.strip()
+        if parte.startswith("Cliente:"):
+            return parte.replace("Cliente:", "").strip()
+    return cliente_nombre or ""
+
+
+def _clean_web_notas(notas: str) -> str:
+    """Devuelve las notas sin el prefijo WEB/Cliente/Tel (ya se muestran en otros campos)."""
+    notas = (notas or "").strip()
+    if not notas.startswith("WEB | Cliente:"):
+        return notas
+    partes = [p.strip() for p in notas.split("|") if p.strip()]
+    limpias = [
+        p
+        for p in partes
+        if not p.startswith("WEB")
+        and not p.startswith("Cliente:")
+        and not p.startswith("Tel:")
+    ]
+    return " | ".join(limpias)
+
+
 def _build_boleta_dict_from_venta(venta: Dict) -> Dict:
     def _to_float(v):
         try:
@@ -3033,13 +3060,16 @@ def _build_boleta_dict_from_venta(venta: Dict) -> Dict:
         or venta.get("fecha")
         or _now_local(),
         "cliente": {
-            "nombre": venta.get("cliente_nombre", ""),
+            "nombre": _resolve_web_nombre(
+                venta.get("cliente_nombre", ""), venta.get("notas", "")
+            ),
             "telefono": venta.get("cliente_telefono", ""),
             "calle": venta.get("cliente_calle", ""),
             "numero": venta.get("cliente_numero", ""),
             "localidad": venta.get("cliente_localidad", ""),
             "entre_calles": venta.get("entre_calles", ""),
         },
+        "notas": _clean_web_notas(venta.get("notas", "")),
         "detalle": venta.get("items", []) or [],
         "subtotal": _to_float(venta.get("subtotal_productos")),
         "precio_envio": _to_float(venta.get("precio_envio")),
