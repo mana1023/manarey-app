@@ -850,6 +850,17 @@ class ProductSelectionModel(QAbstractTableModel):
                 )
             except Exception:
                 return QColor("#1f1f22") if (row % 2 == 0) else QColor("#1b1b1f")
+        if role == Qt.ToolTipRole and col == 0:
+            nombre = (p.get("nombre") or "").strip()
+            partes = [
+                p.get("categoria") or "",
+                p.get("material") or "",
+                p.get("medida") or "",
+                p.get("estado") or "",
+                p.get("color") or "",
+            ]
+            extra = " · ".join(x for x in partes if x)
+            return f"{nombre}\n{extra}" if extra else nombre
         if role == Qt.TextAlignmentRole:
             if col in (2, 11):
                 return Qt.AlignCenter
@@ -3326,6 +3337,7 @@ class BoletaView(QMainWindow):
 
             name_item = QTableWidgetItem(name)
             name_item.setForeground(QColor(TEXT))
+            name_item.setToolTip(name)
             try:
                 name_item.setData(
                     Qt.UserRole, (int(it.get("producto_id") or 0), stock_local)
