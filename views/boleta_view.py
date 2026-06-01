@@ -206,6 +206,7 @@ class CheckoutDialog(QDialog):
         "Transferencia",
         "Tarjeta de debito",
         "Tarjeta de credito",
+        "Financiera Boston Creed",
     ]
 
     def __init__(self, base_total: int, parent=None):
@@ -268,6 +269,14 @@ class CheckoutDialog(QDialog):
         split_row.addWidget(self.split_three_cb)
         split_row.addStretch()
         lay.addLayout(split_row)
+
+        self.split_hint_lbl = QLabel("")
+        self.split_hint_lbl.setStyleSheet(
+            f"color:{_T('GOLD','#C9A040')}; font-size:12px; font-style:italic;"
+        )
+        self.split_hint_lbl.setWordWrap(True)
+        self.split_hint_lbl.setVisible(False)
+        lay.addWidget(self.split_hint_lbl)
 
         row2 = QHBoxLayout()
         row2.setSpacing(10)
@@ -439,6 +448,20 @@ class CheckoutDialog(QDialog):
         self.amount2_spin.setEnabled(split_three)
         self.split_three_cb.setEnabled(split)
         self.remaining_lbl.setVisible(split)
+        if split:
+            if split_three:
+                self.split_hint_lbl.setText(
+                    "Ingresa el Monto metodo 1 y el Monto metodo 2. "
+                    "El monto del metodo 3 se completa automaticamente."
+                )
+            else:
+                self.split_hint_lbl.setText(
+                    "Solo ingresa el Monto metodo 1. "
+                    "El monto del metodo 2 se completa automaticamente."
+                )
+            self.split_hint_lbl.setVisible(True)
+        else:
+            self.split_hint_lbl.setVisible(False)
         self._refresh_split_method_options()
 
         self.amount1_spin.setMaximum(max(0, total))
@@ -2752,9 +2775,6 @@ class BoletaView(QMainWindow):
                     self.split_row3_widget.setVisible(False)
             else:
                 self.split_title_label.setText("Dividir el pago")
-                self.split_help_label.setText(
-                    "Elegi hasta tres metodos distintos. Ingresas monto 1, monto 2 y el resto se asigna al ultimo metodo."
-                )
                 self.split_method2_label.setText("Metodo 2")
                 self.split_amount1_label.setText("Monto metodo 1")
                 if hasattr(self, "split_three_methods_cb"):
@@ -2791,11 +2811,19 @@ class BoletaView(QMainWindow):
                         )
                     else:
                         if split_three:
+                            self.split_help_label.setText(
+                                "Ingresa el Monto metodo 1 y el Monto metodo 2. "
+                                "El monto del metodo 3 se completa automaticamente."
+                            )
                             self.split_amount2_label.setText("Monto metodo 2")
                             self.amount2_input.setReadOnly(False)
                             self.split_amount3_label.setText("Resto metodo 3")
                             self._set_money_text(self.amount3_input, remainder)
                         else:
+                            self.split_help_label.setText(
+                                "Solo ingresa el Monto metodo 1. "
+                                "El monto del metodo 2 se completa automaticamente."
+                            )
                             self.split_amount2_label.setText("Resto metodo 2")
                             self.amount2_input.setReadOnly(True)
                             self._set_money_text(self.amount2_input, remainder)

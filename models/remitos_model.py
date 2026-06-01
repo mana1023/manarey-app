@@ -174,6 +174,14 @@ def _draw_remito(
     c.setFont("Helvetica-Bold", 11)
     c.drawString(margin, y, f"Venta Nro: {venta.get('numero_venta', '')}")
 
+    # Local de origen (de donde sale la mercaderia)
+    local_origen = _safe_str(venta.get("local_origen"))
+    if local_origen:
+        c.setFont("Helvetica-Bold", 10)
+        c.setFillColor(colors.darkblue)
+        c.drawRightString(page_w - margin, y, f"Sale de: {local_origen}")
+        c.setFillColor(colors.black)
+
     # Datos del cliente
     y -= 18
     c.setFont("Helvetica-Bold", 11)
@@ -298,11 +306,27 @@ def _draw_remito(
     y -= 6
 
     items = venta.get("items") or []
-    # Incluir columna Color
-    data = [
-        ["Nombre", "Categoria", "Color", "Fabricante", "Medida", "Estado", "Cantidad"]
-    ]
-    for it in items:
+    items_origen = venta.get("items_origen") or {}  # {index: local_name}
+    # Si no hay items_origen por producto, usar local_origen global
+    global_local_origen = _safe_str(venta.get("local_origen"))
+    show_origen_col = bool(items_origen or global_local_origen)
+
+    if show_origen_col:
+        data = [["Nombre", "Color", "Medida", "Estado", "Cant.", "Sale de"]]
+    else:
+        data = [
+            [
+                "Nombre",
+                "Categoria",
+                "Color",
+                "Fabricante",
+                "Medida",
+                "Estado",
+                "Cantidad",
+            ]
+        ]
+
+    for idx, it in enumerate(items):
         nombre = _safe_str(it.get("producto_nombre") or it.get("nombre"))
         categoria = _safe_str(it.get("producto_categoria") or it.get("categoria"))
         color = _safe_str(it.get("producto_color") or it.get("color"))
@@ -312,26 +336,42 @@ def _draw_remito(
         medida = _safe_str(it.get("producto_medida") or it.get("medida"))
         estado = _safe_str(it.get("producto_estado") or it.get("estado"))
         cantidad = str(it.get("cantidad") or "")
-        data.append([nombre, categoria, color, fabricante, medida, estado, cantidad])
+        if show_origen_col:
+            origen = items_origen.get(
+                idx, items_origen.get(str(idx), global_local_origen)
+            )
+            data.append([nombre, color, medida, estado, cantidad, origen])
+        else:
+            data.append(
+                [nombre, categoria, color, fabricante, medida, estado, cantidad]
+            )
 
     available_w = page_w - (margin * 2)
-    # Ajustar pesos para la columna adicional Color
-    col_weights = [0.26, 0.13, 0.09, 0.13, 0.11, 0.18, 0.10]
+    if show_origen_col:
+        col_weights = [0.32, 0.10, 0.11, 0.16, 0.08, 0.23]
+    else:
+        col_weights = [0.26, 0.13, 0.09, 0.13, 0.11, 0.18, 0.10]
     col_widths = [available_w * w for w in col_weights]
     table = Table(data, colWidths=col_widths)
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-                ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ]
-        )
-    )
+
+    style_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]
+    # Highlight the "Sale de" column header in blue if present
+    if show_origen_col:
+        style_cmds += [
+            ("BACKGROUND", (-1, 0), (-1, 0), colors.HexColor("#1565C0")),
+            ("TEXTCOLOR", (-1, 0), (-1, 0), colors.white),
+            ("FONTNAME", (-1, 1), (-1, -1), "Helvetica-Bold"),
+            ("TEXTCOLOR", (-1, 1), (-1, -1), colors.HexColor("#1565C0")),
+        ]
+    table.setStyle(TableStyle(style_cmds))
     tw, th = table.wrapOn(c, page_w - (margin * 2), y)
     table.drawOn(c, margin, max(min_y, y - th))
 
@@ -403,23 +443,50 @@ def _calc_remito_height(venta: dict, page_w: float) -> float:
     y -= 6
 
     items = venta.get("items") or []
-    data = [
-        ["Nombre", "Categoria", "Color", "Fabricante", "Medida", "Estado", "Cantidad"]
-    ]
-    for it in items:
-        nombre = _safe_str(it.get("producto_nombre") or it.get("nombre"))
-        categoria = _safe_str(it.get("producto_categoria") or it.get("categoria"))
-        color = _safe_str(it.get("producto_color") or it.get("color"))
-        fabricante = _safe_str(
-            it.get("producto_fabricante") or it.get("fabricante") or "-"
-        )
-        medida = _safe_str(it.get("producto_medida") or it.get("medida"))
-        estado = _safe_str(it.get("producto_estado") or it.get("estado"))
-        cantidad = str(it.get("cantidad") or "")
-        data.append([nombre, categoria, color, fabricante, medida, estado, cantidad])
+    items_origen = venta.get("items_origen") or {}
+    global_local_origen = _safe_str(venta.get("local_origen"))
+    show_origen_col = bool(items_origen or global_local_origen)
+    if show_origen_col:
+        data = [["Nombre", "Color", "Medida", "Estado", "Cant.", "Sale de"]]
+        for idx, it in enumerate(items):
+            nombre = _safe_str(it.get("producto_nombre") or it.get("nombre"))
+            color = _safe_str(it.get("producto_color") or it.get("color"))
+            medida = _safe_str(it.get("producto_medida") or it.get("medida"))
+            estado = _safe_str(it.get("producto_estado") or it.get("estado"))
+            cantidad = str(it.get("cantidad") or "")
+            origen = items_origen.get(
+                idx, items_origen.get(str(idx), global_local_origen)
+            )
+            data.append([nombre, color, medida, estado, cantidad, origen])
+        col_weights = [0.32, 0.10, 0.11, 0.16, 0.08, 0.23]
+    else:
+        data = [
+            [
+                "Nombre",
+                "Categoria",
+                "Color",
+                "Fabricante",
+                "Medida",
+                "Estado",
+                "Cantidad",
+            ]
+        ]
+        for it in items:
+            nombre = _safe_str(it.get("producto_nombre") or it.get("nombre"))
+            categoria = _safe_str(it.get("producto_categoria") or it.get("categoria"))
+            color = _safe_str(it.get("producto_color") or it.get("color"))
+            fabricante = _safe_str(
+                it.get("producto_fabricante") or it.get("fabricante") or "-"
+            )
+            medida = _safe_str(it.get("producto_medida") or it.get("medida"))
+            estado = _safe_str(it.get("producto_estado") or it.get("estado"))
+            cantidad = str(it.get("cantidad") or "")
+            data.append(
+                [nombre, categoria, color, fabricante, medida, estado, cantidad]
+            )
+        col_weights = [0.26, 0.13, 0.09, 0.13, 0.11, 0.18, 0.10]
 
     available_w = page_w - (margin * 2)
-    col_weights = [0.26, 0.13, 0.09, 0.13, 0.11, 0.18, 0.10]
     col_widths = [available_w * w for w in col_weights]
     table = Table(data, colWidths=col_widths)
     _, th = table.wrapOn(canvas.Canvas(os.devnull), available_w, 0)

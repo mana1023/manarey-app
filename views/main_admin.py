@@ -196,7 +196,7 @@ class AdminWindow(QMainWindow):
             (
                 "📦",
                 "Gestionar stock",
-                "Administra inventario, transferencias y ediciones.",
+                "Inventario, precios, costo y transferencias.",
                 "#22c55e",
                 self.open_stock,
             ),
@@ -208,9 +208,44 @@ class AdminWindow(QMainWindow):
                 self.open_sales_history,
             ),
             (
+                "💰",
+                "Cierre de caja",
+                "Cierre de turno, gastos y cuadre de efectivo.",
+                "#4ade80",
+                self.open_cierre_caja,
+            ),
+            (
+                "👤",
+                "Clientes",
+                "CRM: historial de compras por cliente.",
+                "#a78bfa",
+                self.open_clientes,
+            ),
+            (
+                "🏦",
+                "Boston Creed",
+                "Seguimiento de operaciones con la financiera.",
+                "#38bdf8",
+                self.open_boston_creed,
+            ),
+            (
+                "🏭",
+                "Proveedores y Compras",
+                "Gestión de proveedores y órdenes de compra.",
+                "#fb923c",
+                self.open_proveedores,
+            ),
+            (
+                "📈",
+                "Historial de precios",
+                "Auditoría de cambios de precio y costo.",
+                "#f43f5e",
+                self.open_precio_historial,
+            ),
+            (
                 "🕒",
                 "Historial de movimientos",
-                "Auditoría completa de cambios.",
+                "Auditoría completa de cambios de stock.",
                 "#60a5fa",
                 self.open_history,
             ),
@@ -225,7 +260,7 @@ class AdminWindow(QMainWindow):
                 "📣",
                 "Mandar actualizaciones",
                 "Envía avisos a todos los locales.",
-                "#38bdf8",
+                "#94a3b8",
                 self.open_updates,
             ),
             (
@@ -591,6 +626,77 @@ class AdminWindow(QMainWindow):
             ),
             refresher=lambda w: w.cargar_ventas(),
         )
+
+    def open_cierre_caja(self):
+        try:
+            from views.cierre_caja_view import CierreCajaWindow
+
+            win = CierreCajaWindow(
+                self.username,
+                self.role,
+                self.local or "Todos",
+                back_command=self._back_to_menu,
+            )
+            self._push_view(win, "Cierre de caja")
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"No se pudo abrir cierre de caja:\n{e}"
+            )
+
+    def open_clientes(self):
+        try:
+            from views.clientes_view import ClientesWindow
+
+            win = ClientesWindow(
+                self.username, self.role, back_command=self._back_to_menu
+            )
+            self._push_view(win, "Clientes")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo abrir clientes:\n{e}")
+
+    def open_boston_creed(self):
+        try:
+            from views.boston_creed_view import BostonCreedWindow
+
+            win = BostonCreedWindow(
+                self.username,
+                self.role,
+                self.local or "",
+                back_command=self._back_to_menu,
+            )
+            self._push_view(win, "Boston Creed")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo abrir Boston Creed:\n{e}")
+
+    def open_proveedores(self):
+        try:
+            from views.proveedores_view import ProveedoresWindow
+
+            win = ProveedoresWindow(
+                self.username,
+                self.role,
+                self.local or "",
+                back_command=self._back_to_menu,
+            )
+            self._push_view(win, "Proveedores y Compras")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo abrir proveedores:\n{e}")
+
+    def open_precio_historial(self):
+        try:
+            from views.precio_historial_view import PrecioHistorialWindow
+
+            win = PrecioHistorialWindow(
+                self.username,
+                self.role,
+                self.local or "",
+                back_command=self._back_to_menu,
+            )
+            self._push_view(win, "Historial de precios")
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"No se pudo abrir historial de precios:\n{e}"
+            )
 
     def open_users(self):
         """Abre la vista de administración de usuarios."""

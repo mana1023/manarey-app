@@ -2943,6 +2943,21 @@ def _registrar_venta_online(
 
         logger.info(f"Venta registrada: ID={venta_id}, Total={total:.2f}")
 
+        # Registrar operación Boston Creed si aplica
+        fp_lower = (forma_pago or "").strip().lower()
+        if venta_id and ("boston" in fp_lower or "financiera" in fp_lower):
+            try:
+                from models.boston_creed_model import registrar_operacion
+
+                registrar_operacion(
+                    venta_id=venta_id,
+                    local=(local or "").strip(),
+                    usuario=(vendedor or "").strip(),
+                    monto_venta=float(total),
+                )
+            except Exception:
+                logger.exception("Error registrando op Boston Creed (se continua)")
+
         # Registrar cobro en domicilio si el pago es en domicilio
         if tipo_pago_norm == "domicilio" and venta_id:
             try:

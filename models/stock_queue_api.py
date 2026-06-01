@@ -1066,6 +1066,40 @@ def execute_update_field(payload):
         ):
             _merge_duplicates_for_product(conn, pid)
 
+        # Registrar historial de precios cuando cambia costo o venta
+        if field in ("precio_costo", "precio_venta"):
+            try:
+                from models.precio_historial_model import registrar_cambio
+
+                cur2 = conn.cursor()
+                ph2 = _ph(conn)
+                cur2.execute(
+                    f"SELECT COALESCE(precio_costo,0), COALESCE(precio_venta,0) "
+                    f"FROM productos WHERE id={ph2}",
+                    (pid,),
+                )
+                r2 = cur2.fetchone() or (0, 0)
+                pc_now = float(r2[0] or 0)
+                pv_now = float(r2[1] or 0)
+                pc_old = (
+                    float(old_field_value or 0) if field == "precio_costo" else pc_now
+                )
+                pv_old = (
+                    float(old_field_value or 0) if field == "precio_venta" else pv_now
+                )
+                registrar_cambio(
+                    pid,
+                    local or current_local or "",
+                    usuario,
+                    pc_old,
+                    pc_now,
+                    pv_old,
+                    pv_now,
+                    motivo or "edición manual",
+                )
+            except Exception:
+                pass
+
         _enqueue_commit(conn)
         should_return_conn = False
         return True, "Campo actualizado"
