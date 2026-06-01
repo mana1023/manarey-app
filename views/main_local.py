@@ -633,7 +633,6 @@ class LocalWindow(QMainWindow):
             ("💬", "Informar Problemas", GOLD, self.open_problemas),
             ("📈", "Historial de Ventas", GOLD, self.open_ventas_history),
             ("📋", "Historial de Movimientos", GOLD, self.open_history),
-            ("💰", "Cierre de caja", GOLD, self.open_cierre_caja),
         ]
 
         self.menu_cards = []

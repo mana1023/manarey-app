@@ -1154,14 +1154,14 @@ class VentasWindow(QMainWindow):
         self.cash_local_label.setStyleSheet("font-weight: 800; color: #22c55e;")
         right_cash.addWidget(self.cash_local_label)
 
-        self.cash_withdraw_btn = QPushButton("Retirar")
+        self.cash_withdraw_btn = QPushButton("💰 Cierre de turno")
         self.cash_withdraw_btn.setCursor(Qt.PointingHandCursor)
         self.cash_withdraw_btn.setStyleSheet(
-            f"QPushButton {{background:{_T('SURFACE','#252530')};color:{_T('TEXT','#e5e7eb')};"
-            f"border:none;border-radius:10px;padding:6px 14px;font-weight:800;}}"
-            f"QPushButton:hover {{background:{_T('BG_ALT','#374151')};}}"
+            f"QPushButton {{background:#1a2a1a;color:#4ade80;"
+            f"border:1px solid #4ade80;border-radius:10px;padding:6px 16px;font-weight:800;}}"
+            f"QPushButton:hover {{background:#4ade80;color:#000;}}"
         )
-        self.cash_withdraw_btn.clicked.connect(self._on_retirar_efectivo)
+        self.cash_withdraw_btn.clicked.connect(self._on_cierre_turno)
         right_cash.addWidget(self.cash_withdraw_btn)
 
         self.cobros_domicilio_btn = QPushButton("Cobros domicilio")
@@ -1951,18 +1951,28 @@ class VentasWindow(QMainWindow):
                             total_qr += monto
                     except Exception:
                         pass
-                _agregar_envio_local_a_totales(
-                    v,
-                    pagos,
-                    {
-                        "efectivo": 0.0,
-                        "credito": 0.0,
-                        "debito": 0.0,
-                        "transferencia": 0.0,
-                        "qr": 0.0,
-                    },
-                    fp_totals,
-                )
+                # Solo agregar envio si NO esta ya incluido en venta_pagos.monto.
+                # En ventas antiguas total = subtotal + envio, y pagos[].monto = total,
+                # por lo que sumar precio_envio de nuevo duplicaria el monto.
+                _pagos_sum = sum(float(_p.get("monto") or 0) for _p in pagos)
+                _envio_val = float(v.get("precio_envio") or 0)
+                _sub_val = float(v.get("subtotal_productos") or 0)
+                _envio_ya_en_pagos = _envio_val > 0 and abs(
+                    _pagos_sum - (_sub_val + _envio_val)
+                ) < max(2, _envio_val * 0.01)
+                if not _envio_ya_en_pagos:
+                    _agregar_envio_local_a_totales(
+                        v,
+                        pagos,
+                        {
+                            "efectivo": 0.0,
+                            "credito": 0.0,
+                            "debito": 0.0,
+                            "transferencia": 0.0,
+                            "qr": 0.0,
+                        },
+                        fp_totals,
+                    )
             else:
                 # Fallback: si hay 'Pago dividido:' en notas, parsear montos por método
                 parsed_from_notas = False
@@ -2316,30 +2326,28 @@ class VentasWindow(QMainWindow):
 
     def _refresh_cash_local_total(self, local_arg: str):
         try:
-            today = QDate.currentDate().toString("yyyy-MM-dd")
-            ventas_all = vhm.get_ventas_por_local_fast(
-                local_arg,
-                "todo",
-                "",
-                fecha_inicio="1970-01-01",
-                fecha_fin=today,
-                include_canceladas=True,
+            # Calcular desde el ultimo retiro (no acumulado historico).
+            # Esto es correcto: despues de cada retiro la caja queda en 0,
+            # por lo que el saldo actual es solo lo ganado desde entonces.
+            last_withdrawal = vm.get_last_withdrawal_datetime(local_arg)
+
+            # Efectivo de ventas normales desde el ultimo retiro
+            self._cash_local_total = vm.get_cash_earned_since(
+                local_arg, last_withdrawal
             )
-            self._cash_local_total = self._compute_cash_from_rows(ventas_all)
-            # Los cobros en domicilio SIEMPRE van a Longchamps, sin importar
-            # el local donde se hizo la venta. Solo se suman al calcular el
-            # dinero de Longchamps.
+
+            # Longchamps acumula ademas todos los cobros en domicilio
+            # (envios de todos los locales se cobran ahi).
             if _es_local_domicilio(local_arg):
                 try:
-                    self._cash_local_total += vm.get_domicilio_retirados_total("")
+                    self._cash_local_total += vm.get_domicilio_retirados_since(
+                        last_withdrawal
+                    )
                 except Exception:
                     pass
-            self._cash_withdrawn_total = vm.get_cash_withdrawn_total(
-                local_arg,
-                filtro_fecha="todo",
-                fecha_inicio="1970-01-01",
-                fecha_fin=today,
-            )
+
+            # Con el enfoque "desde ultimo retiro" no hay nada que restar
+            self._cash_withdrawn_total = 0.0
             self._update_cash_local_label()
         except Exception:
             pass
@@ -2377,6 +2385,482 @@ class VentasWindow(QMainWindow):
             dlg.exec_()
         except Exception as e:
             QMessageBox.warning(self, "Cobros domicilio", str(e))
+
+    def _on_cierre_turno(self):
+        """Diálogo completo de cierre de turno: gastos + cuadre + retiro."""
+        try:
+            local_arg = (getattr(self, "_current_local_arg", "") or "").strip() or (
+                self.user_local or ""
+            )
+            efectivo_disponible = max(
+                0.0, float(getattr(self, "_cash_local_total", 0) or 0)
+            )
+
+            dlg = QDialog(self)
+            dlg.setWindowTitle(f"Cierre de turno — {local_arg}")
+            dlg.setMinimumWidth(520)
+            dlg.setMinimumHeight(600)
+            dlg.setModal(True)
+
+            # ── Estilo del diálogo ─────────────────────────────────────────
+            BG = _T("BG", "#0f0f14")
+            CARD = _T("CARD", "#1a1a22")
+            BORDER = _T("BORDER", "#2a2a35")
+            TEXT = _T("TEXT", "#e5e7eb")
+            MUTED = _T("TEXT_MUTED", "#a0a0a8")
+            GOLD = _T("GOLD", "#C9A040")
+            GREEN = "#4ade80"
+            RED = "#f87171"
+            ORANGE = "#fb923c"
+
+            dlg.setStyleSheet(
+                f"QDialog{{background:{BG};}}"
+                f"QLabel{{color:{TEXT};}}"
+                f"QLineEdit{{background:{CARD};color:{TEXT};border:1px solid {BORDER};"
+                f"border-radius:8px;padding:5px 10px;font-size:14px;}}"
+                f"QTableWidget{{background:{CARD};color:{TEXT};border:1px solid {BORDER};"
+                f"border-radius:8px;gridline-color:{BORDER};}}"
+                f"QHeaderView::section{{background:{BG};color:{MUTED};font-weight:700;"
+                f"padding:5px;border:none;border-bottom:1px solid {BORDER};}}"
+                f"QCheckBox{{color:{MUTED};}}"
+                f"QPushButton{{border-radius:9px;padding:6px 16px;font-weight:700;}}"
+            )
+
+            root = QVBoxLayout(dlg)
+            root.setContentsMargins(20, 18, 20, 18)
+            root.setSpacing(14)
+
+            # ── Título ─────────────────────────────────────────────────────
+            from datetime import date as _date
+
+            from PyQt5.QtGui import QFont as _QF
+
+            title_lbl = QLabel(f"Cierre de turno")
+            title_lbl.setFont(_QF("Segoe UI", 18, _QF.Bold))
+            title_lbl.setStyleSheet(f"color:{GOLD};")
+            sub_lbl = QLabel(f"{local_arg}  ·  {_date.today().strftime('%d/%m/%Y')}")
+            sub_lbl.setStyleSheet(f"color:{MUTED};font-size:12px;")
+            root.addWidget(title_lbl)
+            root.addWidget(sub_lbl)
+
+            # ── Card efectivo disponible ───────────────────────────────────
+            efect_card = QFrame()
+            efect_card.setStyleSheet(
+                f"QFrame{{background:#0d2010;border:1px solid {GREEN};"
+                f"border-radius:12px;padding:4px;}}"
+                f"QLabel{{color:{GREEN};}}"
+            )
+            efect_lay = QHBoxLayout(efect_card)
+            efect_lay.setContentsMargins(16, 12, 16, 12)
+            efect_icon = QLabel("💰")
+            efect_icon.setFont(_QF("Segoe UI", 20))
+            efect_lbl_txt = QLabel("Efectivo en caja")
+            efect_lbl_txt.setStyleSheet(
+                f"color:{MUTED};font-size:12px;font-weight:600;"
+            )
+            efect_val = QLabel(_fmt_money(efectivo_disponible))
+            efect_val.setFont(_QF("Segoe UI", 22, _QF.Bold))
+            efect_val.setStyleSheet(f"color:{GREEN};")
+            efect_lay.addWidget(efect_icon)
+            col = QVBoxLayout()
+            col.addWidget(efect_lbl_txt)
+            col.addWidget(efect_val)
+            efect_lay.addLayout(col)
+            efect_lay.addStretch()
+            root.addWidget(efect_card)
+
+            # ── Gastos del turno ───────────────────────────────────────────
+            gastos_lbl = QLabel("Gastos del turno")
+            gastos_lbl.setFont(_QF("Segoe UI", 12, _QF.Bold))
+            gastos_lbl.setStyleSheet(f"color:{MUTED};")
+            root.addWidget(gastos_lbl)
+
+            gastos_add_row = QHBoxLayout()
+            gasto_concepto = QLineEdit()
+            gasto_concepto.setPlaceholderText("Concepto (ej: limpieza, envío…)")
+            gasto_concepto.setFixedHeight(34)
+            gasto_monto = QLineEdit()
+            gasto_monto.setPlaceholderText("$ monto")
+            gasto_monto.setFixedWidth(100)
+            gasto_monto.setFixedHeight(34)
+            btn_add_g = QPushButton("+ Agregar")
+            btn_add_g.setFixedHeight(34)
+            btn_add_g.setCursor(Qt.PointingHandCursor)
+            btn_add_g.setStyleSheet(
+                f"QPushButton{{background:{CARD};color:{ORANGE};"
+                f"border:1px solid {ORANGE};}}"
+                f"QPushButton:hover{{background:{ORANGE};color:#000;}}"
+            )
+            gastos_add_row.addWidget(gasto_concepto)
+            gastos_add_row.addWidget(gasto_monto)
+            gastos_add_row.addWidget(btn_add_g)
+            root.addLayout(gastos_add_row)
+
+            from PyQt5.QtWidgets import QHeaderView as _HV
+            from PyQt5.QtWidgets import QTableWidget as _TW
+            from PyQt5.QtWidgets import QTableWidgetItem as _TWI
+
+            gastos_table = _TW(0, 3)
+            gastos_table.setHorizontalHeaderLabels(["Concepto", "Monto", ""])
+            gastos_table.verticalHeader().setVisible(False)
+            gastos_table.setEditTriggers(_TW.NoEditTriggers)
+            gastos_table.setFixedHeight(110)
+            gastos_table.horizontalHeader().setSectionResizeMode(0, _HV.Stretch)
+            gastos_table.horizontalHeader().setSectionResizeMode(
+                1, _HV.ResizeToContents
+            )
+            gastos_table.horizontalHeader().setSectionResizeMode(
+                2, _HV.ResizeToContents
+            )
+            root.addWidget(gastos_table)
+
+            gastos_list: list = []
+
+            # Total gastos label
+            total_gastos_lbl = QLabel("Total gastos: $0")
+            total_gastos_lbl.setStyleSheet(
+                f"color:{ORANGE};font-size:12px;font-weight:700;"
+            )
+            root.addWidget(total_gastos_lbl)
+
+            def _refresh_gastos():
+                gastos_table.setRowCount(0)
+                total_g = 0.0
+                for i, g in enumerate(gastos_list):
+                    r = gastos_table.rowCount()
+                    gastos_table.insertRow(r)
+                    gastos_table.setItem(r, 0, _TWI(g["concepto"]))
+                    gastos_table.setItem(r, 1, _TWI(f"${g['monto']:,.0f}"))
+                    btn_del = QPushButton("✕")
+                    btn_del.setFixedSize(26, 22)
+                    btn_del.setStyleSheet(
+                        f"QPushButton{{background:#3a1010;color:{RED};"
+                        f"border:none;border-radius:5px;font-weight:700;}}"
+                        f"QPushButton:hover{{background:{RED};color:#fff;}}"
+                    )
+                    btn_del.clicked.connect(lambda _, idx=i: _del_gasto(idx))
+                    gastos_table.setCellWidget(r, 2, btn_del)
+                    total_g += g["monto"]
+                total_gastos_lbl.setText(f"Total gastos: ${total_g:,.0f}")
+                _recalcular()
+
+            def _del_gasto(idx: int):
+                if 0 <= idx < len(gastos_list):
+                    gastos_list.pop(idx)
+                    _refresh_gastos()
+
+            def _add_gasto():
+                concepto = gasto_concepto.text().strip()
+                if not concepto:
+                    return
+                try:
+                    monto_txt = (
+                        gasto_monto.text()
+                        .replace("$", "")
+                        .replace(",", "")
+                        .replace(".", "")
+                        .strip()
+                    )
+                    monto = float(monto_txt or 0)
+                except ValueError:
+                    monto = 0.0
+                if monto <= 0:
+                    return
+                gastos_list.append({"concepto": concepto, "monto": monto})
+                gasto_concepto.clear()
+                gasto_monto.clear()
+                gasto_concepto.setFocus()
+                _refresh_gastos()
+
+            btn_add_g.clicked.connect(_add_gasto)
+            gasto_monto.returnPressed.connect(_add_gasto)
+
+            # ── Cuadre ─────────────────────────────────────────────────────
+            sep = QFrame()
+            sep.setFrameShape(QFrame.HLine)
+            sep.setStyleSheet(f"color:{BORDER};")
+            root.addWidget(sep)
+
+            cuadre_lbl = QLabel("Cuadre de efectivo")
+            cuadre_lbl.setFont(_QF("Segoe UI", 12, _QF.Bold))
+            cuadre_lbl.setStyleSheet(f"color:{MUTED};")
+            root.addWidget(cuadre_lbl)
+
+            cuadre_row = QHBoxLayout()
+            cuadre_row.setSpacing(14)
+
+            # Efectivo inicial
+            ini_col = QVBoxLayout()
+            ini_lbl = QLabel("Efectivo inicial")
+            ini_lbl.setStyleSheet(f"color:{MUTED};font-size:11px;")
+            ini_inp = QLineEdit("0")
+            ini_inp.setFixedHeight(38)
+            ini_inp.setFixedWidth(130)
+            ini_col.addWidget(ini_lbl)
+            ini_col.addWidget(ini_inp)
+            cuadre_row.addLayout(ini_col)
+
+            # Efectivo real contado
+            real_col = QVBoxLayout()
+            real_lbl = QLabel("Efectivo real contado")
+            real_lbl.setStyleSheet(f"color:{MUTED};font-size:11px;")
+            real_inp = QLineEdit()
+            real_inp.setPlaceholderText("$0")
+            real_inp.setFixedHeight(38)
+            real_inp.setFixedWidth(150)
+            real_col.addWidget(real_lbl)
+            real_col.addWidget(real_inp)
+            cuadre_row.addLayout(real_col)
+
+            # Diferencia
+            dif_col = QVBoxLayout()
+            dif_lbl_title = QLabel("Diferencia")
+            dif_lbl_title.setStyleSheet(f"color:{MUTED};font-size:11px;")
+            dif_lbl = QLabel("—")
+            dif_lbl.setFont(_QF("Segoe UI", 16, _QF.Bold))
+            dif_lbl.setStyleSheet(f"color:{MUTED};")
+            dif_col.addWidget(dif_lbl_title)
+            dif_col.addWidget(dif_lbl)
+            cuadre_row.addLayout(dif_col)
+            cuadre_row.addStretch()
+            root.addLayout(cuadre_row)
+
+            # Resultado del cuadre
+            resultado_lbl = QLabel("")
+            resultado_lbl.setStyleSheet(f"color:{MUTED};font-size:12px;")
+            root.addWidget(resultado_lbl)
+
+            def _fmt(v: float) -> str:
+                sign = "+" if v >= 0 else ""
+                return f"{sign}${v:,.0f}"
+
+            def _recalcular():
+                try:
+                    ini = float(
+                        ini_inp.text().replace("$", "").replace(",", "").strip() or 0
+                    )
+                except ValueError:
+                    ini = 0.0
+                try:
+                    real = float(
+                        real_inp.text().replace("$", "").replace(",", "").strip() or 0
+                    )
+                except ValueError:
+                    real = 0.0
+                total_g = sum(g["monto"] for g in gastos_list)
+                esperado = ini + efectivo_disponible - total_g
+                dif = real - esperado
+                dif_color = GREEN if dif >= 0 else RED
+                dif_lbl.setText(_fmt(dif))
+                dif_lbl.setStyleSheet(
+                    f"color:{dif_color};font-size:16px;font-weight:800;"
+                )
+                if real > 0:
+                    if abs(dif) < 1:
+                        resultado_lbl.setText("✔ La caja cuadra perfectamente")
+                        resultado_lbl.setStyleSheet(
+                            f"color:{GREEN};font-size:12px;font-weight:700;"
+                        )
+                    elif dif > 0:
+                        resultado_lbl.setText(f"▲ Sobrante de ${dif:,.0f}")
+                        resultado_lbl.setStyleSheet(f"color:{GREEN};font-size:12px;")
+                    else:
+                        resultado_lbl.setText(f"▼ Faltante de ${abs(dif):,.0f}")
+                        resultado_lbl.setStyleSheet(f"color:{RED};font-size:12px;")
+                else:
+                    resultado_lbl.setText("")
+
+            ini_inp.textChanged.connect(_recalcular)
+            real_inp.textChanged.connect(_recalcular)
+
+            # ── Monto a retirar ────────────────────────────────────────────
+            sep2 = QFrame()
+            sep2.setFrameShape(QFrame.HLine)
+            sep2.setStyleSheet(f"color:{BORDER};")
+            root.addWidget(sep2)
+
+            retiro_row = QHBoxLayout()
+            retiro_lbl = QLabel("Monto a retirar")
+            retiro_lbl.setStyleSheet(f"color:{MUTED};font-size:11px;")
+            retiro_inp = QLineEdit()
+            retiro_inp.setPlaceholderText(f"${efectivo_disponible:,.0f} (máx)")
+            retiro_inp.setFixedHeight(38)
+            retiro_inp.setFixedWidth(160)
+
+            btn_max = QPushButton("Retirar todo")
+            btn_max.setFixedHeight(34)
+            btn_max.setCursor(Qt.PointingHandCursor)
+            btn_max.setStyleSheet(
+                f"QPushButton{{background:{CARD};color:{MUTED};"
+                f"border:1px solid {BORDER};}}"
+                f"QPushButton:hover{{background:#2a2a3a;color:{TEXT};}}"
+            )
+            btn_max.clicked.connect(
+                lambda: retiro_inp.setText(str(int(efectivo_disponible)))
+            )
+            retiro_row.addWidget(retiro_lbl)
+            retiro_row.addWidget(retiro_inp)
+            retiro_row.addWidget(btn_max)
+            retiro_row.addStretch()
+            root.addLayout(retiro_row)
+
+            # ── Contraseña ─────────────────────────────────────────────────
+            pass_row = QHBoxLayout()
+            pass_lbl = QLabel("Contraseña")
+            pass_lbl.setStyleSheet(f"color:{MUTED};font-size:11px;")
+            pass_inp = QLineEdit()
+            pass_inp.setEchoMode(QLineEdit.Password)
+            pass_inp.setFixedHeight(34)
+            pass_inp.setFixedWidth(180)
+            show_cb = QCheckBox("Mostrar")
+            show_cb.toggled.connect(
+                lambda v: pass_inp.setEchoMode(
+                    QLineEdit.Normal if v else QLineEdit.Password
+                )
+            )
+            pass_row.addWidget(pass_lbl)
+            pass_row.addWidget(pass_inp)
+            pass_row.addWidget(show_cb)
+            pass_row.addStretch()
+            root.addLayout(pass_row)
+
+            # ── Botones ────────────────────────────────────────────────────
+            btn_row = QHBoxLayout()
+            btn_row.addStretch()
+            btn_cancel = QPushButton("Cancelar")
+            btn_cancel.setStyleSheet(
+                f"QPushButton{{background:{CARD};color:{MUTED};"
+                f"border:1px solid {BORDER};}}"
+            )
+            btn_cancel.clicked.connect(dlg.reject)
+
+            btn_ok = QPushButton("✔  Cerrar turno y retirar")
+            btn_ok.setFixedHeight(42)
+            btn_ok.setCursor(Qt.PointingHandCursor)
+            btn_ok.setFont(_QF("Segoe UI", 12, _QF.Bold))
+            btn_ok.setStyleSheet(
+                f"QPushButton{{background:#1a2a1a;color:{GREEN};"
+                f"border:1px solid {GREEN};border-radius:10px;}}"
+                f"QPushButton:hover{{background:{GREEN};color:#000;}}"
+            )
+            btn_ok.clicked.connect(dlg.accept)
+            btn_row.addWidget(btn_cancel)
+            btn_row.addWidget(btn_ok)
+            root.addLayout(btn_row)
+
+            real_inp.setFocus()
+
+            if dlg.exec_() != QDialog.Accepted:
+                return
+
+            # ── Validaciones ───────────────────────────────────────────────
+            pwd = (pass_inp.text() or "").strip()
+            if pwd != self._get_cash_password():
+                QMessageBox.warning(self, "Cierre de turno", "Contraseña incorrecta.")
+                return
+
+            monto_txt = (
+                retiro_inp.text()
+                .replace("$", "")
+                .replace(",", "")
+                .replace(".", "")
+                .strip()
+            )
+            try:
+                monto_retiro = float(monto_txt or 0)
+            except Exception:
+                monto_retiro = 0.0
+
+            if monto_retiro > efectivo_disponible + 0.01:
+                QMessageBox.warning(
+                    self,
+                    "Cierre de turno",
+                    f"El monto supera el efectivo disponible (${efectivo_disponible:,.0f}).",
+                )
+                return
+
+            # ── Calcular cuadre final ──────────────────────────────────────
+            try:
+                ini_final = float(
+                    ini_inp.text().replace("$", "").replace(",", "").strip() or 0
+                )
+            except ValueError:
+                ini_final = 0.0
+            try:
+                real_final = float(
+                    real_inp.text().replace("$", "").replace(",", "").strip() or 0
+                )
+            except ValueError:
+                real_final = 0.0
+
+            total_g_final = sum(g["monto"] for g in gastos_list)
+
+            # ── Guardar gastos en DB ───────────────────────────────────────
+            try:
+                from models.cierre_caja_model import add_gasto as _add_gasto_db
+                from models.cierre_caja_model import hacer_cierre as _hacer_cierre
+
+                for g in gastos_list:
+                    _add_gasto_db(local_arg, self.username, g["concepto"], g["monto"])
+            except Exception:
+                pass
+
+            # ── Registrar cierre en DB ─────────────────────────────────────
+            try:
+                _hacer_cierre(
+                    local_arg,
+                    self.username,
+                    ini_final,
+                    efectivo_disponible,
+                    real_final,
+                )
+            except Exception:
+                pass
+
+            # ── Registrar retiro de efectivo ───────────────────────────────
+            if monto_retiro > 0:
+                ok, msg = vm.add_cash_withdrawal(local_arg, monto_retiro, self.username)
+                if not ok:
+                    QMessageBox.warning(
+                        self,
+                        "Cierre de turno",
+                        f"No se pudo registrar el retiro: {msg}",
+                    )
+                    return
+
+            # ── Actualizar UI ──────────────────────────────────────────────
+            try:
+                self._cash_local_total = max(
+                    0.0,
+                    float(getattr(self, "_cash_local_total", 0) or 0) - monto_retiro,
+                )
+                self._update_cash_local_label()
+            except Exception:
+                pass
+
+            # ── Mensaje de confirmación ────────────────────────────────────
+            esperado_final = ini_final + efectivo_disponible - total_g_final
+            dif_final = real_final - esperado_final if real_final > 0 else 0.0
+            dif_txt = (
+                f"✔ Cuadre exacto"
+                if abs(dif_final) < 1
+                else (
+                    f"▲ Sobrante ${dif_final:,.0f}"
+                    if dif_final > 0
+                    else f"▼ Faltante ${abs(dif_final):,.0f}"
+                )
+            )
+            QMessageBox.information(
+                self,
+                "Turno cerrado",
+                f"Turno cerrado correctamente.\n\n"
+                f"Efectivo retirado: ${monto_retiro:,.0f}\n"
+                f"Gastos registrados: ${total_g_final:,.0f}\n"
+                f"{dif_txt}",
+            )
+
+        except Exception as e:
+            QMessageBox.critical(self, "Cierre de turno", f"Error inesperado: {e}")
 
     def _on_retirar_efectivo(self):
         try:
