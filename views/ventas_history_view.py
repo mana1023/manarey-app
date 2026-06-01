@@ -2739,25 +2739,48 @@ class VentasWindow(QMainWindow):
             retiro_row.addStretch()
             root.addLayout(retiro_row)
 
-            # ── contraseña ────────────────────────────────────────────────
-            pass_row = QHBoxLayout()
-            pass_lbl = QLabel("Contraseña")
-            pass_lbl.setStyleSheet(f"color:{MUTED};font-size:11px;font-weight:600;")
+            # ── contraseña: solo se muestra si van a retirar ──────────────
+            pass_frame = QFrame()
+            pass_frame.setStyleSheet(
+                f"QFrame{{background:#1a1a10;border:1px solid {GOLD};"
+                f"border-radius:10px;}}"
+                f"QLabel{{color:{GOLD};}}"
+            )
+            pass_frame_lay = QHBoxLayout(pass_frame)
+            pass_frame_lay.setContentsMargins(14, 10, 14, 10)
+            pass_frame_lay.setSpacing(10)
+            lock_lbl = QLabel("🔐")
+            lock_lbl.setFont(_QF("Segoe UI", 16))
+            pass_frame_lay.addWidget(lock_lbl)
+            pass_col = QVBoxLayout()
+            pass_col.setSpacing(4)
+            pass_hint = QLabel("Contraseña  (necesaria para retirar dinero)")
+            pass_hint.setStyleSheet(f"color:{MUTED};font-size:10px;")
             pass_inp = QLineEdit()
             pass_inp.setEchoMode(QLineEdit.Password)
             pass_inp.setFixedHeight(34)
-            pass_inp.setFixedWidth(180)
+            pass_inp.setPlaceholderText("Solo si vas a retirar efectivo")
             show_cb = QCheckBox("Mostrar")
+            show_cb.setStyleSheet(f"color:{MUTED};font-size:10px;")
             show_cb.toggled.connect(
                 lambda v: pass_inp.setEchoMode(
                     QLineEdit.Normal if v else QLineEdit.Password
                 )
             )
-            pass_row.addWidget(pass_lbl)
-            pass_row.addWidget(pass_inp)
-            pass_row.addWidget(show_cb)
-            pass_row.addStretch()
-            root.addLayout(pass_row)
+            pass_col.addWidget(pass_hint)
+            pass_inp_row = QHBoxLayout()
+            pass_inp_row.addWidget(pass_inp)
+            pass_inp_row.addWidget(show_cb)
+            pass_col.addLayout(pass_inp_row)
+            pass_frame_lay.addLayout(pass_col)
+            pass_frame.hide()  # oculto hasta que escriban un monto
+            root.addWidget(pass_frame)
+
+            def _on_retiro_changed():
+                monto = _parse_input(retiro_inp.text())
+                pass_frame.setVisible(monto > 0)
+
+            retiro_inp.textChanged.connect(_on_retiro_changed)
 
             # ── botones ───────────────────────────────────────────────────
             btn_row = QHBoxLayout()
@@ -2770,7 +2793,7 @@ class VentasWindow(QMainWindow):
             )
             btn_cancel.clicked.connect(dlg.reject)
 
-            btn_ok = QPushButton("✔  Cerrar turno y retirar")
+            btn_ok = QPushButton("✔  Cerrar turno")
             btn_ok.setFixedHeight(42)
             btn_ok.setCursor(Qt.PointingHandCursor)
             btn_ok.setFont(_QF("Segoe UI", 12, _QF.Bold))
@@ -2790,13 +2813,19 @@ class VentasWindow(QMainWindow):
                 return
 
             # ── validaciones ──────────────────────────────────────────────
-            pwd = (pass_inp.text() or "").strip()
-            if pwd != self._get_cash_password():
-                QMessageBox.warning(self, "Cierre de turno", "Contraseña incorrecta.")
-                return
-
             real_final = _parse_input(real_inp.text())
             monto_retiro = _parse_input(retiro_inp.text())
+
+            # contraseña solo si hay retiro
+            if monto_retiro > 0:
+                pwd = (pass_inp.text() or "").strip()
+                if pwd != self._get_cash_password():
+                    QMessageBox.warning(
+                        self,
+                        "Cierre de turno",
+                        "Contraseña incorrecta.\nEl cierre se cancela.",
+                    )
+                    return
 
             if monto_retiro > efectivo_caja + 0.01:
                 QMessageBox.warning(
