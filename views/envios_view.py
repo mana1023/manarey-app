@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from PyQt5.QtCore import QAbstractTableModel, Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QFont
+from PyQt5.QtGui import QPixmap as _QPixmap
 
 try:
     import app_theme as _theme
@@ -58,6 +59,7 @@ PRIMARY = _c["PRIMARY"]
 
 from PyQt5.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -69,6 +71,8 @@ from PyQt5.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QTableView,
     QTableWidget,
     QTableWidgetItem,
@@ -82,6 +86,48 @@ from models.firestore_db import get_all_locals
 
 PRIMARY = "#C9A040"
 GREEN = "#5E8B6F"
+
+
+def _styled_combo(items: list, default: str = "") -> "QComboBox":
+    """Crea un QComboBox con estilo explícito para que el texto sea siempre legible,
+    independientemente del tema del sistema operativo o el tamaño de pantalla."""
+    gold = _T("GOLD", "#C9A040")
+    bg = _T("CARD", "#232327")
+    fg = _T("TEXT", "#ECECF1")
+    sel_bg = gold
+    combo = QComboBox()
+    combo.addItems(items)
+    if default and default in items:
+        combo.setCurrentText(default)
+    combo.setStyleSheet(
+        f"QComboBox {{"
+        f"  color: {fg};"
+        f"  background: {bg};"
+        f"  padding: 3px 8px;"
+        f"  border: 1px solid {gold};"
+        f"  border-radius: 4px;"
+        f"  font-size: 12px;"
+        f"  min-width: 110px;"
+        f"}}"
+        f"QComboBox:disabled {{"
+        f"  color: #555555;"
+        f"  background: #1a1a1a;"
+        f"  border-color: #444;"
+        f"}}"
+        f"QComboBox::drop-down {{"
+        f"  border: none; width: 22px;"
+        f"}}"
+        f"QComboBox QAbstractItemView {{"
+        f"  color: {fg};"
+        f"  background: {bg};"
+        f"  selection-background-color: {sel_bg};"
+        f"  selection-color: #111111;"
+        f"  border: 1px solid {gold};"
+        f"  outline: none;"
+        f"  padding: 2px;"
+        f"}}"
+    )
+    return combo
 
 
 def _parse_envio_datetime(value):
@@ -296,6 +342,13 @@ class EnviosWindow(QMainWindow):
         refresh_btn = QPushButton("Refrescar")
         refresh_btn.clicked.connect(self.load_data)
         filters.addWidget(refresh_btn)
+
+        ruta_btn = QPushButton("Crear Ruta")
+        ruta_btn.setStyleSheet(
+            f"background:{_T('GOLD', PRIMARY)}; color:#111; font-weight:bold;"
+        )
+        ruta_btn.clicked.connect(self._crear_ruta)
+        filters.addWidget(ruta_btn)
 
         filters.addStretch()
         layout.addLayout(filters)
@@ -589,7 +642,16 @@ class EnviosWindow(QMainWindow):
                 self, "Envios", "No hay remitos seleccionados para imprimir."
             )
             return
-        ok, path_or_msg, errors, included_ids = vm.generar_pdf_remitos(selected_ids)
+
+        # Preguntar origen por producto para cada remito seleccionado
+        items_origen_per_venta = self._seleccionar_origen_bulk(selected_ids)
+        if items_origen_per_venta is None:
+            return  # cancelado
+
+        ok, path_or_msg, errors, included_ids = vm.generar_pdf_remitos(
+            selected_ids,
+            items_origen_per_venta=items_origen_per_venta,
+        )
         if not ok:
             msg = path_or_msg
             if errors:
@@ -603,6 +665,730 @@ class EnviosWindow(QMainWindow):
 
         self._disable_bulk_mode()
         self.load_data()
+
+    def _seleccionar_origen_bulk(self, venta_ids: list) -> dict | None:
+        """Muestra diálogo con todos los remitos seleccionados y un local de origen
+        por producto. Retorna {venta_id: {item_index: local_name}} o None si se cancela.
+        """
+        locales = self._get_locales_list()
+
+        # Cargar detalles completos de cada venta
+        orders_full = []
+        for vid in venta_ids:
+            try:
+                full = vm.get_venta_detalle(int(vid))
+                if full:
+                    orders_full.append(full)
+            except Exception:
+                pass
+
+        if not orders_full:
+            return {}
+
+        _HDR_BG = _T("CARD", "#232327")
+        _HDR_FG = _T("GOLD", PRIMARY)
+        _PROD_BG = _T("BG_ALT", "#1a1a22")
+        _PROD_FG = _T("TEXT", "#ECECF1")
+        _MUTED_FG = _T("TEXT_MUTED", "#a0a0a8")
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Imprimir remitos — ¿De qué local sale cada producto?")
+        dlg.resize(980, 580)
+        dlg.setMinimumSize(860, 480)
+        layout = QVBoxLayout(dlg)
+
+        lbl = QLabel("Indicá de qué local sale cada producto en cada remito:")
+        lbl.setWordWrap(True)
+        lbl.setStyleSheet(
+            f"color:{_HDR_FG}; font-weight:bold; font-size:12px; padding:4px 0;"
+        )
+        layout.addWidget(lbl)
+
+        tbl = QTableWidget()
+        tbl.setColumnCount(5)
+        tbl.setHorizontalHeaderLabels(
+            [
+                "Producto  /  Cliente — Dirección",
+                "Color",
+                "Medida",
+                "Cant.",
+                "Sale de (local)",
+            ]
+        )
+        tbl.verticalHeader().setVisible(False)
+        tbl.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        tbl.setSelectionMode(QAbstractItemView.NoSelection)
+        tbl.setWordWrap(False)
+        try:
+            import app_theme as _at_b
+
+            _dk = _at_b.is_dark_mode()
+            _cp = _at_b._palette(_dk)
+            tbl.setStyleSheet(
+                f"QTableWidget{{background:{_cp.get('SURFACE',_PROD_BG)};color:{_cp.get('TEXT',_PROD_FG)};"
+                f"border:1px solid {_cp.get('BORDER','#3e3e44')};border-radius:8px;"
+                f"gridline-color:{_cp.get('BORDER','#3e3e44')};}}"
+                f"QTableWidget::item{{padding:4px 8px;}}"
+                f"QHeaderView::section{{background:{_cp.get('TH_BG','#141420')};color:{_cp.get('GOLD',PRIMARY)};"
+                f"font-weight:700;padding:5px;border:none;border-bottom:2px solid {_cp.get('GOLD',PRIMARY)};}}"
+            )
+        except Exception:
+            tbl.setStyleSheet(
+                f"QTableWidget{{background:{_PROD_BG};color:{_PROD_FG};"
+                "border:1px solid #3e3e44;border-radius:8px;gridline-color:#3e3e44;}}"
+                "QTableWidget::item{padding:4px 8px;}"
+                f"QHeaderView::section{{background:#141420;color:{PRIMARY};"
+                "font-weight:700;padding:5px;border:none;border-bottom:2px solid #C9A040;}}"
+            )
+
+        hdr = tbl.horizontalHeader()
+        hdr.setSectionResizeMode(QHeaderView.Interactive)
+        hdr.resizeSection(0, 370)
+        hdr.resizeSection(1, 100)
+        hdr.resizeSection(2, 90)
+        hdr.resizeSection(3, 55)
+        hdr.resizeSection(4, 150)
+        tbl.verticalHeader().setDefaultSectionSize(28)
+
+        def _make_empty(bg: str) -> QTableWidgetItem:
+            it = QTableWidgetItem("")
+            it.setBackground(QBrush(QColor(bg)))
+            it.setFlags(it.flags() & ~Qt.ItemIsSelectable)
+            return it
+
+        def _prod_item(txt: str, muted: bool = False) -> QTableWidgetItem:
+            i = QTableWidgetItem(txt)
+            i.setForeground(QBrush(QColor(_MUTED_FG if muted else _PROD_FG)))
+            i.setBackground(QBrush(QColor(_PROD_BG)))
+            i.setFlags(i.flags() & ~Qt.ItemIsSelectable)
+            return i
+
+        # order_combos: {venta_id: [combo_per_product]}
+        order_combos = {}
+
+        for venta in orders_full:
+            vid = int(venta.get("id") or 0)
+            nombre = venta.get("cliente_nombre") or ""
+            direccion = self._format_direccion(venta)
+            local_v = (venta.get("local") or "").strip()
+            items = venta.get("items") or []
+
+            # ── Fila de cabecera del envío ──────────────────────────────────
+            hr = tbl.rowCount()
+            tbl.insertRow(hr)
+            tbl.setRowHeight(hr, 32)
+
+            hdr_txt = f"  {nombre}  —  {direccion}"
+            hi = QTableWidgetItem(hdr_txt)
+            hi.setFont(QFont("Segoe UI", 10, QFont.Bold))
+            hi.setForeground(QBrush(QColor(_HDR_FG)))
+            hi.setBackground(QBrush(QColor(_HDR_BG)))
+            hi.setFlags(hi.flags() & ~Qt.ItemIsSelectable)
+            tbl.setItem(hr, 0, hi)
+            for c in range(1, 5):
+                tbl.setItem(hr, c, _make_empty(_HDR_BG))
+
+            # ── Filas de productos ──────────────────────────────────────────
+            combos_for_venta = []
+            if not items:
+                pr = tbl.rowCount()
+                tbl.insertRow(pr)
+                pi = QTableWidgetItem("   (sin detalle de productos)")
+                pi.setForeground(QBrush(QColor(_MUTED_FG)))
+                pi.setBackground(QBrush(QColor(_PROD_BG)))
+                pi.setFlags(pi.flags() & ~Qt.ItemIsSelectable)
+                tbl.setItem(pr, 0, pi)
+                for c in range(1, 4):
+                    tbl.setItem(pr, c, _make_empty(_PROD_BG))
+                combo = _styled_combo(locales, local_v)
+                tbl.setCellWidget(pr, 4, combo)
+                combos_for_venta.append(combo)
+            else:
+                for it in items:
+                    pr = tbl.rowCount()
+                    tbl.insertRow(pr)
+                    tbl.setItem(
+                        pr,
+                        0,
+                        _prod_item(
+                            f"   ↳  {it.get('producto_nombre') or it.get('nombre') or 'Producto'}"
+                        ),
+                    )
+                    tbl.setItem(
+                        pr,
+                        1,
+                        _prod_item(
+                            it.get("producto_color") or it.get("color") or "",
+                            muted=True,
+                        ),
+                    )
+                    tbl.setItem(
+                        pr,
+                        2,
+                        _prod_item(
+                            it.get("producto_medida") or it.get("medida") or "",
+                            muted=True,
+                        ),
+                    )
+                    tbl.setItem(
+                        pr, 3, _prod_item(str(it.get("cantidad") or "1"), muted=True)
+                    )
+                    combo = _styled_combo(locales, local_v)
+                    tbl.setCellWidget(pr, 4, combo)
+                    combos_for_venta.append(combo)
+
+            order_combos[vid] = combos_for_venta
+
+        layout.addWidget(tbl)
+
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.button(QDialogButtonBox.Ok).setText("Imprimir remitos")
+        btns.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        layout.addWidget(btns)
+
+        if dlg.exec_() != QDialog.Accepted:
+            return None
+
+        return {
+            vid: {idx: combo.currentText() for idx, combo in enumerate(combos)}
+            for vid, combos in order_combos.items()
+        }
+
+    def _get_locales_list(self) -> list:
+        """Retorna la lista de locales disponibles."""
+        locales = ["Cane", "Estacion", "Glew", "Longchamps", "Vidriera"]
+        try:
+            from models.firestore_db import get_all_locals
+
+            db_locales = [l for l in (get_all_locals() or []) if l]
+            if db_locales:
+                locales = db_locales
+        except Exception:
+            pass
+        return locales
+
+    def _seleccionar_origen_remito(self, venta_id: int) -> dict | None:
+        """Muestra diálogo para asignar local de origen por producto antes de imprimir remito.
+        Retorna {item_index: local_name} o None si se cancela."""
+        venta = vm.get_venta_detalle(int(venta_id))
+        if not venta:
+            return {}
+        items = venta.get("items") or []
+        if not items:
+            return {}
+
+        locales = self._get_locales_list()
+        # Usar el local de la venta como default
+        default_local = (venta.get("local") or "").strip()
+        if default_local not in locales and default_local:
+            locales.insert(0, default_local)
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Origen de mercadería - ¿De dónde sale cada producto?")
+        dlg.resize(900, 500)
+        dlg.setMinimumSize(700, 400)
+        lay = QVBoxLayout(dlg)
+
+        info = QLabel("Seleccioná el local de origen de cada producto:")
+        info.setStyleSheet(
+            f"color:{_T('TEXT', '#ECECF1')}; font-weight:700; font-size:13px;"
+        )
+        lay.addWidget(info)
+
+        table = QTableWidget()
+        table.setColumnCount(5)
+        table.setHorizontalHeaderLabels(
+            ["Producto", "Color", "Medida", "Cantidad", "Sale de (local)"]
+        )
+        table.setRowCount(0)
+        table.verticalHeader().setVisible(False)
+        table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        table.setSelectionMode(QAbstractItemView.NoSelection)
+
+        try:
+            import app_theme as _at_tbl
+
+            _dark_tbl = _at_tbl.is_dark_mode()
+            _c_tbl = _at_tbl._palette(_dark_tbl)
+            table.setStyleSheet(
+                f"QTableWidget{{background:{_c_tbl['SURFACE']};color:{_c_tbl['TEXT']};"
+                f"border:1px solid {_c_tbl['BORDER']};border-radius:8px;"
+                f"alternate-background-color:{_c_tbl['ROW_EVEN']};}}"
+                f"QTableWidget::item{{padding:6px 8px;color:{_c_tbl['TEXT']};}}"
+                f"QHeaderView::section{{background:{_c_tbl['TH_BG']};color:{_c_tbl['GOLD']};"
+                f"font-weight:700;padding:6px;border:none;border-bottom:2px solid {_c_tbl['GOLD']};}}"
+            )
+            table.setAlternatingRowColors(True)
+        except Exception:
+            table.setStyleSheet(
+                "QTableWidget{background:#1a1a22;color:#F8F1E7;border:1px solid #3e3e44;border-radius:8px;}"
+                "QHeaderView::section{background:#141420;color:#C9A040;font-weight:700;padding:6px;"
+                "border:none;border-bottom:1px solid #3e3e44;}"
+            )
+
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)
+        header.resizeSection(0, 280)
+        header.resizeSection(1, 110)
+        header.resizeSection(2, 110)
+        header.resizeSection(3, 80)
+        header.resizeSection(4, 160)
+
+        combos = []
+        for idx, it in enumerate(items):
+            row = table.rowCount()
+            table.insertRow(row)
+            nombre = it.get("producto_nombre") or it.get("nombre") or "Producto"
+            color = it.get("producto_color") or it.get("color") or ""
+            medida = it.get("producto_medida") or it.get("medida") or ""
+            cantidad = str(it.get("cantidad") or "1")
+            table.setItem(row, 0, QTableWidgetItem(nombre))
+            table.setItem(row, 1, QTableWidgetItem(color))
+            table.setItem(row, 2, QTableWidgetItem(medida))
+            table.setItem(row, 3, QTableWidgetItem(cantidad))
+            combo = _styled_combo(locales, default_local)
+            table.setCellWidget(row, 4, combo)
+            combos.append(combo)
+
+        lay.addWidget(table)
+
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.button(QDialogButtonBox.Ok).setText("Imprimir remito")
+        btns.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        lay.addWidget(btns)
+
+        if dlg.exec_() != QDialog.Accepted:
+            return None
+
+        return {idx: combo.currentText() for idx, combo in enumerate(combos)}
+
+    def _crear_ruta(self):
+        """Diálogo con un envío por sección y un local de origen por producto.
+        La ruta resultante pasa primero por los locales a buscar mercadería,
+        luego entrega a cada cliente."""
+        rows = self.pendientes_model._rows
+        if not rows:
+            QMessageBox.information(self, "Crear Ruta", "No hay envíos pendientes.")
+            return
+
+        locales = self._get_locales_list()
+
+        _local_addresses = {
+            "Cane": "Miguel Cané 508, Glew, Buenos Aires, Argentina",
+            "Estacion": "Almafuerte 45, Glew, Buenos Aires, Argentina",
+            "Glew": "Av. Hipólito Yrigoyen 19861, Glew, Buenos Aires, Argentina",
+            "Longchamps": "Av. Hipólito Yrigoyen 19051, Longchamps, Buenos Aires, Argentina",
+            "Vidriera": "Av. Hipólito Yrigoyen 21890, Glew, Buenos Aires, Argentina",
+        }
+
+        # ── Cargar detalle de productos de cada venta ───────────────────────
+        orders_full = []
+        for v in rows:
+            try:
+                full = vm.get_venta_detalle(int(v.get("id") or 0))
+                orders_full.append(full if full else v)
+            except Exception:
+                orders_full.append(v)
+
+        # ── Colores para separar bloques de envíos ──────────────────────────
+        _HDR_BG = _T("CARD", "#232327")
+        _HDR_FG = _T("GOLD", PRIMARY)
+        _PROD_BG = _T("BG_ALT", "#1a1a22")
+        _PROD_FG = _T("TEXT", "#ECECF1")
+        _MUTED_FG = _T("TEXT_MUTED", "#a0a0a8")
+
+        # ── Diálogo ──────────────────────────────────────────────────────────
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Crear Ruta — Seleccionar envíos y origen de productos")
+        dlg.resize(980, 580)
+        dlg.setMinimumSize(860, 480)
+        layout = QVBoxLayout(dlg)
+
+        lbl = QLabel(
+            "Activá los envíos a incluir y elegí de qué local sale cada producto."
+            " La ruta pasará primero a buscar la mercadería y luego entregará."
+        )
+        lbl.setWordWrap(True)
+        lbl.setStyleSheet(
+            f"color:{_HDR_FG}; font-weight:bold; font-size:12px; padding:4px 0;"
+        )
+        layout.addWidget(lbl)
+
+        tbl = QTableWidget()
+        # Cols: ✓ | Producto/Cliente | Color | Medida | Cant | Sale de
+        tbl.setColumnCount(6)
+        tbl.setHorizontalHeaderLabels(
+            [
+                "✓",
+                "Producto  /  Cliente — Dirección",
+                "Color",
+                "Medida",
+                "Cant.",
+                "Sale de (local)",
+            ]
+        )
+        tbl.verticalHeader().setVisible(False)
+        tbl.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        tbl.setSelectionMode(QAbstractItemView.NoSelection)
+        tbl.setWordWrap(False)
+        try:
+            import app_theme as _at_r
+
+            _dk = _at_r.is_dark_mode()
+            _cp = _at_r._palette(_dk)
+            tbl.setStyleSheet(
+                f"QTableWidget{{background:{_cp.get('SURFACE', _PROD_BG)};color:{_cp.get('TEXT', _PROD_FG)};"
+                f"border:1px solid {_cp.get('BORDER','#3e3e44')};border-radius:8px;gridline-color:{_cp.get('BORDER','#3e3e44')};}}"
+                f"QTableWidget::item{{padding:4px 8px;}}"
+                f"QHeaderView::section{{background:{_cp.get('TH_BG','#141420')};color:{_cp.get('GOLD', PRIMARY)};"
+                f"font-weight:700;padding:5px;border:none;border-bottom:2px solid {_cp.get('GOLD', PRIMARY)};}}"
+            )
+        except Exception:
+            tbl.setStyleSheet(
+                f"QTableWidget{{background:{_PROD_BG};color:{_PROD_FG};"
+                "border:1px solid #3e3e44;border-radius:8px;gridline-color:#3e3e44;}}"
+                "QTableWidget::item{padding:4px 8px;}"
+                f"QHeaderView::section{{background:#141420;color:{PRIMARY};"
+                "font-weight:700;padding:5px;border:none;border-bottom:2px solid #C9A040;}}"
+            )
+
+        hdr = tbl.horizontalHeader()
+        hdr.setSectionResizeMode(QHeaderView.Interactive)
+        hdr.resizeSection(0, 36)
+        hdr.resizeSection(1, 340)
+        hdr.resizeSection(2, 100)
+        hdr.resizeSection(3, 90)
+        hdr.resizeSection(4, 55)
+        hdr.resizeSection(5, 145)
+        tbl.verticalHeader().setDefaultSectionSize(28)
+
+        # order_entries: list of (QCheckBox, venta_full, [QComboBox per product])
+        order_entries = []
+
+        def _prod_item(txt: str, muted: bool = False) -> QTableWidgetItem:
+            """Crea un QTableWidgetItem con el estilo de fila de producto."""
+            i = QTableWidgetItem(txt)
+            i.setForeground(QBrush(QColor(_MUTED_FG if muted else _PROD_FG)))
+            i.setBackground(QBrush(QColor(_PROD_BG)))
+            i.setFlags(i.flags() & ~Qt.ItemIsSelectable)
+            return i
+
+        def _set_row_bg(row_idx: int, bg: str, fg: str):
+            for col in range(tbl.columnCount()):
+                it = tbl.item(row_idx, col)
+                if it:
+                    it.setBackground(QBrush(QColor(bg)))
+                    it.setForeground(QBrush(QColor(fg)))
+
+        def _make_empty_item(bg: str) -> QTableWidgetItem:
+            it = QTableWidgetItem("")
+            it.setBackground(QBrush(QColor(bg)))
+            it.setFlags(it.flags() & ~Qt.ItemIsSelectable)
+            return it
+
+        for venta in orders_full:
+            nombre = venta.get("cliente_nombre") or ""
+            direccion = self._format_direccion(venta)
+            local_v = (venta.get("local") or "").strip()
+            items = venta.get("items") or []
+
+            # ── fila de cabecera del envío ──────────────────────────────────
+            hr = tbl.rowCount()
+            tbl.insertRow(hr)
+            tbl.setRowHeight(hr, 32)
+
+            # checkbox en col 0
+            cb_w = QWidget()
+            cb_w.setStyleSheet(f"background:{_HDR_BG};")
+            cb_l = QHBoxLayout(cb_w)
+            cb_l.setContentsMargins(6, 0, 0, 0)
+            cb = QCheckBox()
+            cb.setChecked(True)
+            cb_l.addWidget(cb)
+            tbl.setCellWidget(hr, 0, cb_w)
+
+            # texto del cliente en col 1 (span visual)
+            hdr_txt = f"  {nombre}  —  {direccion}"
+            hi = QTableWidgetItem(hdr_txt)
+            hi.setFont(QFont("Segoe UI", 10, QFont.Bold))
+            hi.setForeground(QBrush(QColor(_HDR_FG)))
+            hi.setBackground(QBrush(QColor(_HDR_BG)))
+            hi.setFlags(hi.flags() & ~Qt.ItemIsSelectable)
+            tbl.setItem(hr, 1, hi)
+            for c in range(2, 6):
+                tbl.setItem(hr, c, _make_empty_item(_HDR_BG))
+
+            # ── filas de productos ──────────────────────────────────────────
+            combos_for_order = []
+            if not items:
+                # Sin detalle: una fila genérica con combo
+                pr = tbl.rowCount()
+                tbl.insertRow(pr)
+                prod_lbl = QTableWidgetItem("   (productos no detallados)")
+                prod_lbl.setForeground(QBrush(QColor(_MUTED_FG)))
+                prod_lbl.setBackground(QBrush(QColor(_PROD_BG)))
+                prod_lbl.setFlags(prod_lbl.flags() & ~Qt.ItemIsSelectable)
+                tbl.setItem(pr, 1, prod_lbl)
+                for c in [0, 2, 3, 4]:
+                    tbl.setItem(pr, c, _make_empty_item(_PROD_BG))
+                combo = _styled_combo(locales, local_v)
+                tbl.setCellWidget(pr, 5, combo)
+                combos_for_order.append(combo)
+            else:
+                for it in items:
+                    pr = tbl.rowCount()
+                    tbl.insertRow(pr)
+                    prod_nombre = (
+                        it.get("producto_nombre") or it.get("nombre") or "Producto"
+                    )
+                    prod_color = it.get("producto_color") or it.get("color") or ""
+                    prod_medida = it.get("producto_medida") or it.get("medida") or ""
+                    prod_cant = str(it.get("cantidad") or "1")
+
+                    tbl.setItem(pr, 0, _make_empty_item(_PROD_BG))
+                    tbl.setItem(pr, 1, _prod_item(f"   ↳  {prod_nombre}"))
+                    tbl.setItem(pr, 2, _prod_item(prod_color, muted=True))
+                    tbl.setItem(pr, 3, _prod_item(prod_medida, muted=True))
+                    tbl.setItem(pr, 4, _prod_item(prod_cant, muted=True))
+
+                    combo = _styled_combo(locales, local_v)
+                    tbl.setCellWidget(pr, 5, combo)
+                    combos_for_order.append(combo)
+
+            # Conectar checkbox → enable/disable combos de este bloque
+            _gold = _T("GOLD", PRIMARY)
+            _bg = _T("CARD", "#232327")
+            _fg = _T("TEXT", "#ECECF1")
+
+            def _on_check(state, _combos=combos_for_order, _g=_gold, _b=_bg, _f=_fg):
+                enabled = state == Qt.Checked
+                for _c in _combos:
+                    _c.setEnabled(enabled)
+                    if not enabled:
+                        _c.setStyleSheet(
+                            "QComboBox{color:#555555;background:#1a1a1a;border:1px solid #444;"
+                            "padding:3px 8px;border-radius:4px;font-size:12px;min-width:110px;}"
+                            "QComboBox::drop-down{border:none;width:22px;}"
+                        )
+                    else:
+                        _c.setStyleSheet(
+                            f"QComboBox{{color:{_f};background:{_b};border:1px solid {_g};"
+                            "padding:3px 8px;border-radius:4px;font-size:12px;min-width:110px;}"
+                            f"QComboBox::drop-down{{border:none;width:22px;}}"
+                            f"QComboBox QAbstractItemView{{color:{_f};background:{_b};"
+                            f"selection-background-color:{_g};selection-color:#111;"
+                            "border:1px solid #C9A040;outline:none;padding:2px;}}"
+                        )
+
+            cb.stateChanged.connect(_on_check)
+
+            order_entries.append((cb, venta, combos_for_order))
+
+        layout.addWidget(tbl)
+
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.button(QDialogButtonBox.Ok).setText("Generar ruta →")
+        btns.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        layout.addWidget(btns)
+
+        if dlg.exec_() != QDialog.Accepted:
+            return
+
+        # ── Recopilar selección ─────────────────────────────────────────────
+        # Para cada envío activo: qué locales de origen tiene cada producto
+        selected_orders = [
+            (venta, combos) for cb, venta, combos in order_entries if cb.isChecked()
+        ]
+        if not selected_orders:
+            QMessageBox.warning(self, "Crear Ruta", "No seleccionaste ningún envío.")
+            return
+
+        # ── Construir paradas de la ruta ────────────────────────────────────
+        # Locales únicos de donde hay que ir a buscar (en orden de aparición)
+        seen_locals_ordered = []
+        for _, combos in selected_orders:
+            for combo in combos:
+                loc = combo.currentText().strip()
+                if loc and loc not in seen_locals_ordered:
+                    seen_locals_ordered.append(loc)
+
+        if not seen_locals_ordered:
+            QMessageBox.warning(
+                self, "Crear Ruta", "No hay locales de origen definidos."
+            )
+            return
+
+        # Punto de salida = primer local con productos
+        start_local = seen_locals_ordered[0]
+        start_address = _local_addresses.get(
+            start_local, f"{start_local}, Buenos Aires, Argentina"
+        )
+
+        # Paradas intermedias: resto de locales de búsqueda + entregas a clientes
+        branch_stops = [
+            _local_addresses.get(loc, f"{loc}, Buenos Aires, Argentina")
+            for loc in seen_locals_ordered[1:]
+        ]
+
+        delivery_stops = []
+        for venta, _ in selected_orders:
+            calle = str(venta.get("cliente_calle") or "").strip()
+            numero = str(venta.get("cliente_numero") or "").strip()
+            localidad = str(venta.get("cliente_localidad") or "").strip()
+            addr = " ".join(p for p in [calle, numero] if p)
+            if localidad:
+                addr = f"{addr}, {localidad}" if addr else localidad
+            if addr:
+                delivery_stops.append(f"{addr}, Buenos Aires, Argentina")
+
+        if not delivery_stops:
+            QMessageBox.warning(
+                self, "Crear Ruta", "Los envíos seleccionados no tienen dirección."
+            )
+            return
+
+        all_stops = branch_stops + delivery_stops  # primero busca, luego entrega
+
+        import urllib.parse
+
+        origin_enc = urllib.parse.quote(start_address)
+        dest_enc = urllib.parse.quote(all_stops[-1])
+        mid_stops = all_stops[:-1]
+
+        if mid_stops:
+            mid_enc = "|".join(urllib.parse.quote(w) for w in mid_stops)
+            maps_url = (
+                f"https://www.google.com/maps/dir/?api=1"
+                f"&origin={origin_enc}&destination={dest_enc}"
+                f"&waypoints={mid_enc}&travelmode=driving"
+            )
+        else:
+            maps_url = (
+                f"https://www.google.com/maps/dir/?api=1"
+                f"&origin={origin_enc}&destination={dest_enc}&travelmode=driving"
+            )
+
+        # ── Resumen textual ─────────────────────────────────────────────────
+        resumen_lines = [f"🏪 <b>Sale de: {start_local}</b>"]
+        for loc in seen_locals_ordered[1:]:
+            resumen_lines.append(f"🏪 Busca en: <b>{loc}</b>")
+        for venta, combos in selected_orders:
+            nombre = venta.get("cliente_nombre") or "cliente"
+            dir_fmt = self._format_direccion(venta) or "(sin dirección)"
+            items = venta.get("items") or []
+            resumen_lines.append(f"<br>📦 <b>{nombre}</b> — {dir_fmt}")
+            for idx, it in enumerate(items):
+                pnombre = it.get("producto_nombre") or it.get("nombre") or "producto"
+                ploc = combos[idx].currentText() if idx < len(combos) else "?"
+                resumen_lines.append(
+                    f"&nbsp;&nbsp;&nbsp;↳ {pnombre} <span style='color:{_HDR_FG}'>({ploc})</span>"
+                )
+
+        # ── Generar QR ──────────────────────────────────────────────────────
+        try:
+            import tempfile
+
+            import qrcode
+
+            qr = qrcode.QRCode(
+                version=None,
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=6,
+                border=2,
+            )
+            qr.add_data(maps_url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            img.save(tmp.name)
+            tmp.close()
+            qr_path = tmp.name
+        except Exception as e:
+            QMessageBox.warning(self, "Crear Ruta", f"No se pudo generar el QR: {e}")
+            return
+
+        # ── Mostrar resultado: QR + resumen ─────────────────────────────────
+        qr_dlg = QDialog(self)
+        qr_dlg.setWindowTitle("Ruta generada ✓")
+        qr_dlg.setMinimumWidth(740)
+        qr_layout = QHBoxLayout(qr_dlg)
+        qr_layout.setContentsMargins(14, 14, 14, 14)
+        qr_layout.setSpacing(16)
+
+        # Izquierda: resumen scrolleable
+        left_w = QWidget()
+        left_vl = QVBoxLayout(left_w)
+        left_vl.setContentsMargins(0, 0, 0, 0)
+
+        title_l = QLabel("<b style='font-size:13px;'>Resumen de la ruta</b>")
+        title_l.setStyleSheet(f"color:{_HDR_FG};")
+        left_vl.addWidget(title_l)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea{border:none;}")
+        inner = QLabel("<br>".join(resumen_lines))
+        inner.setWordWrap(True)
+        inner.setTextFormat(Qt.RichText)
+        inner.setStyleSheet(
+            f"color:{_PROD_FG}; background:{_HDR_BG};"
+            "border-radius:8px; padding:10px; font-size:11px; line-height:1.5;"
+        )
+        inner.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        scroll.setWidget(inner)
+        left_vl.addWidget(scroll, 1)
+
+        open_btn = QPushButton("🗺  Abrir en navegador")
+        open_btn.setStyleSheet(
+            f"background:{_T('GOLD',PRIMARY)}; color:#111; font-weight:bold; padding:8px 14px;"
+            "border-radius:6px; margin-top:6px;"
+        )
+        open_btn.clicked.connect(lambda: self._open_url(maps_url))
+        left_vl.addWidget(open_btn)
+
+        close_btn = QPushButton("Cerrar")
+        close_btn.setStyleSheet("padding:6px 14px; border-radius:6px; margin-top:4px;")
+        close_btn.clicked.connect(qr_dlg.accept)
+        left_vl.addWidget(close_btn)
+
+        qr_layout.addWidget(left_w, 1)
+
+        # Derecha: QR
+        right_vl = QVBoxLayout()
+        scan_l = QLabel("Escaneá con el celular:")
+        scan_l.setAlignment(Qt.AlignCenter)
+        scan_l.setStyleSheet(f"color:{_MUTED_FG}; font-size:11px;")
+        right_vl.addWidget(scan_l)
+        qr_lbl = QLabel()
+        pix = _QPixmap(qr_path)
+        qr_lbl.setPixmap(
+            pix.scaled(290, 290, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        )
+        qr_lbl.setAlignment(Qt.AlignCenter)
+        right_vl.addWidget(qr_lbl)
+        right_vl.addStretch()
+        qr_layout.addLayout(right_vl)
+
+        qr_dlg.exec_()
+
+        try:
+            os.remove(qr_path)
+        except Exception:
+            pass
+
+    def _open_url(self, url: str):
+        try:
+            import webbrowser
+
+            webbrowser.open(url)
+        except Exception:
+            pass
 
     def _format_direccion(self, venta: dict) -> str:
         calle = str(venta.get("cliente_calle") or "").strip()
@@ -619,7 +1405,30 @@ class EnviosWindow(QMainWindow):
     def imprimir_remito(self, venta_id):
         if not venta_id:
             return
-        ok, path_or_msg = vm.generar_pdf_remito(int(venta_id))
+        venta = vm.get_venta_detalle(int(venta_id))
+        items = (venta or {}).get("items") or []
+
+        # Si ya fue entregada, los items tienen entrega_local guardado → no preguntar
+        ya_entregada = bool(
+            (venta or {}).get("entrega_entregado")
+            or all(it.get("entrega_local_entregado") for it in items if items)
+        )
+
+        if ya_entregada and items:
+            default_local = (venta or {}).get("local") or self.local or ""
+            items_origen = {
+                idx: (it.get("entrega_local") or it.get("stock_local") or default_local)
+                for idx, it in enumerate(items)
+            }
+        else:
+            # Pendiente de entrega → preguntar de qué local sale cada producto
+            items_origen = self._seleccionar_origen_remito(int(venta_id))
+            if items_origen is None:
+                return
+
+        ok, path_or_msg = vm.generar_pdf_remito(
+            int(venta_id), items_origen=items_origen
+        )
         if not ok:
             QMessageBox.warning(
                 self, "Remito", f"No se pudo generar el remito: {path_or_msg}"
@@ -798,11 +1607,8 @@ class EnviosWindow(QMainWindow):
                 row_meta.append(meta)
                 return
 
-            combo = QComboBox()
-            combo.addItems(allowed)
-            if default_local in allowed:
-                combo.setCurrentText(default_local)
-            combo.setFixedWidth(120)
+            combo = _styled_combo(allowed, default_local)
+            combo.setFixedWidth(140)
             table.setCellWidget(row, 7, combo)
             meta = {
                 "item": it,
@@ -995,7 +1801,12 @@ class EnviosLoadWorker(QThread):
             )
         except Exception:
             ventas = []
-        ventas = [v for v in (ventas or []) if int(v.get("incluye_envio") or 0) == 1]
+        ventas = [
+            v
+            for v in (ventas or [])
+            if int(v.get("incluye_envio") or 0) == 1
+            and (v.get("local") or "").strip() != "Pagina Web"
+        ]
         pendientes = []
         programados = []
         entregados = []
