@@ -1032,7 +1032,39 @@ class LocalWindow(QMainWindow):
             if not hasattr(self, "card_problemas"):
                 return
             unread = pm.count_local_unread(self.local)
+            prev = getattr(self, "_last_unread_count", -1)
             self.card_problemas.set_title_badge(unread)
+            self._last_unread_count = unread
+            # Notificar solo cuando llegaron mensajes nuevos desde la última revisión
+            if unread > 0 and unread > prev and prev >= 0:
+                try:
+                    from PyQt5.QtWidgets import QApplication
+
+                    QApplication.beep()
+                except Exception:
+                    pass
+                from PyQt5.QtWidgets import QMessageBox
+
+                msg = QMessageBox(self)
+                msg.setWindowTitle("Nuevo mensaje")
+                msg.setText(
+                    "📬  Tenés un mensaje del administrador.\n\n"
+                    "Abrí 'Informar Problemas' para verlo."
+                )
+                msg.setIcon(QMessageBox.Information)
+                msg.setStandardButtons(QMessageBox.Ok)
+                msg.setDefaultButton(QMessageBox.Ok)
+                try:
+                    import app_theme as _at_msg
+
+                    msg.setStyleSheet(
+                        _at_msg.build_stylesheet(
+                            _at_msg.is_dark_mode(), _at_msg.get_font_size_px()
+                        )
+                    )
+                except Exception:
+                    pass
+                msg.exec_()
         except Exception:
             pass
 
