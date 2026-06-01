@@ -512,14 +512,16 @@ class AdminWindow(QMainWindow):
 
         # armo botón "Volver" dentro de la vista hija con callback a _back_to_menu()
         def back():
-            try:
-                self.child.close()
-            except Exception:
-                pass
-            self.child = None
+            # Mostrar el admin ANTES de ocultar la vista hija para que Qt
+            # nunca vea cero ventanas visibles (evita que cierre la app).
             self.show()
             self.raise_()
             self.activateWindow()
+            try:
+                self.child.hide()
+            except Exception:
+                pass
+            self.child = None
 
         # si la vista hija soporta un atributo back_command, lo usamos
         if hasattr(self.child, "back_command") and self.child.back_command is None:
@@ -537,15 +539,17 @@ class AdminWindow(QMainWindow):
 
     def _back_to_menu(self):
         """Vuelve al menú de admin (por si lo llaman directamente)."""
-        if self.child is not None:
-            try:
-                self.child.close()
-            except Exception:
-                pass
-            self.child = None
+        # Mostrar admin ANTES de ocultar la hija para evitar que Qt
+        # detecte cero ventanas visibles y cierre la aplicación.
         self.show()
         self.raise_()
         self.activateWindow()
+        if self.child is not None:
+            try:
+                self.child.hide()
+            except Exception:
+                pass
+            self.child = None
 
     # -------------------------
     # Acciones de los botones

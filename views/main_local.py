@@ -633,6 +633,7 @@ class LocalWindow(QMainWindow):
             ("💬", "Informar Problemas", GOLD, self.open_problemas),
             ("📈", "Historial de Ventas", GOLD, self.open_ventas_history),
             ("📋", "Historial de Movimientos", GOLD, self.open_history),
+            ("💰", "Cierre de caja", GOLD, self.open_cierre_caja),
         ]
 
         self.menu_cards = []
@@ -922,6 +923,17 @@ class LocalWindow(QMainWindow):
             refresher=lambda w: w.load_data(),
         )
         QTimer.singleShot(1200, self._update_messages_badge)
+
+    def open_cierre_caja(self):
+        self._open_view(
+            "cierre_caja",
+            "Cierre de caja",
+            lambda: __import__(
+                "views.cierre_caja_view", fromlist=["CierreCajaWindow"]
+            ).CierreCajaWindow(
+                self.username, self.role, self.local, back_command=self.on_back
+            ),
+        )
 
     def refresh_theme(self):
         """Reconstruye estilos del menú cuando cambia el tema."""
