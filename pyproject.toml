@@ -1,6 +1,40 @@
+[project]
+name = "manarey"
+version = "1.0.90"
+requires-python = ">=3.10"
+dependencies = [
+    "PyQt5>=5.15.0",
+    "reportlab>=3.6.0",
+    "psycopg2-binary>=2.9.0",
+    "bcrypt==4.0.1",
+    "cryptography>=41.0.0",
+    "requests>=2.31.0",
+    "alembic>=1.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black==23.1.0",
+    "isort==5.12.0",
+    "flake8>=5.0.0",
+    "pre-commit>=3.3.0",
+]
+
 [tool.black]
 line-length = 88
-target-version = ['py310']
+target-version = ["py310"]
 
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.uv]
+# La app solo corre en Windows. Evita que uv resuelva wheels de Linux/macOS
+# para paquetes como pyqt5-qt5 que no tienen wheels de Windows en versiones recientes.
+required-environments = [
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+]
