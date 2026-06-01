@@ -1982,6 +1982,167 @@ def get_domicilio_retirados_total(local: str = "") -> float:
             pass
 
 
+def get_last_withdrawal_datetime(local: str) -> Optional[str]:
+    """Devuelve el created_at (str ISO) del ultimo retiro de efectivo del local, o None si nunca hubo."""
+    try:
+        ok, _ = ensure_cash_withdrawals_schema()
+        if not ok:
+            return None
+        conn = get_conn()
+        cur = conn.cursor()
+        ph = "%s" if is_postgres() else "?"
+        local = (local or "").strip()
+        if local and local not in ("Todos", "Todos los locales"):
+            cur.execute(
+                f"SELECT MAX(created_at) FROM cash_withdrawals WHERE local={ph}",
+                (local,),
+            )
+        else:
+            cur.execute("SELECT MAX(created_at) FROM cash_withdrawals")
+        row = cur.fetchone()
+        val = row[0] if row else None
+        if val is None:
+            return None
+        return str(val)
+    except Exception:
+        return None
+    finally:
+        try:
+            if "conn" in locals() and conn:
+                put_conn(conn)
+        except Exception:
+            pass
+
+
+def get_cash_earned_since(local: str, since_dt: Optional[str] = None) -> float:
+    """
+    Suma todo el efectivo cobrado en ventas de `local` desde `since_dt` (datetime ISO).
+    Si `since_dt` es None calcula desde el principio.
+    - Usa venta_pagos cuando existe la tabla; si no, usa ventas.forma_pago.
+    - Excluye ventas canceladas y tipo_pago='domicilio' (esas van por domicilio_pagos).
+    """
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        ph = "%s" if is_postgres() else "?"
+
+        # Verificar si existe venta_pagos
+        has_vp = False
+        try:
+            if is_postgres():
+                cur.execute("SELECT to_regclass('venta_pagos')")
+                r = cur.fetchone()
+                has_vp = bool(r and r[0])
+            else:
+                cur.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='venta_pagos'"
+                )
+                has_vp = cur.fetchone() is not None
+        except Exception:
+            try:
+                if is_postgres():
+                    conn.rollback()
+            except Exception:
+                pass
+
+        params_local = []
+        local_filter = ""
+        if local and local not in ("Todos", "Todos los locales"):
+            local_filter = f" AND v.local = {ph}"
+            params_local.append(local)
+
+        date_filter = ""
+        params_date: list = []
+        if since_dt:
+            date_filter = f" AND v.fecha > {ph}"
+            params_date.append(str(since_dt))
+
+        base_conditions = (
+            " AND v.estado IN ('completada','cancelada')"
+            " AND LOWER(TRIM(COALESCE(v.tipo_pago,''))) != 'domicilio'"
+            " AND v.estado != 'cancelada'"
+        )
+
+        if has_vp:
+            # Sumar efectivo desde venta_pagos
+            sql = (
+                f"SELECT COALESCE(SUM(vp.monto), 0) "
+                f"FROM venta_pagos vp "
+                f"JOIN ventas v ON v.id = vp.venta_id "
+                f"WHERE LOWER(TRIM(COALESCE(vp.forma,''))) = 'efectivo'"
+                f"{base_conditions}"
+                f"{local_filter}"
+                f"{date_filter}"
+            )
+            params = params_local + params_date
+            cur.execute(sql, tuple(params))
+        else:
+            # Tabla ventas directamente
+            sql = (
+                f"SELECT COALESCE(SUM("
+                f"  CASE WHEN COALESCE(v.monto_pendiente,0) > 0.009 "
+                f"       THEN COALESCE(v.monto_pagado, v.total) "
+                f"       ELSE v.total END"
+                f"), 0) "
+                f"FROM ventas v "
+                f"WHERE LOWER(TRIM(COALESCE(v.forma_pago,''))) = 'efectivo'"
+                f"{base_conditions}"
+                f"{local_filter}"
+                f"{date_filter}"
+            )
+            params = params_local + params_date
+            cur.execute(sql, tuple(params))
+
+        row = cur.fetchone()
+        return float((row[0] if row else 0) or 0)
+    except Exception:
+        logger.exception("Error calculando efectivo ganado desde fecha")
+        return 0.0
+    finally:
+        try:
+            if "conn" in locals() and conn:
+                put_conn(conn)
+        except Exception:
+            pass
+
+
+def get_domicilio_retirados_since(since_dt: Optional[str] = None) -> float:
+    """
+    Suma cobros en domicilio auto-contabilizados (auto_retirado=1) desde `since_dt`.
+    Si `since_dt` es None devuelve el total historico completo.
+    """
+    try:
+        ok, _ = ensure_domicilio_pagos_schema()
+        if not ok:
+            return 0.0
+        conn = get_conn()
+        cur = conn.cursor()
+        ph = "%s" if is_postgres() else "?"
+        if since_dt:
+            cur.execute(
+                f"SELECT COALESCE(SUM(COALESCE(monto_productos, monto)), 0) "
+                f"FROM domicilio_pagos "
+                f"WHERE COALESCE(auto_retirado,0)=1 AND created_at > {ph}",
+                (str(since_dt),),
+            )
+        else:
+            cur.execute(
+                "SELECT COALESCE(SUM(COALESCE(monto_productos, monto)), 0) "
+                "FROM domicilio_pagos WHERE COALESCE(auto_retirado,0)=1"
+            )
+        row = cur.fetchone()
+        return float((row[0] if row else 0) or 0)
+    except Exception:
+        logger.exception("Error sumando cobros domicilio retirados (since)")
+        return 0.0
+    finally:
+        try:
+            if "conn" in locals() and conn:
+                put_conn(conn)
+        except Exception:
+            pass
+
+
 def add_cash_withdrawal(local: str, amount: float, usuario: str) -> Tuple[bool, str]:
     try:
         ok, msg = ensure_cash_withdrawals_schema()
@@ -3284,13 +3445,21 @@ def _boleta_from_payload(payload: Dict) -> Dict:
     }
 
 
-def generar_pdf_remito(venta_id: int) -> Tuple[bool, str]:
+def generar_pdf_remito(
+    venta_id: int, local_origen: str = "", items_origen: dict = None
+) -> Tuple[bool, str]:
     try:
         from models.remitos_model import generar_remito_pdf
 
         venta = get_venta_detalle(venta_id)
         if not venta:
             return False, "Venta no encontrada"
+
+        venta = dict(venta)
+        if items_origen:
+            venta["items_origen"] = items_origen
+        elif local_origen:
+            venta["local_origen"] = local_origen
 
         fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = os.path.join(_pdf_dir(), f"remito_{venta_id}_{fecha_str}.pdf")
@@ -3304,7 +3473,11 @@ def generar_pdf_remito(venta_id: int) -> Tuple[bool, str]:
         return False, str(e)
 
 
-def generar_pdf_remitos(venta_ids: List[int]) -> Tuple[bool, str, List[str], List[int]]:
+def generar_pdf_remitos(
+    venta_ids: List[int],
+    local_origen: str = "",
+    items_origen_per_venta: dict = None,
+) -> Tuple[bool, str, List[str], List[int]]:
     try:
         from models.remitos_model import generar_remitos_pdf
 
@@ -3316,6 +3489,11 @@ def generar_pdf_remitos(venta_ids: List[int]) -> Tuple[bool, str, List[str], Lis
             if not venta:
                 errors.append(f"Venta {venta_id}: Venta no encontrada")
                 continue
+            venta = dict(venta)
+            if items_origen_per_venta and int(venta_id) in items_origen_per_venta:
+                venta["items_origen"] = items_origen_per_venta[int(venta_id)]
+            elif local_origen:
+                venta["local_origen"] = local_origen
             ventas.append(venta)
             included_ids.append(int(venta_id))
 
@@ -3665,9 +3843,10 @@ def marcar_entrega(
                     monto_cobrar = 0.0
 
             if monto_cobrar > 0.01:
-                monto_cobrado_neto = _get_domicilio_payment_net_amount(
-                    venta, monto_cobrar
-                )
+                # ventas.total ya excluye precio_envio (el flete va a la empresa de
+                # transporte y no entra a caja). monto_cobrar = monto_pendiente =
+                # ventas.total = solo productos, así que NO hay que restar nada más.
+                monto_cobrado_neto = monto_cobrar
                 try:
                     total = float(venta.get("total") or 0)
                 except Exception:
@@ -3724,23 +3903,50 @@ def marcar_entrega(
                         "No se pudo insertar venta_pagos en entrega (se continua igual)."
                     )
 
-                # Registrar cobro en domicilio
+                # Registrar cobro en domicilio.
+                # IMPORTANTE: add_domicilio_pago() ya insertó una fila al crear la venta
+                # (retirado=0). Si esa fila existe, la actualizamos con el monto real cobrado
+                # para evitar doble conteo en la caja. Solo insertamos si no existe ninguna.
                 try:
                     local_cobro = (venta.get("local") or "").strip()
                     cur.execute(
-                        f"""
-                        INSERT INTO domicilio_pagos (venta_id, local, usuario, monto, monto_productos, created_at)
-                        VALUES ({ph},{ph},{ph},{ph},{ph},{ph})
-                        """,
-                        (
-                            int(venta_id),
-                            local_cobro,
-                            (usuario or "").strip(),
-                            float(monto_cobrar),
-                            float(monto_cobrado_neto),
-                            ahora,
-                        ),
+                        f"SELECT id FROM domicilio_pagos WHERE venta_id={ph} AND COALESCE(retirado,0)=0",
+                        (int(venta_id),),
                     )
+                    existing_dp = cur.fetchone()
+                    if existing_dp:
+                        cur.execute(
+                            f"""
+                            UPDATE domicilio_pagos
+                            SET monto={ph}, monto_productos={ph}, local={ph},
+                                usuario={ph}, created_at={ph}
+                            WHERE venta_id={ph} AND COALESCE(retirado,0)=0
+                            """,
+                            (
+                                float(monto_cobrar),
+                                float(monto_cobrado_neto),
+                                local_cobro,
+                                (usuario or "").strip(),
+                                ahora,
+                                int(venta_id),
+                            ),
+                        )
+                    else:
+                        cur.execute(
+                            f"""
+                            INSERT INTO domicilio_pagos
+                                (venta_id, local, usuario, monto, monto_productos, created_at)
+                            VALUES ({ph},{ph},{ph},{ph},{ph},{ph})
+                            """,
+                            (
+                                int(venta_id),
+                                local_cobro,
+                                (usuario or "").strip(),
+                                float(monto_cobrar),
+                                float(monto_cobrado_neto),
+                                ahora,
+                            ),
+                        )
                 except Exception:
                     logger.exception(
                         "No se pudo registrar cobro en domicilio (se continua igual)."
