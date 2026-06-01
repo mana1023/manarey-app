@@ -2404,7 +2404,10 @@ class BoletaView(QMainWindow):
         self.products_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.products_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.products_table.verticalHeader().setVisible(False)
-        self.products_table.verticalHeader().setDefaultSectionSize(46)
+        self.products_table.setWordWrap(True)
+        self.products_table.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeToContents
+        )
         try:
             import app_theme as _at
 
@@ -3316,14 +3319,17 @@ class BoletaView(QMainWindow):
                 continue
 
             it = row["data"]
-            name = it.get("nombre", "")
-            cat = it.get("categoria", "")
-            material = it.get("material", "")
-            medida = it.get("medida", "")
-            estado = it.get("estado", "")
-            extra = " - ".join([p for p in [cat, material, medida, estado] if p])
-            if extra:
-                name = f"{name} ({extra})"
+            nombre = (it.get("nombre") or "").strip()
+            cat = it.get("categoria", "") or ""
+            material = it.get("material", "") or ""
+            medida = it.get("medida", "") or ""
+            estado = it.get("estado", "") or ""
+            color = it.get("color", "") or ""
+            extra = "  ·  ".join(
+                [p for p in [cat, material, medida, estado, color] if p]
+            )
+            # Nombre en primera línea, detalles en segunda (más fácil de leer)
+            name = f"{nombre}\n{extra}" if extra else nombre
 
             qty = int(it.get("cantidad") or 0)
             precio = int(it.get("precio_unitario") or 0)
