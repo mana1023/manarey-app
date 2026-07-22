@@ -1,8 +1,8 @@
 """Componente para mostrar notificaciones toast."""
 
-from PyQt5.QtCore import QPoint, QPropertyAnimation, Qt, QTimer
-from PyQt5.QtGui import QColor, QPainter, QPainterPath
-from PyQt5.QtWidgets import QFrame, QLabel
+from PySide6.QtCore import QPoint, QPropertyAnimation, Qt, QTimer
+from PySide6.QtGui import QColor, QPainter, QPainterPath
+from PySide6.QtWidgets import QFrame, QLabel
 
 
 class Toast(QFrame):

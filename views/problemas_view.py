@@ -1,8 +1,8 @@
 # views/problemas_view.py
 from datetime import datetime
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QFont
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QFont
 
 try:
     import app_theme as _theme
@@ -53,7 +53,7 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,

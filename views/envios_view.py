@@ -4,9 +4,9 @@ import platform
 import subprocess
 from datetime import datetime, timedelta
 
-from PyQt5.QtCore import QAbstractTableModel, Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QBrush, QColor, QFont
-from PyQt5.QtGui import QPixmap as _QPixmap
+from PySide6.QtCore import QAbstractTableModel, Qt, QThread, Signal
+from PySide6.QtGui import QBrush, QColor, QFont
+from PySide6.QtGui import QPixmap as _QPixmap
 
 try:
     import app_theme as _theme
@@ -57,7 +57,7 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
@@ -848,7 +848,7 @@ class EnviosWindow(QMainWindow):
         btns.rejected.connect(dlg.reject)
         layout.addWidget(btns)
 
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return None
 
         return {
@@ -961,7 +961,7 @@ class EnviosWindow(QMainWindow):
         btns.rejected.connect(dlg.reject)
         lay.addWidget(btns)
 
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return None
 
         return {idx: combo.currentText() for idx, combo in enumerate(combos)}
@@ -1197,7 +1197,7 @@ class EnviosWindow(QMainWindow):
         btns.rejected.connect(dlg.reject)
         layout.addWidget(btns)
 
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
 
         # ── Recopilar selección ─────────────────────────────────────────────
@@ -1375,7 +1375,7 @@ class EnviosWindow(QMainWindow):
         right_vl.addStretch()
         qr_layout.addLayout(right_vl)
 
-        qr_dlg.exec_()
+        qr_dlg.exec()
 
         try:
             os.remove(qr_path)
@@ -1691,7 +1691,7 @@ class EnviosWindow(QMainWindow):
         btns.accepted.connect(dlg.accept)
         btns.rejected.connect(dlg.reject)
 
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return None
         if blocked_rows > 0:
             QMessageBox.warning(
@@ -1785,7 +1785,7 @@ class EnviosWindow(QMainWindow):
 
 
 class EnviosLoadWorker(QThread):
-    data_loaded = pyqtSignal(int, list, list, list)
+    data_loaded = Signal(int, list, list, list)
 
     def __init__(self, search: str, load_id: int, parent=None):
         super().__init__(parent)

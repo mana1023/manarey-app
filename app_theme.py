@@ -3,8 +3,8 @@
 import json
 import os
 
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QApplication
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QApplication
 
 # Tamaños de letra disponibles
 FONT_SIZES = {

@@ -4,8 +4,8 @@ import os
 import threading
 from datetime import datetime
 
-from PyQt5.QtCore import QByteArray, QObject, QSize, Qt, QTimer, pyqtSignal
-from PyQt5.QtGui import (
+from PySide6.QtCore import QByteArray, QObject, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import (
     QBrush,
     QColor,
     QFont,
@@ -66,7 +66,7 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
     QGridLayout,
@@ -318,7 +318,7 @@ class NavButton(QPushButton):
 class LocalWindow(QMainWindow):
     """Panel principal de local — estilo Mueblería Manarey."""
 
-    _update_found = pyqtSignal(str)  # version string
+    _update_found = Signal(str)  # version string
 
     def __init__(self, username: str, role: str, local: str):
         super().__init__()
@@ -1021,7 +1021,7 @@ class LocalWindow(QMainWindow):
             from views.settings_dialog import SettingsDialog
 
             dlg = SettingsDialog(self)
-            if dlg.exec_():
+            if dlg.exec():
                 self.refresh_theme()  # rebuild all menu chrome
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo abrir ajustes:\n{e}")
@@ -1038,12 +1038,12 @@ class LocalWindow(QMainWindow):
             # Notificar solo cuando llegaron mensajes nuevos desde la última revisión
             if unread > 0 and unread > prev and prev >= 0:
                 try:
-                    from PyQt5.QtWidgets import QApplication
+                    from PySide6.QtWidgets import QApplication
 
                     QApplication.beep()
                 except Exception:
                     pass
-                from PyQt5.QtWidgets import QMessageBox
+                from PySide6.QtWidgets import QMessageBox
 
                 msg = QMessageBox(self)
                 msg.setWindowTitle("Nuevo mensaje")
@@ -1064,7 +1064,7 @@ class LocalWindow(QMainWindow):
                     )
                 except Exception:
                     pass
-                msg.exec_()
+                msg.exec()
         except Exception:
             pass
 
@@ -1079,7 +1079,7 @@ class LocalWindow(QMainWindow):
         super().closeEvent(event)
         if not self._skip_quit:
             try:
-                from PyQt5.QtWidgets import QApplication
+                from PySide6.QtWidgets import QApplication
 
                 QApplication.quit()
             except Exception:
@@ -1175,7 +1175,7 @@ class LocalWindow(QMainWindow):
     # ── Presencia ─────────────────────────────────────────────────────────────
     def _start_presence_pings(self):
         try:
-            from PyQt5.QtCore import QTimer as _QT
+            from PySide6.QtCore import QTimer as _QT
 
             from models import user_model
 
@@ -1244,10 +1244,10 @@ class LocalWindow(QMainWindow):
                 mandatory=bool(pending.get("mandatory")),
                 current_version=get_current_version(),
             )
-            if dlg.exec_() == AppUpdateDialog.Accepted:
+            if dlg.exec() == AppUpdateDialog.Accepted:
                 start_update_from_pending(parent_widget=self)
         except Exception as exc:
-            from PyQt5.QtWidgets import QMessageBox
+            from PySide6.QtWidgets import QMessageBox
 
             QMessageBox.critical(
                 self, "Error", f"No se pudo abrir la actualización:\n{exc}"

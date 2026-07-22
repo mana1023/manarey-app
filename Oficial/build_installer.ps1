@@ -120,7 +120,7 @@ $args = @(
     "--windowed",
     "--icon", (Join-Path $root "assets\\images\\logo_manarey.ico"),
     "--paths", $root,
-    "--collect-submodules", "PyQt5",
+    "--collect-submodules", "PySide6",
     "--collect-submodules", "models",
     "--collect-submodules", "views",
     "--collect-submodules", "utils",

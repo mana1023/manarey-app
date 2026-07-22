@@ -2,9 +2,9 @@
 import json
 import os
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QFont, QPainter
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QFont, QPainter
+from PySide6.QtWidgets import (
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -49,7 +49,7 @@ class ToggleSwitch(QWidget):
                 pass
 
     def paintEvent(self, event):
-        from PyQt5.QtGui import QColor, QPainter, QPen
+        from PySide6.QtGui import QColor, QPainter, QPen
 
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)

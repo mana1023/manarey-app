@@ -1,5 +1,5 @@
-from PyQt5.QtCore import QPoint, QRect, QSize, Qt
-from PyQt5.QtWidgets import QLayout, QSizePolicy, QWidget, QWidgetItem
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
+from PySide6.QtWidgets import QLayout, QSizePolicy, QWidget, QWidgetItem
 
 
 class FlowContainer(QWidget):

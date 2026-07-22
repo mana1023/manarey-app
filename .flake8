@@ -5,12 +5,17 @@ per-file-ignores =
     # Archivos con QSS/CSS en strings — los ; y : son sintaxis CSS, no Python
     # F401 imports reordenados por isort; E402 por sys.path.insert en views
     # F541 f-strings de apertura de bloques multi-línea; F824 globals de schema
-    views/*.py:E501,E702,E231,E202,E201,E221,E222,F401,E402,F541,E731,E741,E722,F811,F841
+    views/*.py:E501,E702,E231,E202,E201,E221,E222,F401,E402,F541,E731,E741,E722,F811,F841,F824
     app_theme.py:E501,E702,E231,E202,E201,F541
+    # styles.py tiene QSS/CSS en strings, mismo caso que app_theme.py
+    styles.py:E501,E702,E231,E202,E201,E221,E222,F401,F541
     app.py:E501,E402,F401,F811,E722,F841
     # ui_update_dialog tiene QSS en strings, mismo caso que views/
     ui/*.py:E501,E702,E231,E202,E201,E221,E222,F401,F541
     # updater.py tiene SQL/URLs largas en strings
     updater.py:E501,E231,E272,E201,E202
+    # utils/ y workers/: imports reordenados por isort, lineas largas de SQL/logs
+    utils/*.py:E501,F401,F841,E402,E731,E722,E741
+    workers/*.py:E501,F401,F841,E722
     # Archivos con consultas SQL largas en strings y globals de schema discovery
     models/*.py:E501,E231,F824,F541,E402,W291,E722,E202,E201,F841,F811,E741,E702,W503

@@ -1,7 +1,7 @@
 # styles.py
-from PyQt5.QtCore import QEasingCurve, QPropertyAnimation, pyqtProperty
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QGraphicsEffect
+from PySide6.QtCore import Property, QEasingCurve, QPropertyAnimation
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QGraphicsEffect
 
 
 class Colors:

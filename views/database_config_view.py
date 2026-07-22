@@ -4,9 +4,9 @@
 import json
 import os
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QFont
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QFont
+from PySide6.QtWidgets import (
     QButtonGroup,
     QDialog,
     QFrame,
@@ -367,8 +367,8 @@ class DatabaseConfigDialog(QDialog):
 if __name__ == "__main__":
     import sys
 
-    from PyQt5.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
     dialog = DatabaseConfigDialog()
-    dialog.exec_()
+    dialog.exec()

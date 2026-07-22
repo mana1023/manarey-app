@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, Optional
 
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from models import stock_model as sm
 from models import stock_queue_api as qa
@@ -16,12 +16,10 @@ class StockQueueWorker(QThread):
     """Worker que maneja la cola de operaciones de stock."""
 
     # Señales para actualizar la UI
-    operation_enqueued = pyqtSignal(str, str)  # tipo, detalles
-    operation_started = pyqtSignal(str, str)  # tipo, detalles
-    operation_completed = pyqtSignal(
-        str, str, bool, str
-    )  # tipo, detalles, éxito, mensaje
-    queue_count = pyqtSignal(int)  # operaciones pendientes
+    operation_enqueued = Signal(str, str)  # tipo, detalles
+    operation_started = Signal(str, str)  # tipo, detalles
+    operation_completed = Signal(str, str, bool, str)  # tipo, detalles, éxito, mensaje
+    queue_count = Signal(int)  # operaciones pendientes
 
     def __init__(self, username: str, local: str, interval_ms: int = 1000, parent=None):
         super().__init__(parent)

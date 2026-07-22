@@ -5,8 +5,8 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from PyQt5.QtCore import QAbstractTableModel, QDate, Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QBrush, QColor, QFont, QIcon, QKeySequence, QPalette
+from PySide6.QtCore import QAbstractTableModel, QDate, Qt, QThread, Signal
+from PySide6.QtGui import QAction, QBrush, QColor, QFont, QIcon, QKeySequence, QPalette
 
 try:
     import app_theme as _theme
@@ -57,9 +57,8 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QAbstractItemView,
-    QAction,
     QButtonGroup,
     QCheckBox,
     QComboBox,
@@ -578,7 +577,7 @@ class VentaCard(QWidget):
 
 
 class VentasLoadWorker(QThread):
-    data_loaded = pyqtSignal(int, list, list, list, str, str)
+    data_loaded = Signal(int, list, list, list, str, str)
 
     def __init__(
         self,
@@ -2198,7 +2197,7 @@ class VentasWindow(QMainWindow):
             pass_input.returnPressed.connect(ok_btn.click)
             pass_input.setFocus()
 
-            if dlg.exec_() != QDialog.Accepted:
+            if dlg.exec() != QDialog.Accepted:
                 return False
             pwd = (pass_input.text() or "").strip()
             if pwd != self._get_cash_password():
@@ -2382,7 +2381,7 @@ class VentasWindow(QMainWindow):
         # toda la plata de envíos va a Longchamps
         try:
             dlg = CobrosdomicilioHistorialDialog(local="", parent=self)
-            dlg.exec_()
+            dlg.exec()
         except Exception as e:
             QMessageBox.warning(self, "Cobros domicilio", str(e))
 
@@ -2439,12 +2438,12 @@ class VentasWindow(QMainWindow):
             # ── diálogo ───────────────────────────────────────────────────
             from datetime import date as _date
 
-            from PyQt5.QtGui import QFont as _QF
-            from PyQt5.QtWidgets import QHeaderView as _HV
-            from PyQt5.QtWidgets import QScrollArea as _SA
-            from PyQt5.QtWidgets import QTableWidget as _TW
-            from PyQt5.QtWidgets import QTableWidgetItem as _TWI
-            from PyQt5.QtWidgets import QTextEdit as _TE
+            from PySide6.QtGui import QFont as _QF
+            from PySide6.QtWidgets import QHeaderView as _HV
+            from PySide6.QtWidgets import QScrollArea as _SA
+            from PySide6.QtWidgets import QTableWidget as _TW
+            from PySide6.QtWidgets import QTableWidgetItem as _TWI
+            from PySide6.QtWidgets import QTextEdit as _TE
 
             dlg = QDialog(self)
             dlg.setWindowTitle(f"Cierre de turno — {local_arg}")
@@ -2809,7 +2808,7 @@ class VentasWindow(QMainWindow):
 
             real_inp.setFocus()
 
-            if dlg.exec_() != QDialog.Accepted:
+            if dlg.exec() != QDialog.Accepted:
                 return
 
             # ── validaciones ──────────────────────────────────────────────
@@ -2994,7 +2993,7 @@ class VentasWindow(QMainWindow):
             cancel_btn.clicked.connect(dlg.reject)
             ok_btn.clicked.connect(dlg.accept)
 
-            if dlg.exec_() != QDialog.Accepted:
+            if dlg.exec() != QDialog.Accepted:
                 return
 
             pwd = (pass_input.text() or "").strip()
@@ -3854,7 +3853,7 @@ class VentasWindow(QMainWindow):
         btns.accepted.connect(_try_accept)
         btns.rejected.connect(dlg.reject)
 
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
 
         motivo = (motivo_input.text() or "").strip()
@@ -3951,7 +3950,7 @@ class VentasWindow(QMainWindow):
         btns.accepted.connect(_try_accept)
         btns.rejected.connect(dlg.reject)
 
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return None
 
         selected = []
@@ -4054,7 +4053,7 @@ class VentasWindow(QMainWindow):
         btns.accepted.connect(dlg.accept)
         btns.rejected.connect(dlg.reject)
 
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             sel_id = group.checkedId()
             forma = opciones[sel_id if sel_id >= 0 else 0]
             success, msg = vm.completar_pago_sena(venta_id, forma, self.username)
@@ -4140,7 +4139,7 @@ class VentasWindow(QMainWindow):
         lay.addWidget(btns)
         btns.accepted.connect(dlg.accept)
 
-        dlg.exec_()
+        dlg.exec()
 
     def closeEvent(self, event):
         try:
@@ -4177,7 +4176,7 @@ class CobrosdomicilioHistorialDialog(QDialog):
         self._load()
 
     def _build_ui(self):
-        from PyQt5.QtWidgets import (
+        from PySide6.QtWidgets import (
             QAbstractItemView,
             QHBoxLayout,
             QHeaderView,
@@ -4244,7 +4243,12 @@ class CobrosdomicilioHistorialDialog(QDialog):
         lay.addLayout(btn_row)
 
     def _load(self):
-        from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QTableWidgetItem, QWidget
+        from PySide6.QtWidgets import (
+            QHBoxLayout,
+            QPushButton,
+            QTableWidgetItem,
+            QWidget,
+        )
 
         try:
             rows = vm.get_domicilio_pagos_history(self._days, self._local)

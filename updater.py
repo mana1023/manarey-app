@@ -550,7 +550,7 @@ def _download_and_install_with_progress(
     import threading
 
     try:
-        from PyQt5.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
 
         from ui.ui_update_dialog import UpdateProgressDialog
     except Exception:
@@ -764,7 +764,7 @@ def _download_and_apply_delta_with_progress(
 ) -> bool:
     """Descarga delta.zip con barra de progreso y aplica la actualización delta."""
     try:
-        from PyQt5.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
 
         from ui.ui_update_dialog import UpdateProgressDialog
 
@@ -857,7 +857,7 @@ def _start_update_from_manifest(manifest: Dict[str, Any], parent_widget=None) ->
 
         if not success:
             try:
-                from PyQt5.QtWidgets import QMessageBox
+                from PySide6.QtWidgets import QMessageBox
 
                 QMessageBox.warning(
                     parent_widget,
@@ -881,7 +881,7 @@ def start_update_from_pending(parent_widget=None) -> bool:
     ok = _start_update_from_manifest(pending, parent_widget)
     if not ok:
         try:
-            from PyQt5.QtWidgets import QMessageBox
+            from PySide6.QtWidgets import QMessageBox
 
             QMessageBox.warning(
                 parent_widget, "Actualizacion", "No se pudo iniciar la actualizacion."
@@ -909,7 +909,7 @@ def check_for_updates(parent_widget=None, show_ui: bool = True) -> None:
         # Solo actualizar estado. Si es obligatorio, avisar con UI mínima.
         if mandatory:
             try:
-                from PyQt5.QtWidgets import QMessageBox
+                from PySide6.QtWidgets import QMessageBox
 
                 msg = (
                     f"Actualización obligatoria disponible ({manifest.get('version')}).\n"
@@ -943,7 +943,7 @@ def check_for_updates(parent_widget=None, show_ui: bool = True) -> None:
 
         dlg.set_update_info(manifest.get("version"), changelog, mandatory=mandatory)
 
-        ui_confirmed = dlg.exec_() == UpdateDialog.Accepted
+        ui_confirmed = dlg.exec() == UpdateDialog.Accepted
 
         if ui_confirmed:
             show_install = True
@@ -964,7 +964,7 @@ def check_for_updates(parent_widget=None, show_ui: bool = True) -> None:
 
         # Fallback a QMessageBox genérico
         try:
-            from PyQt5.QtWidgets import QMessageBox
+            from PySide6.QtWidgets import QMessageBox
 
             notes = manifest.get("notes") or "Hay una actualización disponible."
             msg = f"Versión {manifest.get('version')} disponible.\n{notes}\n\n¿Deseas descargar e instalar ahora?"

@@ -9,9 +9,9 @@ import sys
 import tempfile
 from datetime import datetime
 
-from PyQt5.QtCore import QDate, Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QIcon
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import QDate, Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QIcon
+from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDateEdit,
@@ -908,7 +908,7 @@ class AdminView(QMainWindow):
         from views.user_dialog import UserDialog
 
         dialog = UserDialog(self)
-        if dialog.exec_() == UserDialog.Accepted:
+        if dialog.exec() == UserDialog.Accepted:
             # Aquí iría la lógica para guardar el nuevo usuario
             QMessageBox.information(self, "Éxito", "Usuario creado correctamente")
             self.refresh_data()
@@ -926,7 +926,7 @@ class AdminView(QMainWindow):
         from views.user_dialog import UserDialog
 
         dialog = UserDialog(self, username=username, edit_mode=True)
-        if dialog.exec_() == UserDialog.Accepted:
+        if dialog.exec() == UserDialog.Accepted:
             # Aquí iría la lógica para actualizar el usuario
             QMessageBox.information(self, "Éxito", "Usuario actualizado correctamente")
             self.refresh_data()

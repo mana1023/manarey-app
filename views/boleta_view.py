@@ -9,16 +9,9 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-from PyQt5 import sip
-from PyQt5.QtCore import (
-    QAbstractTableModel,
-    QByteArray,
-    Qt,
-    QThread,
-    QTimer,
-    pyqtSignal,
-)
-from PyQt5.QtGui import QColor, QFont, QGuiApplication
+import shiboken6
+from PySide6.QtCore import QAbstractTableModel, QByteArray, Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QGuiApplication
 
 try:
     import app_theme as _theme
@@ -69,7 +62,7 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
     QCheckBox,
@@ -602,7 +595,7 @@ _LOCAL_NAME_CACHE_TTL: float = 300.0  # 5 min
 
 
 class ProductLoadWorker(QThread):
-    data_loaded = pyqtSignal(int, list)
+    data_loaded = Signal(int, list)
 
     def __init__(self, local: str, load_id: int, parent=None):
         super().__init__(parent)
@@ -728,7 +721,7 @@ class ProductLoadWorker(QThread):
 
 
 class VentaRegisterWorker(QThread):
-    finished_with_result = pyqtSignal(bool, str, object)
+    finished_with_result = Signal(bool, str, object)
 
     def __init__(self, payload: dict, parent=None):
         super().__init__(parent)
@@ -897,7 +890,7 @@ class ProductSelectionDialog(QDialog):
     Pre-calentado: BoletaView lanza ProductLoadWorker antes de que el usuario abra el diálogo.
     """
 
-    products_selected = pyqtSignal(list)
+    products_selected = Signal(list)
 
     def __init__(self, local: str, parent=None, initial_cart=None):
         super().__init__(parent)
@@ -1788,7 +1781,7 @@ class ProductSelectionDialog(QDialog):
             if t is None:
                 return
             try:
-                if sip.isdeleted(t):
+                if not shiboken6.isValid(t):
                     self._load_thread = None
                     return
             except Exception:
@@ -3249,7 +3242,7 @@ class BoletaView(QMainWindow):
         dlg.show()
         dlg.raise_()
         dlg.activateWindow()
-        result = dlg.exec_()
+        result = dlg.exec()
         if (
             result == QDialog.Accepted
             and getattr(dlg, "selected_items", None) is not None

@@ -4,9 +4,9 @@ from __future__ import annotations
 import logging
 from typing import Callable, Optional
 
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor, QFont
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QColor, QFont
+from PySide6.QtWidgets import (
     QDialog,
     QFrame,
     QGraphicsDropShadowEffect,
@@ -383,7 +383,7 @@ class ClientesWindow(QMainWindow):
         btns.addWidget(btn_save)
         lay.addLayout(btns)
 
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             nombre = f_nombre.text().strip()
             tel = f_tel.text().strip()
             if not nombre or not tel:

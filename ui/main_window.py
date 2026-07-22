@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QStackedWidget
+from PySide6.QtWidgets import QMainWindow, QStackedWidget
 
 from ui.login_window import LoginWindow
 from ui.menu_window import MenuWindow

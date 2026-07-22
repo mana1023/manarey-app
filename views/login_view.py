@@ -12,7 +12,7 @@ import os
 import re
 import sys
 
-from PyQt5.QtCore import (
+from PySide6.QtCore import (
     QByteArray,
     QEasingCurve,
     QEvent,
@@ -22,9 +22,9 @@ from PyQt5.QtCore import (
     Qt,
     QThread,
     QTimer,
-    pyqtSignal,
+    Signal,
 )
-from PyQt5.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
 
 try:
     import app_theme as _theme
@@ -75,8 +75,7 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
-    QAction,
+from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
     QGraphicsDropShadowEffect,
@@ -156,9 +155,9 @@ def asset_path(*parts):
 
 
 class LoginWorker(QThread):
-    ok = pyqtSignal(object)
+    ok = Signal(object)
 
-    error = pyqtSignal(str)
+    error = Signal(str)
 
     def __init__(self, username):
         super().__init__()
@@ -821,7 +820,7 @@ class LoginWindow(QMainWindow):
 
         # opacity effect for nice fade
 
-        from PyQt5.QtWidgets import QGraphicsOpacityEffect
+        from PySide6.QtWidgets import QGraphicsOpacityEffect
 
         self._error_opacity = QGraphicsOpacityEffect()
 
@@ -1033,7 +1032,7 @@ class LoginWindow(QMainWindow):
         super().closeEvent(event)
         if not self._login_success:
             try:
-                from PyQt5.QtWidgets import QApplication
+                from PySide6.QtWidgets import QApplication
 
                 QApplication.quit()
             except Exception:

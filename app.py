@@ -17,10 +17,12 @@ def _bootstrap_qt_paths():
         internal = os.path.join(base_dir, "_internal")
         if not os.path.isdir(internal):
             return
-        qt_root = os.path.join(internal, "PyQt5", "Qt5")
+        # PySide6 empaqueta Qt directamente bajo _internal/PySide6/
+        qt_root = os.path.join(internal, "PySide6")
         plugins = os.path.join(qt_root, "plugins")
         platforms = os.path.join(plugins, "platforms")
-        bin_dir = os.path.join(qt_root, "bin")
+        # En PySide6 las DLLs de Qt viven en la raiz de PySide6/, no en bin/
+        bin_dir = qt_root
 
         # Asegurar que el loader encuentre DLLs empaquetadas en _internal
         os.environ["PATH"] = internal + os.pathsep + os.environ.get("PATH", "")
@@ -46,9 +48,9 @@ def _bootstrap_qt_paths():
 
 _bootstrap_qt_paths()
 
-from PyQt5.QtCore import QCoreApplication, QSharedMemory, Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
-from PyQt5.QtWidgets import QApplication, QMessageBox, QSplashScreen
+from PySide6.QtCore import QCoreApplication, QSharedMemory, Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 
 from styles import STYLE_SHEET
 from version import __version__
@@ -203,10 +205,15 @@ def main():
     except Exception:
         pass
     _install_crash_monitor(days=2)
-    # Habilitar escalado HiDPI antes de crear QApplication
+    # HiDPI: en Qt6/PySide6 el escalado por DPI es automatico. Solo fijamos la
+    # politica de redondeo a PassThrough para escalado suave (fracciones) en
+    # pantallas grandes, antes de crear QApplication.
     try:
-        QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-        QCoreApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+        from PySide6.QtGui import QGuiApplication
+
+        QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+        )
     except Exception:
         pass
 
@@ -533,11 +540,11 @@ def main():
         _window_ref[0] = w
         _post_window_setup(app, w)
 
-    from PyQt5.QtCore import QTimer
+    from PySide6.QtCore import QTimer
 
     QTimer.singleShot(50, _deferred_start)
 
-    exit_code = app.exec_()
+    exit_code = app.exec()
     sys.exit(exit_code)
 
 

@@ -2,7 +2,7 @@
 from PyInstaller.utils.hooks import collect_submodules
 
 hiddenimports = []
-hiddenimports += collect_submodules('PyQt5')
+hiddenimports += collect_submodules('PySide6')
 hiddenimports += collect_submodules('models')
 hiddenimports += collect_submodules('views')
 hiddenimports += collect_submodules('utils')
@@ -12,7 +12,7 @@ a = Analysis(
     ['C:\\Users\\USUARIO\\Desktop\\Manarey\\app.py'],
     pathex=['C:\\Users\\USUARIO\\Desktop\\Manarey'],
     binaries=[('C:\\Users\\USUARIO\\Desktop\\Manarey\\Oficial\\.venv_inst\\Lib\\site-packages\\psycopg2_binary.libs\\libpq-2d95d8c8be26654a630220107eb268e7.dll', '.'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\Oficial\\.venv_inst\\Lib\\site-packages\\psycopg2_binary.libs\\libpq.dll', '.')],
-    datas=[('C:\\Users\\USUARIO\\Desktop\\Manarey\\assets', 'assets'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\views', 'views'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\models', 'models'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\utils', 'utils'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\workers', 'workers'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\ui', 'ui'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\config.py', '.'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\config.json', '.'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\updater.py', '.')],
+    datas=[('C:\\Users\\USUARIO\\Desktop\\Manarey\\assets', 'assets'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\views', 'views'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\models', 'models'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\utils', 'utils'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\workers', 'workers'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\ui', 'ui'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\config.py', '.'), ('C:\\Users\\USUARIO\\Desktop\\Manarey\\config.json', '.')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

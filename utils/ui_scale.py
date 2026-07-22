@@ -1,36 +1,27 @@
 """utils/ui_scale.py
 
-Centraliza el cálculo del factor de escala para pantallas grandes
-y utilidades para escalar valores y fuentes en la UI.
+Utilidades de escala de la UI.
+
+Desde la migracion a Qt6/PySide6 el escalado por DPI es NATIVO: Qt escala
+la interfaz segun el DPI del monitor automaticamente (con la politica
+HighDpiScaleFactorRoundingPolicy.PassThrough fijada en app.py). Por eso el
+modo "auto" ya NO multiplica fuentes ni tamanos a mano — hacerlo se sumaria
+al escalado de Qt y agrandaria todo al doble.
+
+Se mantiene:
+  * El override manual de escala (preferencia del usuario, un numero fijo),
+    para quien quiera agrandar/achicar por encima del DPI nativo.
+  * `scale()` / `scale_font()`, que respetan ese override (o pasan el valor
+    tal cual cuando la escala es 1.0).
+  * El modo kiosco (pantalla completa) y el auto-fit de ventanas principales.
 """
 from typing import Tuple
 
-from PyQt5.QtCore import QEvent, QObject, Qt
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QMainWindow, QSizePolicy, QWidget
+from PySide6.QtCore import QEvent, QObject
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QMainWindow, QWidget
 
 SCALE: float = 1.0
-
-
-def _compute_scale(
-    screen_size: Tuple[int, int],
-    base: Tuple[int, int] = (1920, 1440),
-    min_scale: float = 0.9,
-    max_scale: float = 1.8,
-) -> float:
-    bw, bh = base
-    w, h = screen_size
-    try:
-        factor_w = float(w) / float(bw)
-        factor_h = float(h) / float(bh)
-        scale = (factor_w + factor_h) / 2.0
-        if scale < min_scale:
-            return min_scale
-        if scale > max_scale:
-            return max_scale
-        return scale
-    except Exception:
-        return 1.0
 
 
 def apply_global_scale(
@@ -40,17 +31,23 @@ def apply_global_scale(
     max_scale: float = 1.8,
     override_scale=None,
 ) -> float:
-    """Calcula y aplica escala global a la `app`.
+    """Fija la escala global de la app.
 
-    Retorna el factor de escala calculado.
+    - Si el usuario definio un override numerico, se respeta y se aplica a la
+      fuente global (escala deliberada por encima del DPI nativo de Qt6).
+    - En modo "auto" no se toca la fuente: Qt6 ya escala por DPI. SCALE queda
+      en 1.0 y `scale()`/`scale_font()` pasan los valores sin alterar.
+
+    Los parametros base/min_scale/max_scale se conservan por compatibilidad
+    con las llamadas existentes, pero solo acotan el override manual.
     """
     global SCALE
     try:
-        # Check override first
         if override_scale and str(override_scale) != "auto":
             try:
-                SCALE = float(override_scale)
-                # Apply font scaling
+                val = float(override_scale)
+                # Acotar el override a un rango sensato
+                SCALE = max(min_scale, min(max_scale, val))
                 try:
                     f: QFont = app.font()
                     f.setPointSizeF(max(8.0, f.pointSizeF() * SCALE))
@@ -59,26 +56,11 @@ def apply_global_scale(
                     pass
                 app.setProperty("manarey_scale", SCALE)
                 return SCALE
-            except:
+            except Exception:
                 pass
 
-        screen = app.primaryScreen()
-        if not screen:
-            SCALE = 1.0
-            return SCALE
-        size = screen.size()
-        w, h = int(size.width()), int(size.height())
-        SCALE = _compute_scale(
-            (w, h), base=base, min_scale=min_scale, max_scale=max_scale
-        )
-        # Escalar fuente global
-        try:
-            f: QFont = app.font()
-            f.setPointSizeF(max(8.0, f.pointSizeF() * SCALE))
-            app.setFont(f)
-        except Exception:
-            pass
-        # Guardar propiedad accesible desde Qt
+        # Modo auto: DPI nativo de Qt6, sin escalado manual.
+        SCALE = 1.0
         try:
             app.setProperty("manarey_scale", SCALE)
         except Exception:
@@ -90,7 +72,7 @@ def apply_global_scale(
 
 
 def scale(value: float) -> int:
-    """Escala un valor numérico (p. ej. dimensiones) y devuelve entero."""
+    """Escala un valor numerico (p. ej. dimensiones) y devuelve entero."""
     try:
         return int(round(float(value) * SCALE))
     except Exception:
@@ -98,7 +80,7 @@ def scale(value: float) -> int:
 
 
 def scale_font(point_size: float) -> float:
-    """Devuelve un tamaño de fuente escalado (float)."""
+    """Devuelve un tamano de fuente escalado (float)."""
     try:
         return float(point_size) * SCALE
     except Exception:
@@ -106,27 +88,26 @@ def scale_font(point_size: float) -> float:
 
 
 class _WindowScaler(QObject):
-    """Event filter que aplica escala a ventanas top-level al mostrarse.
+    """Event filter para ventanas top-level.
 
-    Marca cada ventana escalada con la propiedad 'manarey_scaled' para evitar repetir.
+    Ya NO re-escala fuentes ni tamanos de widgets (eso lo hace Qt6 por DPI).
+    Solo conserva el comportamiento de ventana: modo kiosco (pantalla
+    completa) y auto-fit / clamp de ventanas principales al mostrarse.
     """
 
     def __init__(self, app, screen_min_width: int = 1600, parent=None):
         super().__init__(parent)
         self.app = app
         self.screen_min_width = screen_min_width
-        # Per-window stored data: {window: {'base_w': int, 'orig_sizes': {id(widget): (w,h)}}}
-        self._window_data = {}
 
     def eventFilter(self, obj, event):
         try:
-            # On show: register original sizes for children and apply initial font scaling
             if (
                 event.type() == QEvent.Show
                 and isinstance(obj, QWidget)
                 and obj.isWindow()
             ):
-                # Kiosk mode: force fullscreen for main windows to hide taskbar
+                # Modo kiosco: pantalla completa para ventanas principales
                 try:
                     if self.app.property("manarey_kiosk") and isinstance(
                         obj, QMainWindow
@@ -139,38 +120,7 @@ class _WindowScaler(QObject):
                 except Exception:
                     pass
 
-                if obj.property("manarey_no_scale"):
-                    return super().eventFilter(obj, event)
-                # Sólo realizar la inicialización una vez por ventana
-                if obj.property("manarey_scaled"):
-                    return super().eventFilter(obj, event)
-                obj.setProperty("manarey_scaled", True)
-
-                # Register base width and original sizes for children
-                try:
-                    base_w = max(300, obj.width())
-                    data = {"base_w": base_w, "orig_sizes": {}}
-                    for w in obj.findChildren(QWidget):
-                        try:
-                            ow, oh = w.width(), w.height()
-                            # store only positive sizes
-                            if ow > 0 or oh > 0:
-                                data["orig_sizes"][id(w)] = (ow, oh)
-                        except Exception:
-                            continue
-                    self._window_data[id(obj)] = data
-                except Exception:
-                    pass
-
-                # Escalar la fuente de la ventana por el SCALE global
-                try:
-                    f = obj.font()
-                    f.setPointSizeF(max(8.0, f.pointSizeF() * SCALE))
-                    obj.setFont(f)
-                except Exception:
-                    pass
-
-                # Redimensionar ventanas principales segÃºn pantalla
+                # Auto-fit / redimension inicial de ventanas principales
                 try:
                     if obj.property("manarey_no_autoresize"):
                         return super().eventFilter(obj, event)
@@ -179,7 +129,6 @@ class _WindowScaler(QObject):
                         if screen:
                             geo = screen.availableGeometry()
                             if self.app.property("manarey_auto_fit"):
-                                # Llenar toda la pantalla disponible
                                 try:
                                     obj.setGeometry(geo)
                                     obj.showFullScreen()
@@ -202,80 +151,26 @@ class _WindowScaler(QObject):
                 except Exception:
                     pass
 
-                # En pantallas pequeÃ±as, asegurar que la ventana no exceda el Ã¡rea disponible
+                # Evitar que la ventana exceda el area disponible
                 try:
                     if not obj.isFullScreen():
                         screen = obj.screen() or self.app.primaryScreen()
                         if screen:
                             geo = screen.availableGeometry()
-                            max_w = geo.width()
-                            max_h = geo.height()
-                            if obj.width() > max_w or obj.height() > max_h:
+                            if obj.width() > geo.width() or obj.height() > geo.height():
                                 obj.resize(
-                                    min(obj.width(), max_w), min(obj.height(), max_h)
+                                    min(obj.width(), geo.width()),
+                                    min(obj.height(), geo.height()),
                                 )
                 except Exception:
                     pass
-
-            # On resize: adapt child widgets sizes and fonts relative to stored originals
-            if (
-                event.type() == QEvent.Resize
-                and isinstance(obj, QWidget)
-                and obj.isWindow()
-            ):
-                if obj.property("manarey_no_scale"):
-                    return super().eventFilter(obj, event)
-                try:
-                    win_data = self._window_data.get(id(obj))
-                    if not win_data:
-                        return super().eventFilter(obj, event)
-                    base_w = win_data.get("base_w", max(300, obj.width()))
-                    cur_w = max(1, obj.width())
-                    factor = float(cur_w) / float(base_w)
-                    # Permitir escalar hacia arriba y hacia abajo libremente
-                    factor = max(0.5, min(2.5, factor))
-
-                    # Apply font scaling to whole window
-                    try:
-                        f = obj.font()
-                        f.setPointSizeF(max(7.0, f.pointSizeF() * factor))
-                        obj.setFont(f)
-                    except Exception:
-                        pass
-
-                    # Resize child widgets that had original sizes
-                    for w in obj.findChildren(QWidget):
-                        try:
-                            orig = win_data["orig_sizes"].get(id(w))
-                            if not orig:
-                                continue
-                            ow, oh = orig
-                            # Only adjust fixed-like widgets (heuristic: original width > 20)
-                            if ow and ow > 20:
-                                try:
-                                    new_w = int(max(24, round(ow * factor)))
-                                    w.setFixedWidth(new_w)
-                                except Exception:
-                                    pass
-                            if oh and oh > 16:
-                                try:
-                                    new_h = int(max(16, round(oh * factor)))
-                                    # only set fixed height if the widget previously had a small height
-                                    w.setFixedHeight(new_h)
-                                except Exception:
-                                    pass
-                        except Exception:
-                            continue
-                except Exception:
-                    pass
-
         except Exception:
             pass
         return super().eventFilter(obj, event)
 
 
 def install_window_scaler(app, screen_min_width: int = 1600):
-    """Instala un event filter en la `app` para escalar automáticamente todas las ventanas mostradas."""
+    """Instala el event filter de comportamiento de ventana (kiosco/auto-fit)."""
     try:
         scaler = _WindowScaler(app, screen_min_width=screen_min_width)
         app.installEventFilter(scaler)

@@ -3,8 +3,8 @@ import json
 import logging
 import os
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
@@ -422,7 +422,7 @@ class UserAdminWindow(QMainWindow):
 
     def add_user(self):
         dlg = UserEditDialog(self, user=None)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         data = dlg.get_data()
         if not _validate_username(data["username"]):
@@ -513,7 +513,7 @@ class UserAdminWindow(QMainWindow):
             }
 
         dlg = UserEditDialog(self, user=user)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         data = dlg.get_data()
         try:

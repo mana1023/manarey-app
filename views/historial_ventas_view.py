@@ -3,8 +3,8 @@ import os
 import platform
 import subprocess
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QFont
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QFont
 
 try:
     import app_theme as _theme
@@ -55,7 +55,7 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QDialog,
@@ -631,7 +631,7 @@ class HistorialVentasView(QMainWindow):
     def show_detail(self, venta_id):
         """Muestra el detalle de una venta"""
         dialog = VentaDetalleDialog(venta_id, self)
-        dialog.exec_()
+        dialog.exec()
 
     def handle_pdf(self, venta_id):
         """Genera y abre el PDF de la boleta (temporal)"""

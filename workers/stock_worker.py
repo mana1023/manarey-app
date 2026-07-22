@@ -1,6 +1,6 @@
 import logging
 
-from PyQt5.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from models import stock_queue_api as qa
 
@@ -15,8 +15,8 @@ class StockWorker(QObject):
         error(dict): {'error': str, 'payload': payload}
     """
 
-    finished = pyqtSignal(bool, dict, dict)
-    error = pyqtSignal(dict)
+    finished = Signal(bool, dict, dict)
+    error = Signal(dict)
 
     def __init__(self, payload):
         super().__init__()

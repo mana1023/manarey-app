@@ -11,7 +11,7 @@ import sys
 import threading
 import traceback
 
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from utils.logger import get_logger, log_exception
 
@@ -46,7 +46,7 @@ def _show_error_dialog(detail: str = "") -> None:
             # Detalle tecnico colapsado (no asusta al usuario)
             msg_box.setDetailedText(detail[:2000])  # limitar longitud
         msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        msg_box.exec()
     except Exception:
         # Si el dialogo mismo falla, no crashear
         pass
@@ -104,7 +104,7 @@ def handle_thread_exception(args) -> None:
 
     # Notificar al usuario desde el hilo principal via QMetaObject si es posible
     try:
-        from PyQt5.QtCore import QMetaObject, Qt
+        from PySide6.QtCore import QMetaObject, Qt
 
         app = QApplication.instance()
         if app is not None:

@@ -2,8 +2,8 @@ import json
 import os
 import re
 
-from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QKeySequence, QPalette
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QKeySequence, QPalette, QShortcut
 
 from config import get_locales
 
@@ -56,7 +56,7 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QFrame,
@@ -68,7 +68,6 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QShortcut,
     QVBoxLayout,
     QWidget,
 )
@@ -633,7 +632,7 @@ class MovementCard(QWidget):
             "Se revertirá el cambio:\n" + text,
             self,
         )
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             ok, msg = sm.undo_historial_entry(int(hid), self.username)
             if not ok:
                 QMessageBox.warning(self, "Deshacer", msg)
@@ -984,7 +983,7 @@ def _collapse_continuous_edits(rows, window_seconds: int = 3):
 
 
 class HistoryLoadWorker(QThread):
-    data_loaded = pyqtSignal(int, list)
+    data_loaded = Signal(int, list)
 
     def __init__(
         self,

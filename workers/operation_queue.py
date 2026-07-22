@@ -3,7 +3,7 @@ import queue
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from models import stock_queue_api as qa
 
@@ -19,9 +19,9 @@ class OperationQueue(QThread):
     el tamaño de la cola.
     """
 
-    operation_finished = pyqtSignal(dict, dict)  # payload, response
-    operation_error = pyqtSignal(dict, str)  # payload, error_msg
-    queue_count = pyqtSignal(int)
+    operation_finished = Signal(dict, dict)  # payload, response
+    operation_error = Signal(dict, str)  # payload, error_msg
+    queue_count = Signal(int)
 
     def __init__(
         self,
@@ -70,8 +70,10 @@ class OperationQueue(QThread):
         # Usar ThreadPoolExecutor para procesar multiples operaciones en paralelo
         with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
             futures_map = {}
-            while self._running or futures_map:
-                if len(futures_map) < self._max_workers and self._running:
+            while self._running or futures_map or not self._queue.empty():
+                if len(futures_map) < self._max_workers and (
+                    self._running or not self._queue.empty()
+                ):
                     try:
                         payload = self._queue.get(timeout=0.2)
                         if payload is None:

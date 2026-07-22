@@ -6,7 +6,7 @@ import time
 from queue import Queue
 from typing import Any, Dict, List, Optional, Tuple
 
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from models import stock_model as sm
 from models import stock_queue_api as qa
@@ -20,13 +20,11 @@ class StockAsyncWorker(QThread):
     """Worker que maneja operaciones asíncronas de stock."""
 
     # Señales para notificar a la UI
-    operation_started = pyqtSignal(str, dict)  # tipo, detalles
-    operation_completed = pyqtSignal(
-        str, dict, bool, str
-    )  # tipo, detalles, éxito, mensaje
-    queue_updated = pyqtSignal(int)  # número de operaciones pendientes
-    field_updated = pyqtSignal(int, str, object)  # producto_id, field, value
-    execute_callback = pyqtSignal(object, bool, str)  # callback, success, message
+    operation_started = Signal(str, dict)  # tipo, detalles
+    operation_completed = Signal(str, dict, bool, str)  # tipo, detalles, éxito, mensaje
+    queue_updated = Signal(int)  # número de operaciones pendientes
+    field_updated = Signal(int, str, object)  # producto_id, field, value
+    execute_callback = Signal(object, bool, str)  # callback, success, message
 
     def __init__(self, username: str, local: str, interval_ms: int = 1000, parent=None):
         super().__init__(parent)

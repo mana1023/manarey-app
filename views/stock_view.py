@@ -62,7 +62,7 @@ TEXT_MUTED = _c["TEXT_MUTED"]
 PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
-from PyQt5.QtCore import (
+from PySide6.QtCore import (
     QByteArray,
     QEvent,
     QRect,
@@ -70,10 +70,10 @@ from PyQt5.QtCore import (
     Qt,
     QThread,
     QTimer,
-    pyqtSignal,
-    pyqtSlot,
+    Signal,
+    Slot,
 )
-from PyQt5.QtGui import (
+from PySide6.QtGui import (
     QColor,
     QCursor,
     QFont,
@@ -83,6 +83,7 @@ from PyQt5.QtGui import (
     QPalette,
     QPixmap,
     QRegularExpressionValidator,
+    QShortcut,
 )
 
 try:
@@ -134,7 +135,7 @@ PRIMARY = _c["PRIMARY"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
     QApplication,
@@ -156,7 +157,6 @@ from PyQt5.QtWidgets import (
     QProgressBar,
     QPushButton,
     QRubberBand,
-    QShortcut,
     QSizePolicy,
     QSpinBox,
     QStyle,
@@ -339,8 +339,8 @@ class ElideDelegate(QStyledItemDelegate):
 class LoadingThread(QThread):
     """Hilo para carga de datos en background"""
 
-    data_loaded = pyqtSignal(object, list)
-    error_occurred = pyqtSignal(str)
+    data_loaded = Signal(object, list)
+    error_occurred = Signal(str)
 
     def __init__(
         self,
@@ -410,7 +410,7 @@ class LoadingThread(QThread):
 
 
 class ClickableLabel(QLabel):
-    clicked = pyqtSignal()
+    clicked = Signal()
 
     def mousePressEvent(self, ev):
         try:
@@ -420,7 +420,7 @@ class ClickableLabel(QLabel):
 
 
 class ComboSyncThread(QThread):
-    done = pyqtSignal(str, bool)
+    done = Signal(str, bool)
 
     def __init__(self, local: str, parent=None):
         super().__init__(parent)
@@ -439,7 +439,7 @@ class ComboSyncThread(QThread):
 
 
 class FilterOptionsThread(QThread):
-    data_ready = pyqtSignal(object)
+    data_ready = Signal(object)
 
     def __init__(
         self, local: str, consolidated: bool, apply_reservas: bool, parent=None
@@ -584,7 +584,7 @@ class FilterOptionsThread(QThread):
 
 
 class ConsolidatedInventoryThread(QThread):
-    data_ready = pyqtSignal(object, object, object, int)
+    data_ready = Signal(object, object, object, int)
 
     def __init__(self, parent, load_id: int):
         super().__init__(parent)
@@ -612,7 +612,7 @@ class ConsolidatedInventoryThread(QThread):
 
 
 class ReservasThread(QThread):
-    data_ready = pyqtSignal(str, list, list, list)
+    data_ready = Signal(str, list, list, list)
 
     def __init__(self, local: str, parent=None):
         super().__init__(parent)
@@ -654,8 +654,8 @@ class ReservasThread(QThread):
 class QueueWorker(QThread):
     """Hilo que monitorea y procesa la cola de operaciones en background."""
 
-    queue_count = pyqtSignal(int)
-    processing = pyqtSignal(bool)
+    queue_count = Signal(int)
+    processing = Signal(bool)
 
     def __init__(self, interval_ms: int = 5000, parent=None):
         super().__init__(parent)
@@ -1466,7 +1466,7 @@ class StockDecreaseDialog(ModernDialog):
 
     def _on_accept(self):
         if not self.motivo_input.text().strip():
-            from PyQt5.QtWidgets import QMessageBox
+            from PySide6.QtWidgets import QMessageBox
 
             QMessageBox.warning(
                 self, "Falta motivo", "Tenés que escribir un motivo para la baja."
@@ -1834,7 +1834,7 @@ class TransferDialog(ModernDialog):
 class AdvancedTableWidget(QTableWidget):
     """Tabla con funciones avanzadas de selección y edición"""
 
-    selection_changed = pyqtSignal(int)  # Número de elementos seleccionados
+    selection_changed = Signal(int)  # Número de elementos seleccionados
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -2222,7 +2222,7 @@ class StockView(QMainWindow):
 
     def _enforce_lowercase_input(self, widget):
         """Fuerza entrada en minúsculas en campos de texto del stock."""
-        from PyQt5.QtWidgets import QLineEdit
+        from PySide6.QtWidgets import QLineEdit
 
         if not isinstance(widget, QLineEdit):
             return
@@ -2825,8 +2825,8 @@ class StockView(QMainWindow):
                 )
                 return
 
-            from PyQt5.QtCore import QUrl
-            from PyQt5.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            from PySide6.QtGui import QDesktopServices
             from reportlab.lib import colors
             from reportlab.lib.pagesizes import A4
             from reportlab.lib.styles import getSampleStyleSheet
@@ -4081,7 +4081,10 @@ class StockView(QMainWindow):
             self.table_container.setVisible(show_main)
         if hasattr(self, "form_frame"):
             self.form_frame.setVisible(
-                show_main and self._can_add_product() and not self.read_only
+                show_main
+                and self._can_add_product()
+                and not self.read_only
+                and not self._form_hidden_by_user()
             )
         if hasattr(self, "reservas_frame"):
             self.reservas_frame.setVisible(not show_main)
@@ -4137,6 +4140,12 @@ class StockView(QMainWindow):
         self._fit_main_table_columns()
         if self.role == "admin":
             self.table.showColumn(11)
+
+    def _form_hidden_by_user(self) -> bool:
+        try:
+            return hasattr(self, "_hide_form_cb") and self._hide_form_cb.isChecked()
+        except Exception:
+            return False
 
     def _can_edit_stock(self) -> bool:
         if self.role == "admin":
@@ -4211,7 +4220,12 @@ class StockView(QMainWindow):
                     )
             if hasattr(self, "form_frame"):
                 show_main = self._get_stock_view_mode() == "Disponibles"
-                self.form_frame.setVisible(show_main and can_add and not self.read_only)
+                self.form_frame.setVisible(
+                    show_main
+                    and can_add
+                    and not self.read_only
+                    and not self._form_hidden_by_user()
+                )
             for key, w in getattr(self, "form_fields", {}).items():
                 try:
                     w.setEnabled(can_add)
@@ -4390,7 +4404,7 @@ class StockView(QMainWindow):
             pass_input.returnPressed.connect(ok_btn.click)
             pass_input.setFocus()
 
-            if dlg.exec_() != QDialog.Accepted:
+            if dlg.exec() != QDialog.Accepted:
                 return
             pwd = (pass_input.text() or "").strip()
             if pwd != self._get_cash_password():
@@ -5075,7 +5089,7 @@ class StockView(QMainWindow):
 
         cancel_btn.clicked.connect(dlg.reject)
         create_btn.clicked.connect(_on_create)
-        dlg.exec_()
+        dlg.exec()
 
     def _clean_duplicate_combos_dialog(self):
         """Busca y elimina combos duplicados en el local actual."""
@@ -5851,7 +5865,7 @@ class StockView(QMainWindow):
 
         cancel_btn.clicked.connect(dlg.reject)
         save_btn.clicked.connect(_on_save)
-        dlg.exec_()
+        dlg.exec()
 
     def _reset_edit_timeout(self):
         # Desactivado: la edición solo se corta manualmente con el botón.
@@ -5969,7 +5983,7 @@ class StockView(QMainWindow):
             price_input.returnPressed.connect(ok_btn.click)
             price_input.setFocus()
 
-            if dlg.exec_() != QDialog.Accepted:
+            if dlg.exec() != QDialog.Accepted:
                 return
 
             txt = price_input.text().strip()
@@ -6522,7 +6536,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_name(self, product_id, product, local_override=None, ids_by_local=None):
         dialog = QDialog(self)
@@ -6607,7 +6621,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_category(
         self, product_id, product, local_override=None, ids_by_local=None
@@ -6732,7 +6746,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save_cat)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_fabricante(
         self, product_id, product, local_override=None, ids_by_local=None
@@ -6819,7 +6833,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_color(self, product_id, product, local_override=None, ids_by_local=None):
         dialog = QDialog(self)
@@ -6904,7 +6918,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_material(
         self, product_id, product, local_override=None, ids_by_local=None
@@ -7028,7 +7042,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_medida(self, product_id, product, local_override=None, ids_by_local=None):
         dialog = QDialog(self)
@@ -7132,7 +7146,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save_med)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_precio_costo(
         self, product_id, product, local_override=None, ids_by_local=None
@@ -7283,7 +7297,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save_cost)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_precio(self, product_id, product, local_override=None, ids_by_local=None):
         current_price = int(product.get("precio_venta") or 0)
@@ -7440,7 +7454,7 @@ class StockView(QMainWindow):
 
         save_btn.clicked.connect(on_save_price)
         cancel_btn.clicked.connect(dialog.reject)
-        dialog.exec_()
+        dialog.exec()
 
     def _edit_estado(self, product_id, product, local_override=None):
         current_estado = product.get("estado") or "Nuevo"
@@ -7448,7 +7462,7 @@ class StockView(QMainWindow):
         current_price = int(product.get("precio_venta", 0) or 0)
 
         dialog = StateChangeDialog(current_qty, current_estado, current_price, self)
-        if dialog.exec_() != QDialog.Accepted:
+        if dialog.exec() != QDialog.Accepted:
             return
 
         qty, nuevo_estado, nuevo_precio, motivo = dialog.values()
@@ -8211,7 +8225,7 @@ class StockView(QMainWindow):
                     event.type() == QEvent.MouseButtonPress
                     and event.button() == Qt.LeftButton
                 ):
-                    idx = self.table.indexAt(event.pos())
+                    idx = self.table.indexAt(event.position().toPoint())
                     self._drag_select_start_row = idx.row() if idx.isValid() else -1
                     self._drag_selecting = True
                 elif (
@@ -8221,7 +8235,7 @@ class StockView(QMainWindow):
                     if self._drag_selecting:
                         self._drag_selecting = False
                         if self._can_edit_stock() and not self.read_only:
-                            idx = self.table.indexAt(event.pos())
+                            idx = self.table.indexAt(event.position().toPoint())
                             end_row = idx.row() if idx.isValid() else -1
                             selected_rows = sorted(
                                 set(i.row() for i in self.table.selectedIndexes())
@@ -8489,7 +8503,7 @@ class StockView(QMainWindow):
         except:
             current_price = 0
 
-        from PyQt5.QtWidgets import QInputDialog
+        from PySide6.QtWidgets import QInputDialog
 
         text, ok = QInputDialog.getText(
             self, "Editar Precio", f"Nuevo precio (actual: ${current_price}):"
@@ -8533,7 +8547,7 @@ class StockView(QMainWindow):
     def edit_quantity(self, product_id, row):
         """Edita cantidad"""
         current = int(self.table.item(row, 7).text())
-        from PyQt5.QtWidgets import QInputDialog
+        from PySide6.QtWidgets import QInputDialog
 
         delta, ok = QInputDialog.getInt(
             self,
@@ -8930,7 +8944,7 @@ class StockView(QMainWindow):
 
             confirm_btn.clicked.connect(on_confirm)
             cancel_btn.clicked.connect(lambda: dialog.reject())
-            dialog.exec_()
+            dialog.exec()
 
         except Exception as e:
             logger.error(f"Error en transfer_product: {e}")
@@ -10415,28 +10429,8 @@ class StockView(QMainWindow):
         return
 
     def _save_table_prefs(self, *args):
-        """Guarda orden y anchos de columnas en prefs."""
+        """Guarda orden y anchos de columnas en prefs. Columnas fijas: no-op."""
         return
-
-        """Guarda orden y anchos de columnas en prefs."""
-        # Columnas fijas: no persistimos anchos/orden.
-        return
-        try:
-            header = self.table.horizontalHeader()
-            order = [header.logicalIndex(i) for i in range(header.count())]
-            widths = {i: header.sectionSize(i) for i in range(header.count())}
-            data = {}
-            if PREFS_PATH.exists():
-                try:
-                    data = json.loads(PREFS_PATH.read_text(encoding="utf-8") or "{}")
-                except Exception:
-                    data = {}
-            key = "stock_table_all" if self._is_consolidated_view() else "stock_table"
-            data[key] = {"order": order, "widths": widths}
-            _ensure_prefs_dir()
-            PREFS_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        except Exception:
-            pass
 
     def _restore_window_state(self):
         """Restaura geometría/tamaño recordado."""
@@ -10667,7 +10661,7 @@ class StockView(QMainWindow):
 
             base_product = self._products_by_id.get(pid) or product or {}
             dialog = StockAdjustDialog(base_product, mode="increment", parent=self)
-            if dialog.exec_() != QDialog.Accepted:
+            if dialog.exec() != QDialog.Accepted:
                 return
             qty = dialog.get_quantity()
             if not qty or qty <= 0:
@@ -10743,7 +10737,7 @@ class StockView(QMainWindow):
                 return
 
             dialog = StockAdjustDialog(base_product, mode="decrement", parent=self)
-            if dialog.exec_() != QDialog.Accepted:
+            if dialog.exec() != QDialog.Accepted:
                 return
             qty_to_decrement = dialog.get_quantity()
             motivo = dialog.get_motivo()
@@ -10894,7 +10888,7 @@ class StockView(QMainWindow):
                     self._products_by_id[product_id][field] = value
             # Si la ventana de historial está abierta, recargar para que muestre el nuevo movimiento
             try:
-                from PyQt5.QtWidgets import QApplication
+                from PySide6.QtWidgets import QApplication
 
                 app = QApplication.instance()
                 if app:
@@ -11284,7 +11278,9 @@ class StockView(QMainWindow):
         if hasattr(self, "operation_queue") and self.operation_queue:
             try:
                 self.operation_queue.stop()
-                self.operation_queue.wait(1000)
+                # Dar tiempo a que drene operaciones de stock ya encoladas
+                # (+/- clicks) antes de matar el thread, para no perderlas.
+                self.operation_queue.wait(4000)
             except Exception:
                 pass
 
@@ -11313,7 +11309,7 @@ class StockView(QMainWindow):
     def edit_product_category(self, product_id, current_category):
         # Edita la categoría del producto de forma asíncrona.
         # Crear un diálogo personalizado no bloqueante
-        from PyQt5.QtWidgets import (
+        from PySide6.QtWidgets import (
             QComboBox,
             QDialog,
             QHBoxLayout,

@@ -5,9 +5,9 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Tuple
 
-from PyQt5.QtCore import QByteArray, QDate, Qt, QTimer, QUrl
-from PyQt5.QtGui import QColor, QDesktopServices, QFont
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import QByteArray, QDate, Qt, QTimer, QUrl
+from PySide6.QtGui import QColor, QDesktopServices, QFont
+from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
@@ -443,7 +443,7 @@ class AdminWindow(QMainWindow):
 
         ok_btn.clicked.connect(_save)
         cancel_btn.clicked.connect(dlg.reject)
-        dlg.exec_()
+        dlg.exec()
 
     # -------------------------
     # Actualizaciones
@@ -492,7 +492,7 @@ class AdminWindow(QMainWindow):
                 mandatory=bool(pending.get("mandatory")),
                 current_version=get_current_version(),
             )
-            if dlg.exec_() == AppUpdateDialog.Accepted:
+            if dlg.exec() == AppUpdateDialog.Accepted:
                 start_update_from_pending(parent_widget=self)
         except Exception as exc:
             QMessageBox.critical(
@@ -729,7 +729,7 @@ class AdminWindow(QMainWindow):
         """
         try:
             dlg = UpdateDialog(self)
-            dlg.exec_()
+            dlg.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Falló 'Mandar actualizaciones':\n{e}")
 
@@ -754,7 +754,7 @@ class AdminWindow(QMainWindow):
             from views.settings_dialog import SettingsDialog
 
             dlg = SettingsDialog(self)
-            dlg.exec_()
+            dlg.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo abrir ajustes:\n{e}")
 
@@ -1604,7 +1604,7 @@ class UpdateDialog(QDialog):
             QMessageBox.critical(self, "Error", f"No se pudo publicar: {e}")
 
 
-from PyQt5.QtWidgets import QGroupBox, QHeaderView, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import QGroupBox, QHeaderView, QTableWidget, QTableWidgetItem
 
 from models.firestore_db import (
     get_all_locals,
