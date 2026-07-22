@@ -391,8 +391,8 @@ class AdminView(QMainWindow):
 
         try:
             # Obtener estadísticas de ventas
-            start_date = self.date_from.date().toPyDate()
-            end_date = self.date_to.date().toPyDate()
+            start_date = self.date_from.date().toPython()
+            end_date = self.date_to.date().toPython()
 
             stats = get_sales_stats(start_date=start_date, end_date=end_date)
 
@@ -544,8 +544,8 @@ class AdminView(QMainWindow):
         """Actualiza la tabla de ventas con datos del servidor (Boletas)."""
         try:
             # Obtener ventas recientes (Boletas)
-            start = self.date_from.date().toPyDate()
-            end = self.date_to.date().toPyDate()
+            start = self.date_from.date().toPython()
+            end = self.date_to.date().toPython()
             sales = list_ventas(limit=200, start_date=start, end_date=end)
 
             self.sales_data = sales

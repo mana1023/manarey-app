@@ -1059,8 +1059,8 @@ class AdminWindow(QMainWindow):
         if choice == "Últimos 30 días":
             return today - timedelta(days=29), today
         # Personalizado
-        start = self.summary_start.date().toPyDate()
-        end = self.summary_end.date().toPyDate()
+        start = self.summary_start.date().toPython()
+        end = self.summary_end.date().toPython()
         if start > end:
             start, end = end, start
         return start, end
