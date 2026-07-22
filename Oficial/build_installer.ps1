@@ -120,12 +120,31 @@ $args = @(
     "--windowed",
     "--icon", (Join-Path $root "assets\\images\\logo_manarey.ico"),
     "--paths", $root,
-    "--collect-submodules", "PySide6",
     "--collect-submodules", "models",
     "--collect-submodules", "views",
     "--collect-submodules", "utils",
     (Join-Path $root "app.py")
 ) + $addDataArgs + $addBinaryArgs
+
+# La app solo usa QtCore/QtGui/QtWidgets. El hook automatico de PyInstaller
+# para PySide6 ya bundlea eso segun los imports. Excluimos explicitamente los
+# modulos Qt pesados/no usados (QML, WebEngine, Quick3D, Charts, etc.) para que
+# el bundle no crezca de mas ni arrastre plugins QML rotos.
+$pysideExcludes = @(
+    "PySide6.QtQml", "PySide6.QtQuick", "PySide6.QtQuick3D", "PySide6.QtQuickWidgets",
+    "PySide6.QtQuickControls2", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
+    "PySide6.QtWebEngineQuick", "PySide6.QtWebChannel", "PySide6.QtWebSockets",
+    "PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtMultimedia",
+    "PySide6.QtMultimediaWidgets", "PySide6.QtPdf", "PySide6.QtPdfWidgets",
+    "PySide6.Qt3DCore", "PySide6.Qt3DRender", "PySide6.Qt3DExtras",
+    "PySide6.QtBluetooth", "PySide6.QtSensors", "PySide6.QtPositioning",
+    "PySide6.QtSerialPort", "PySide6.QtDesigner", "PySide6.QtHelp", "PySide6.QtTest",
+    "PySide6.QtDBus", "PySide6.QtNetwork"
+)
+foreach ($ex in $pysideExcludes) {
+    $args += "--exclude-module"
+    $args += $ex
+}
 
 Write-Host "Ejecutando PyInstaller..."
 & $pyinst @args
