@@ -79,10 +79,6 @@ class FlowLayout(QLayout):
         spaceY = self._spacing
 
         for item in self.itemList:
-            wid = item.widget()
-            space = wid.style().layoutSpacing(
-                wid.sizePolicy().controlType(), wid.sizePolicy().controlType(), 0
-            )
             nextX = x + item.sizeHint().width() + spaceX
             if nextX - spaceX > rect.right() and lineHeight > 0:
                 x = rect.x()
