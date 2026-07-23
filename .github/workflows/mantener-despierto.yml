@@ -1,0 +1,23 @@
+# Mantiene despierto el servidor de la API (Render plan gratuito).
+#
+# El plan gratuito de Render duerme el servicio tras 15 min sin uso, y
+# despertarlo tarda ~30 seg. Este workflow lo pinguea cada 12 minutos para
+# que este siempre despierto y la app abra rapido.
+#
+# IMPORTANTE: los workflows programados solo corren desde la rama por
+# defecto (main). Se activa cuando esta rama se una a main.
+name: Mantener despierto el servidor
+
+on:
+  schedule:
+    - cron: "*/12 * * * *" # cada 12 minutos
+  workflow_dispatch: {} # permite dispararlo a mano desde GitHub
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Despertar la API
+        run: |
+          curl -s -m 60 -o /dev/null -w "health: HTTP %{http_code} en %{time_total}s\n" \
+            https://manarey-api.onrender.com/health || echo "no respondio (se reintenta en 12 min)"
