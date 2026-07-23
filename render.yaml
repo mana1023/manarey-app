@@ -1,0 +1,35 @@
+# Configuracion automatica del servidor de la API en Render.
+#
+# Con este archivo, Render arma el servicio solo: no hay que configurar
+# nada a mano salvo pegar la conexion a la base (que es secreta).
+services:
+  - type: web
+    name: manarey-api
+    runtime: python
+    plan: free
+    region: oregon
+
+    buildCommand: pip install -r api/requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+
+    # Render revisa esta direccion para saber si la API esta viva
+    healthCheckPath: /health
+
+    envVars:
+      # La conexion a la base es SECRETA: se pega a mano en el panel de
+      # Render. Nunca queda escrita en el repositorio.
+      - key: DATABASE_URL
+        sync: false
+
+      # Render genera solo una clave larga y segura para que la app se
+      # identifique. No hay que inventarla ni recordarla.
+      - key: MANAREY_API_TOKEN
+        generateValue: true
+
+      # Exige el token: si falta, la API no arranca (mejor que quede
+      # apagada a que quede abierta para cualquiera).
+      - key: MANAREY_ENTORNO
+        value: produccion
+
+      - key: PYTHON_VERSION
+        value: "3.13.5"
