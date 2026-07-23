@@ -20,4 +20,4 @@ per-file-ignores =
     # Archivos con consultas SQL largas en strings y globals de schema discovery
     models/*.py:E501,E231,F824,F541,E402,W291,E722,E202,E201,F841,F811,E741,E702,W503
     # api/ tiene SQL en strings: el linter lo lee como codigo y marca las comas
-    api/*.py:E501,E231,E402,W503
+    api/*.py:E501,E231,E402,W503,E202,E201,W291,E221,E222,E272,E702,E203

@@ -7,6 +7,7 @@ reservas, combos) y las boletas/remitos salgan identicas.
 """
 import os
 import sys
+from datetime import datetime
 
 # La API vive dentro del repo de Manarey: models/ esta un nivel arriba.
 # Asi comparte el codigo real y nunca se despega de la app de escritorio.
@@ -55,6 +56,10 @@ def _rows(cur):
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
+def _hoy() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
 @app.get("/health")
 def health():
     conn = get_connection()
@@ -65,6 +70,101 @@ def health():
         return {"ok": True}
     finally:
         put_connection(conn)
+
+
+@app.get("/inicio/resumen", dependencies=[Depends(auth)])
+def inicio_resumen():
+    """Todo lo que el jefe quiere ver de un vistazo al abrir la app:
+    ventas de hoy por local, efectivo para retirar, plata por cobrar y
+    entregas pendientes. En una sola llamada para que cargue rapido."""
+    from models import ventas_model as vm
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        hoy = _hoy()
+
+        # Ventas de hoy: total, efectivo y por local
+        cur.execute(
+            """
+            SELECT COALESCE(SUM(total), 0), COUNT(*)
+            FROM ventas
+            WHERE estado = 'completada' AND fecha >= %s
+            """,
+            (f"{hoy} 00:00:00",),
+        )
+        total_hoy, cant_hoy = cur.fetchone()
+
+        cur.execute(
+            """
+            SELECT local, COALESCE(SUM(total), 0) AS total
+            FROM ventas
+            WHERE estado = 'completada' AND fecha >= %s AND local <> ''
+            GROUP BY local ORDER BY total DESC
+            """,
+            (f"{hoy} 00:00:00",),
+        )
+        por_local = [{"local": r[0], "total": float(r[1] or 0)} for r in cur.fetchall()]
+
+        # Plata por cobrar (todas las ventas con saldo)
+        cur.execute(
+            "SELECT COALESCE(SUM(monto_pendiente), 0) FROM ventas "
+            "WHERE estado = 'completada' AND monto_pendiente > 0"
+        )
+        por_cobrar = float(cur.fetchone()[0] or 0)
+
+        # Entregas pendientes (envios no entregados)
+        cur.execute(
+            "SELECT COUNT(*) FROM ventas WHERE estado = 'completada' "
+            "AND COALESCE(incluye_envio, 0) = 1 "
+            "AND COALESCE(entrega_entregado, 0) = 0"
+        )
+        entregas_pendientes = int(cur.fetchone()[0] or 0)
+
+        # Locales para el efectivo disponible
+        cur.execute(
+            "SELECT DISTINCT local FROM productos WHERE local <> '' ORDER BY local"
+        )
+        locales = [r[0] for r in cur.fetchall()]
+    finally:
+        put_connection(conn)
+
+    # Efectivo para retirar por local (misma cuenta que la PC)
+    efectivo_locales = []
+    efectivo_total = 0.0
+    for local in locales:
+        try:
+            ultimo = vm.get_last_withdrawal_datetime(local)
+            monto = float(vm.get_cash_earned_since(local, ultimo) or 0)
+            if local.strip().lower() == LOCAL_DOMICILIO.lower():
+                monto += float(vm.get_domicilio_retirados_since(ultimo) or 0)
+            dias = None
+            if ultimo:
+                try:
+                    d = datetime.fromisoformat(str(ultimo))
+                    dias = (datetime.now() - d).days
+                except Exception:
+                    dias = None
+        except Exception:
+            monto, dias = 0.0, None
+        efectivo_total += monto
+        efectivo_locales.append(
+            {"local": local, "efectivo": round(monto, 2), "dias_sin_retirar": dias}
+        )
+
+    return {
+        "ventas_hoy": {
+            "total": float(total_hoy or 0),
+            "cantidad": int(cant_hoy or 0),
+            "por_local": por_local,
+        },
+        "efectivo": {
+            "total": round(efectivo_total, 2),
+            "locales": efectivo_locales,
+        },
+        "por_cobrar": por_cobrar,
+        "entregas_pendientes": entregas_pendientes,
+    }
 
 
 @app.get("/app/version", dependencies=[Depends(auth)])
@@ -1063,10 +1163,34 @@ def ventas(
         )
         cantidad, total, pendiente = cur.fetchone()
 
+        # Efectivo: lo cobrado en efectivo en el periodo. Suma los pagos
+        # en efectivo de pagos divididos (venta_pagos) mas las ventas
+        # simples que se pagaron en efectivo (sin pago dividido).
+        cur.execute(
+            f"""
+            SELECT
+              COALESCE((
+                SELECT SUM(p.monto) FROM venta_pagos p
+                JOIN ventas v ON v.id = p.venta_id
+                WHERE p.forma ILIKE '%%efectivo%%' AND {filtro}
+              ), 0)
+              +
+              COALESCE((
+                SELECT SUM(COALESCE(v.monto_pagado, v.total)) FROM ventas v
+                WHERE v.forma_pago ILIKE '%%efectivo%%'
+                  AND NOT EXISTS (SELECT 1 FROM venta_pagos p WHERE p.venta_id = v.id)
+                  AND {filtro}
+              ), 0)
+            """,
+            params + params,
+        )
+        efectivo = cur.fetchone()[0]
+
         return {
             "resumen": {
                 "cantidad": int(cantidad or 0),
                 "total": float(total or 0),
+                "efectivo": float(efectivo or 0),
                 "pendiente_de_cobro": float(pendiente or 0),
             },
             "ventas": items,
