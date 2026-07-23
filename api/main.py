@@ -924,6 +924,61 @@ def efectivo_por_local():
     return {"total": round(total, 2), "locales": salida}
 
 
+@app.post("/dinero/retirar", dependencies=[Depends(auth)])
+def retirar_efectivo(datos: dict):
+    """Registra un retiro de efectivo de un local.
+
+    Usa la MISMA tabla y funcion que la app de escritorio (cash_withdrawals),
+    asi el retiro se refleja al instante en la PC: el efectivo disponible del
+    local pasa a contarse desde este retiro (baja a cero).
+
+    Pide la contrasena de retiro (la misma que la PC) como control extra
+    porque es plata que sale.
+    """
+    from models import ventas_model as vm
+
+    local = (datos.get("local") or "").strip()
+    password = (datos.get("password") or "").strip()
+    try:
+        monto = float(datos.get("monto", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Monto invalido")
+
+    if not local:
+        raise HTTPException(400, "Falta el local")
+    if monto <= 0:
+        raise HTTPException(400, "El monto tiene que ser mayor a cero")
+
+    # Validar la contrasena de retiro (la misma del sistema)
+    try:
+        correcta = vm.get_cash_withdraw_password()
+    except Exception:
+        correcta = None
+    if not password or (correcta and password != correcta):
+        raise HTTPException(403, "Contrasena de retiro incorrecta")
+
+    # No dejar retirar mas de lo disponible
+    try:
+        ultimo = vm.get_last_withdrawal_datetime(local)
+        disponible = float(vm.get_cash_earned_since(local, ultimo) or 0)
+        if local.strip().lower() == LOCAL_DOMICILIO.lower():
+            disponible += float(vm.get_domicilio_retirados_since(ultimo) or 0)
+    except Exception:
+        disponible = None
+    if disponible is not None and monto > disponible + 0.5:
+        raise HTTPException(
+            400,
+            f"No hay tanto: en {local} hay ${disponible:,.0f} disponibles",
+        )
+
+    ok, msg = vm.add_cash_withdrawal(
+        local, monto, datos.get("usuario", "jefe (celular)")
+    )
+    if not ok:
+        raise HTTPException(400, msg)
+    return {"ok": True, "mensaje": f"Retiraste ${monto:,.0f} de {local}"}
+
+
 @app.get("/dinero/boston-creed", dependencies=[Depends(auth)])
 def boston_creed(local: str = ""):
     """Resumen de Boston Creed: plata que la financiera todavia debe."""
