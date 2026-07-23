@@ -8,8 +8,19 @@ from models.db import put_connection as put_conn
 
 logger = logging.getLogger(__name__)
 
+# Caché de "schema ya asegurado" por proceso. Igual que en stock_model /
+# ventas_model: sin esto, cada consulta de mensajes ejecutaba CREATE TABLE +
+# CREATE INDEX (271.000+ veces observadas). Una vez creado el schema, no hace
+# falta volver a intentarlo en la misma corrida del programa.
+_PROBLEMAS_SCHEMA_OK = False
+_ADMIN_READS_SCHEMA_OK = False
+_LOCAL_READS_SCHEMA_OK = False
+
 
 def ensure_problemas_schema() -> Tuple[bool, str]:
+    global _PROBLEMAS_SCHEMA_OK
+    if _PROBLEMAS_SCHEMA_OK:
+        return True, "OK"
     conn = None
     try:
         conn = get_conn()
@@ -47,6 +58,7 @@ def ensure_problemas_schema() -> Tuple[bool, str]:
                 "CREATE INDEX IF NOT EXISTS idx_problemas_chat_local ON problemas_chat(local)"
             )
         conn.commit()
+        _PROBLEMAS_SCHEMA_OK = True
         return True, "OK"
     except Exception as e:
         logger.exception("Error asegurando schema problemas_chat")
@@ -65,6 +77,9 @@ def ensure_problemas_schema() -> Tuple[bool, str]:
 
 
 def ensure_admin_reads_schema() -> Tuple[bool, str]:
+    global _ADMIN_READS_SCHEMA_OK
+    if _ADMIN_READS_SCHEMA_OK:
+        return True, "OK"
     conn = None
     try:
         conn = get_conn()
@@ -88,6 +103,7 @@ def ensure_admin_reads_schema() -> Tuple[bool, str]:
                 """
             )
         conn.commit()
+        _ADMIN_READS_SCHEMA_OK = True
         return True, "OK"
     except Exception as e:
         logger.exception("Error asegurando schema admin_message_reads")
@@ -106,6 +122,9 @@ def ensure_admin_reads_schema() -> Tuple[bool, str]:
 
 
 def ensure_local_reads_schema() -> Tuple[bool, str]:
+    global _LOCAL_READS_SCHEMA_OK
+    if _LOCAL_READS_SCHEMA_OK:
+        return True, "OK"
     conn = None
     try:
         conn = get_conn()
@@ -129,6 +148,7 @@ def ensure_local_reads_schema() -> Tuple[bool, str]:
                 """
             )
         conn.commit()
+        _LOCAL_READS_SCHEMA_OK = True
         return True, "OK"
     except Exception as e:
         logger.exception("Error asegurando schema local_message_reads")
