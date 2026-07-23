@@ -7,7 +7,6 @@ reservas, combos) y las boletas/remitos salgan identicas.
 """
 import os
 import sys
-import tempfile
 
 # La API vive dentro del repo de Manarey: models/ esta un nivel arriba.
 # Asi comparte el codigo real y nunca se despega de la app de escritorio.
@@ -15,7 +14,15 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if RAIZ not in sys.path:
     sys.path.insert(0, RAIZ)
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query  # noqa: E402
+from fastapi import (  # noqa: E402
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from fastapi.responses import FileResponse  # noqa: E402
 
 from models.db import get_connection, put_connection  # noqa: E402
@@ -237,6 +244,90 @@ def ajustar_stock(datos: dict):
     return {"ok": True, "mensaje": msg}
 
 
+@app.post("/stock/agregar", dependencies=[Depends(auth)])
+def agregar_mercaderia(datos: dict):
+    """Suma unidades a un producto (llego mercaderia nueva).
+
+    Usa la misma funcion que la PC: queda en el historial y se puede deshacer.
+    """
+    from models import stock_model as sm
+
+    try:
+        producto_id = int(datos["producto_id"])
+        cantidad = int(datos["cantidad"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "Faltan producto_id o cantidad")
+
+    if cantidad <= 0:
+        raise HTTPException(400, "La cantidad tiene que ser mayor a cero")
+
+    ok, msg = sm.increment_stock(
+        producto_id,
+        cantidad,
+        datos.get("usuario", "jefe (celular)"),
+        datos.get("local", ""),
+        detalle="mercaderia nueva",
+        motivo=datos.get("motivo", "Ingreso de mercaderia desde el celular"),
+    )
+    if not ok:
+        raise HTTPException(400, msg)
+    return {"ok": True, "mensaje": msg}
+
+
+@app.post("/stock/transferir", dependencies=[Depends(auth)])
+def transferir_mercaderia(datos: dict):
+    """Pasa unidades de un local a otro.
+
+    Usa transfer_stock de la app de escritorio, que ademas de mover el stock
+    avisa al local destino y registra el movimiento en ambos lados.
+    """
+    from models import stock_model as sm
+
+    try:
+        producto_id = int(datos["producto_id"])
+        cantidad = int(datos["cantidad"])
+        destino = str(datos["destino"]).strip()
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "Faltan producto_id, cantidad o destino")
+
+    if cantidad <= 0:
+        raise HTTPException(400, "La cantidad tiene que ser mayor a cero")
+    if not destino:
+        raise HTTPException(400, "Falta el local de destino")
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT id, nombre, categoria, medida, estado, color, material,
+                      fabricante, precio_venta, precio_costo, cantidad, local,
+                      codigo
+               FROM productos WHERE id = %s""",
+            (producto_id,),
+        )
+        filas = _rows(cur)
+        if not filas:
+            raise HTTPException(404, "Producto no encontrado")
+        fila = filas[0]
+    finally:
+        put_connection(conn)
+
+    if fila["local"].strip().lower() == destino.lower():
+        raise HTTPException(400, "El destino es el mismo local de origen")
+    if int(fila["cantidad"] or 0) < cantidad:
+        raise HTTPException(
+            400,
+            f"Solo hay {fila['cantidad']} en {fila['local']}",
+        )
+
+    ok, msg = sm.transfer_stock(
+        fila, destino, cantidad, datos.get("usuario", "jefe (celular)")
+    )
+    if not ok:
+        raise HTTPException(400, msg)
+    return {"ok": True, "mensaje": msg}
+
+
 @app.get("/productos/{nombre}/en-locales", dependencies=[Depends(auth)])
 def producto_en_locales(nombre: str, medida: str = "", color: str = ""):
     """Cuanto hay de un producto en CADA local (la pregunta tipica del jefe)."""
@@ -255,6 +346,150 @@ def producto_en_locales(nombre: str, medida: str = "", color: str = ""):
             (nombre, medida, color),
         )
         return _rows(cur)
+    finally:
+        put_connection(conn)
+
+
+# ---------------------------------------------------------------------------
+# MENSAJES DE LOS LOCALES
+# ---------------------------------------------------------------------------
+
+
+@app.get("/mensajes", dependencies=[Depends(auth)])
+def mensajes(local: str = "", limite: int = 100):
+    """Lo que los locales le avisan al jefe."""
+    from models import problemas_model as pm
+
+    try:
+        return pm.list_mensajes(local or None, limit=limite) or []
+    except Exception as e:
+        raise HTTPException(500, f"No se pudieron leer los mensajes: {e}")
+
+
+@app.get("/mensajes/sin-leer", dependencies=[Depends(auth)])
+def mensajes_sin_leer(usuario: str = "jefe"):
+    """Cuantos mensajes nuevos hay (para el aviso en el menu)."""
+    from models import problemas_model as pm
+
+    try:
+        return {"cantidad": int(pm.count_admin_unread(usuario) or 0)}
+    except Exception:
+        return {"cantidad": 0}
+
+
+@app.post("/mensajes/marcar-leidos", dependencies=[Depends(auth)])
+def marcar_leidos(datos: dict):
+    from models import problemas_model as pm
+
+    try:
+        pm.mark_admin_seen(datos.get("usuario", "jefe"))
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/mensajes/responder", dependencies=[Depends(auth)])
+def responder_mensaje(datos: dict):
+    """El jefe le contesta a un local."""
+    from models import problemas_model as pm
+
+    local = (datos.get("local") or "").strip()
+    texto = (datos.get("mensaje") or "").strip()
+    if not local or not texto:
+        raise HTTPException(400, "Falta el local o el mensaje")
+
+    ok, msg = pm.add_mensaje(local, datos.get("usuario", "jefe"), "admin", texto)
+    if not ok:
+        raise HTTPException(400, msg)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# FOTOS DE PRODUCTOS
+# ---------------------------------------------------------------------------
+
+# Token de Vercel Blob, donde ya viven las 234 fotos que usa la web.
+BLOB_TOKEN = os.environ.get("BLOB_READ_WRITE_TOKEN", "")
+
+
+@app.post("/productos/{producto_id}/foto", dependencies=[Depends(auth)])
+async def subir_foto(producto_id: int, archivo: UploadFile = File(...)):
+    """Guarda la foto que saco el jefe con la camara.
+
+    Va al mismo lugar que las fotos de la web (Vercel Blob), asi la foto
+    aparece tanto en la app como en la pagina, sin duplicar nada.
+    """
+    if not BLOB_TOKEN:
+        raise HTTPException(
+            503,
+            "Falta configurar el guardado de fotos (BLOB_READ_WRITE_TOKEN).",
+        )
+
+    contenido = await archivo.read()
+    if not contenido:
+        raise HTTPException(400, "La foto llego vacia")
+    if len(contenido) > 12 * 1024 * 1024:
+        raise HTTPException(400, "La foto es demasiado grande (max 12 MB)")
+
+    tipo = archivo.content_type or "image/jpeg"
+    ext = tipo.split("/")[-1].split("+")[0] or "jpg"
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        # La clave con la que la web enlaza foto y producto
+        cur.execute(
+            """
+            SELECT md5(concat_ws('|',
+                     lower(trim(nombre)),
+                     lower(coalesce(trim(medida), '')),
+                     lower(coalesce(trim(color), '')))) AS clave,
+                   nombre
+            FROM productos WHERE id = %s
+            """,
+            (producto_id,),
+        )
+        filas = _rows(cur)
+        if not filas:
+            raise HTTPException(404, "Producto no encontrado")
+        clave = filas[0]["clave"]
+
+        # Subir a Vercel Blob (misma convencion de nombre que la web)
+        import requests
+
+        ruta = f"productos/{clave}-main.{ext}"
+        resp = requests.put(
+            f"https://blob.vercel-storage.com/{ruta}",
+            data=contenido,
+            headers={
+                "Authorization": f"Bearer {BLOB_TOKEN}",
+                "x-content-type": tipo,
+                "x-add-random-suffix": "0",
+                "x-api-version": "7",
+            },
+            timeout=60,
+        )
+        if resp.status_code >= 300:
+            raise HTTPException(502, f"No se pudo guardar la foto ({resp.status_code})")
+        url = resp.json().get("url")
+        if not url:
+            raise HTTPException(502, "El guardado no devolvio la direccion")
+
+        # Enlazar la foto con el producto (crea la fila si no existia)
+        cur.execute(
+            """
+            INSERT INTO productos_web_metadata (product_key, image_data,
+                                                images_data, updated_at)
+            VALUES (%s, %s, %s, now())
+            ON CONFLICT (product_key) DO UPDATE
+              SET image_data = EXCLUDED.image_data,
+                  images_data = EXCLUDED.images_data,
+                  updated_at = now()
+            """,
+            (clave, url, f'["{url}"]'),
+        )
+        conn.commit()
+        return {"ok": True, "url": url}
     finally:
         put_connection(conn)
 
@@ -767,34 +1002,37 @@ def venta_detalle(venta_id: int):
     return venta
 
 
-def _pdf(generador, registro: dict, prefijo: str) -> FileResponse:
-    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    tmp.close()
-    generador(registro, tmp.name)
+def _entregar_pdf(ok: bool, resultado: str, prefijo: str) -> FileResponse:
+    """Devuelve el PDF que genero la app de escritorio."""
+    if not ok:
+        raise HTTPException(500, f"No se pudo generar el PDF: {resultado}")
+    if not os.path.exists(resultado):
+        raise HTTPException(500, "El PDF no quedo generado")
     return FileResponse(
-        tmp.name, media_type="application/pdf", filename=f"{prefijo}.pdf"
+        resultado, media_type="application/pdf", filename=f"{prefijo}.pdf"
     )
 
 
 @app.get("/ventas/{venta_id}/boleta.pdf", dependencies=[Depends(auth)])
 def boleta(venta_id: int):
-    """Boleta IDENTICA a la de la PC: usa el mismo boletas_model.py."""
-    from models import boletas_model, ventas_model
+    """Boleta IDENTICA a la de la PC.
 
-    venta = ventas_model.get_venta_detalle(venta_id)
-    if not venta:
-        raise HTTPException(404, "Venta no encontrada")
-    return _pdf(
-        boletas_model.generar_boleta_pdf_a4_duplicada, venta, f"boleta-{venta_id}"
-    )
+    Se llama a generar_pdf_boleta (la misma funcion que usa la app de
+    escritorio) y NO al generador de bajo nivel: es esa funcion la que arma
+    la estructura que la boleta espera (numero, fecha, forma de pago y el
+    detalle de productos). Pasarle los datos crudos deja la boleta sin esos
+    campos.
+    """
+    from models import ventas_model
+
+    ok, resultado = ventas_model.generar_pdf_boleta(venta_id)
+    return _entregar_pdf(ok, resultado, f"boleta-{venta_id}")
 
 
 @app.get("/ventas/{venta_id}/remito.pdf", dependencies=[Depends(auth)])
 def remito(venta_id: int):
-    """Remito IDENTICO al de la PC: usa el mismo remitos_model.py."""
-    from models import remitos_model, ventas_model
+    """Remito IDENTICO al de la PC (misma funcion que usa el escritorio)."""
+    from models import ventas_model
 
-    venta = ventas_model.get_venta_detalle(venta_id)
-    if not venta:
-        raise HTTPException(404, "Venta no encontrada")
-    return _pdf(remitos_model.generar_remito_pdf, venta, f"remito-{venta_id}")
+    ok, resultado = ventas_model.generar_pdf_remito(venta_id)
+    return _entregar_pdf(ok, resultado, f"remito-{venta_id}")
