@@ -120,3 +120,8 @@ desktop.ini
 
 # ── Assets de test ────────────────────────────────────────────────────────────
 assets/test.txt
+
+# Backups de la base (nunca subir al repo)
+*.dump
+backups/
+Manarey_Backups/

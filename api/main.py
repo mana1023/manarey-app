@@ -302,6 +302,171 @@ def productos(
 
 
 # ---------------------------------------------------------------------------
+# MARGENES Y COSTOS
+# ---------------------------------------------------------------------------
+
+
+@app.get("/productos/margenes", dependencies=[Depends(auth)])
+def productos_margenes(
+    q: str = Query("", description="Busqueda libre en todos los campos"),
+    solo_faltantes: bool = False,
+    orden: str = Query("margen", pattern="^(margen|nombre|ganancia)$"),
+    limite: int = 300,
+    desde: int = 0,
+):
+    """Productos con su margen de ganancia, agrupados (un precio por producto,
+    igual que en los cambios de precio). Sirve para completar los costos que
+    faltan y ver la rentabilidad. Incluye un resumen general del negocio."""
+    where = ["COALESCE(p.is_combo, 0) = 0"]
+    params: list = []
+    for termino in [t for t in q.strip().split() if t]:
+        where.append(
+            "unaccent(lower(concat_ws(' ', p.nombre, p.medida, p.material, "
+            "p.fabricante, p.color, p.categoria, p.codigo))) LIKE unaccent(lower(%s))"
+        )
+        params.append(f"%{termino}%")
+    cond = " AND ".join(where)
+
+    orden_sql = {
+        # primero los que les falta el costo, despues por menor margen
+        "margen": "falta_costo DESC, margen_pct ASC NULLS FIRST, nombre",
+        "nombre": "nombre, medida",
+        "ganancia": "ganancia DESC NULLS LAST, nombre",
+    }[orden]
+    having = ""
+    if solo_faltantes:
+        having = "HAVING COALESCE(MAX(p.precio_costo), 0) = 0"
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        # Resumen general: se calcula sobre TODOS los productos, no sobre el filtro
+        cur.execute(
+            """
+            WITH prod AS (
+                SELECT MAX(p.precio_venta) AS venta, MAX(p.precio_costo) AS costo
+                FROM productos p
+                WHERE COALESCE(p.is_combo, 0) = 0
+                GROUP BY p.nombre, p.medida, p.color, p.material, p.fabricante
+            )
+            SELECT COUNT(*),
+                   COUNT(*) FILTER (WHERE COALESCE(costo, 0) = 0),
+                   ROUND(AVG(CASE WHEN costo > 0 AND venta > 0
+                                  THEN (venta - costo) / venta * 100 END)::numeric, 1)
+            FROM prod
+            """
+        )
+        r = cur.fetchone()
+        resumen = {
+            "total": int(r[0] or 0),
+            "sin_costo": int(r[1] or 0),
+            "margen_promedio": float(r[2]) if r[2] is not None else None,
+        }
+
+        sql = f"""
+            SELECT MIN(p.id) AS id, p.nombre, p.medida, p.color, p.material,
+                   p.fabricante,
+                   MAX(p.precio_venta) AS precio_venta,
+                   COALESCE(MAX(p.precio_costo), 0) AS precio_costo,
+                   SUM(p.cantidad) AS cantidad,
+                   (COALESCE(MAX(p.precio_costo), 0) = 0) AS falta_costo,
+                   CASE WHEN MAX(p.precio_costo) > 0 AND MAX(p.precio_venta) > 0
+                        THEN ROUND((MAX(p.precio_venta) - MAX(p.precio_costo))
+                                   / MAX(p.precio_venta) * 100, 1)
+                   END AS margen_pct,
+                   CASE WHEN MAX(p.precio_costo) > 0
+                        THEN MAX(p.precio_venta) - MAX(p.precio_costo)
+                   END AS ganancia
+            FROM productos p
+            WHERE {cond}
+            GROUP BY p.nombre, p.medida, p.color, p.material, p.fabricante
+            {having}
+            ORDER BY {orden_sql}
+            LIMIT %s OFFSET %s
+        """
+        cur.execute(sql, params + [limite, desde])
+        return {"resumen": resumen, "productos": _rows(cur)}
+    finally:
+        put_connection(conn)
+
+
+@app.post("/productos/costo", dependencies=[Depends(auth)])
+def fijar_costo(datos: dict):
+    """Carga o corrige el costo de un producto.
+
+    Se aplica a TODOS los locales que tengan el mismo producto (el costo es el
+    mismo en los 5) y queda registrado en historial_stock para poder auditarlo.
+    Devuelve el margen que queda, para mostrarlo al instante.
+    """
+    try:
+        pid = int(datos["id"])
+        costo = int(float(datos["costo"]))
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "Faltan 'id' o 'costo', o no son numeros")
+    if costo < 0:
+        raise HTTPException(400, "El costo no puede ser negativo")
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        # Identidad del producto: la misma clave con la que se agrupan los
+        # precios, porque el producto esta repetido una vez por local.
+        cur.execute(
+            """SELECT nombre, medida, color, material, fabricante, precio_venta
+               FROM productos WHERE id = %s""",
+            (pid,),
+        )
+        fila = cur.fetchone()
+        if not fila:
+            raise HTTPException(404, "No se encontro el producto")
+        nombre, medida, color, material, fabricante, venta = fila
+
+        identidad = """
+              nombre           IS NOT DISTINCT FROM %s
+          AND medida           IS NOT DISTINCT FROM %s
+          AND color            IS NOT DISTINCT FROM %s
+          AND material         IS NOT DISTINCT FROM %s
+          AND fabricante       IS NOT DISTINCT FROM %s
+          AND COALESCE(is_combo, 0) = 0
+        """
+        claves = (nombre, medida, color, material, fabricante)
+
+        # Historial ANTES de pisar el valor, para dejar el costo anterior.
+        cur.execute(
+            f"""INSERT INTO historial_stock
+                    (producto_id, accion, detalle, cantidad, usuario, local,
+                     created_at, motivo, undone)
+                SELECT id, 'ajuste', 'cambio de precio_costo', 0, %s, local,
+                       NOW(), %s, 0
+                FROM productos WHERE {identidad}""",
+            ("app-jefe", f"costo {'' if costo else 'borrado'} -> {costo}") + claves,
+        )
+        cur.execute(
+            f"""UPDATE productos SET precio_costo = %s, updated_at = NOW()
+                WHERE {identidad}""",
+            (costo,) + claves,
+        )
+        afectados = cur.rowcount
+        conn.commit()
+
+        venta_f = float(venta or 0)
+        margen = (
+            round((venta_f - costo) / venta_f * 100, 1)
+            if venta_f > 0 and costo > 0
+            else None
+        )
+        return {
+            "ok": True,
+            "locales_actualizados": afectados,
+            "precio_costo": costo,
+            "margen_pct": margen,
+            "ganancia": int(venta_f - costo) if venta_f > 0 and costo > 0 else None,
+        }
+    finally:
+        put_connection(conn)
+
+
+# ---------------------------------------------------------------------------
 # CONTROL DE STOCK
 # ---------------------------------------------------------------------------
 
