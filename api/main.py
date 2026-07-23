@@ -67,6 +67,35 @@ def health():
         put_connection(conn)
 
 
+@app.get("/app/version", dependencies=[Depends(auth)])
+def app_version():
+    """Ultima version de la app movil, para que se actualice sola.
+
+    El celular compara version_codigo con la que tiene instalada; si el
+    servidor tiene una mas nueva, ofrece bajarla e instalarla con un toque.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT version_codigo, version_nombre, url, notas, obligatoria
+               FROM movil_version ORDER BY version_codigo DESC LIMIT 1"""
+        )
+        fila = cur.fetchone()
+        if not fila:
+            return {"hay_version": False}
+        return {
+            "hay_version": True,
+            "version_codigo": fila[0],
+            "version_nombre": fila[1],
+            "url": fila[2],
+            "notas": fila[3] or "",
+            "obligatoria": bool(fila[4]),
+        }
+    finally:
+        put_connection(conn)
+
+
 @app.get("/locales", dependencies=[Depends(auth)])
 def locales():
     conn = get_connection()
