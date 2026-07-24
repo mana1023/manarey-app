@@ -63,7 +63,8 @@ def get_conn():
 import logging
 import threading
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 # ==================== LOGGING ====================
@@ -195,6 +196,16 @@ ESTADOS = ["Nuevo", "Reacondicionado", "En promoción"]
 
 
 # ==================== UTILIDADES DB/JSON ====================
+def _sql_ph(q: str) -> str:
+    """Adapta los placeholders '?' de una consulta al estilo de la base activa.
+
+    Este modulo se escribio para SQLite, pero la API (y la app cuando corre
+    contra Supabase) usan Postgres, que espera '%s'. Sin esta adaptacion las
+    consultas fallan con 'syntax error at or near "=?"'.
+    """
+    return q.replace("?", "%s") if _is_postgres() else q
+
+
 def _touch_update(conn, pid: int) -> None:
     try:
         ph = "%s" if _is_postgres() else "?"
@@ -229,10 +240,22 @@ def _norm_medida(m: Optional[str]) -> Optional[str]:
 
 def _j(d: dict) -> str:
     try:
-        return json.dumps(d, ensure_ascii=False, separators=(",", ":"))
+        # Postgres devuelve los numeros como Decimal, que json no sabe
+        # serializar: los pasamos a float para no perder el historial.
+        return json.dumps(
+            d, ensure_ascii=False, separators=(",", ":"), default=_j_default
+        )
     except Exception as e:
         logger.error(f"Error serializando JSON: {e}")
         return "{}"
+
+
+def _j_default(o: Any):
+    if isinstance(o, Decimal):
+        return float(o)
+    if isinstance(o, (datetime, date)):
+        return o.isoformat()
+    return str(o)
 
 
 def ensure_combo_schema() -> Tuple[bool, str]:
@@ -3671,13 +3694,15 @@ def _sync_field_all_locales(
         with _get_conn_cm() as conn:
             cur = conn.cursor()
             cur.execute(
-                f"""
+                _sql_ph(
+                    f"""
                 SELECT id, local, {field}
                 FROM productos
                 WHERE nombre=? AND COALESCE(material,'')=COALESCE(?,'') AND categoria=? AND COALESCE(medida,'')=COALESCE(?,'')
-                  AND estado=? AND COALESCE(color,'')=COALESCE(?)
+                  AND estado=? AND COALESCE(color,'')=COALESCE(?,'')
                   AND local<>?
-            """,
+            """
+                ),
                 (nombre, material, categoria, medida, estado, color, source_local),
             )
             rows = cur.fetchall()
@@ -3694,8 +3719,14 @@ def _sync_field_all_locales(
                     "local": other_local,
                     "motivo": "sincronizado_automatico",
                 }
-                qid = enqueue_op("update_field", payload)
-                if qid and qid > 0:
+                res = enqueue_op("update_field", payload)
+                # enqueue_op devuelve (ok, mensaje) al aplicar directo, o un id
+                # numerico cuando la operacion se encola. Aceptamos las dos.
+                if isinstance(res, tuple):
+                    aplicado = bool(res and res[0])
+                else:
+                    aplicado = bool(res) and res > 0
+                if aplicado:
                     updated_locals.append(other_local)
     except Exception as e:
         logger.error(f"Error sincronizando campo {field}: {e}")
@@ -3942,7 +3973,9 @@ def update_stock_field(
 
             # Snapshot antes del cambio (para clave y notificación)
             cur.execute(
-                "SELECT nombre,material,categoria,medida,estado,color,precio_venta,local FROM productos WHERE id=?",
+                _sql_ph(
+                    "SELECT nombre,material,categoria,medida,estado,color,precio_venta,local FROM productos WHERE id=?"
+                ),
                 (pid,),
             )
             r = cur.fetchone()
@@ -3991,7 +4024,9 @@ def update_stock_field(
                 while True:
                     try:
                         cur.execute(
-                            f"UPDATE productos SET {field}=?, updated_at=? WHERE id=?",
+                            _sql_ph(
+                                f"UPDATE productos SET {field}=?, updated_at=? WHERE id=?"
+                            ),
                             (value, _now_local(), pid),
                         )
 
@@ -4000,11 +4035,13 @@ def update_stock_field(
                         if _is_admin(usuario):
                             meta["by_admin"] = True
                         cur.execute(
-                            """
+                            _sql_ph(
+                                """
                             INSERT INTO historial_stock
                                 (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone)
                             VALUES (?, 'ajuste', ?, 0, ?, ?, ?, ?, ?, 0)
-                            """,
+                            """
+                            ),
                             (
                                 pid,
                                 f"cambio de {field}",
@@ -4083,17 +4120,21 @@ def update_stock_field(
                 cur = conn.cursor()
                 try:
                     cur.execute(
-                        f"UPDATE productos SET {field}=?, updated_at=? WHERE id=?",
+                        _sql_ph(
+                            f"UPDATE productos SET {field}=?, updated_at=? WHERE id=?"
+                        ),
                         (value, _now_local(), pid),
                     )
                     # Insertar historial de forma manual
                     meta = {"field": field, "old": None, "new": value}
                     cur.execute(
-                        """
+                        _sql_ph(
+                            """
                         INSERT INTO historial_stock
                             (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone)
                         VALUES (?, 'ajuste', ?, 0, ?, ?, ?, ?, ?, 0)
-                        """,
+                        """
+                        ),
                         (
                             pid,
                             f"cambio de {field}",
@@ -5589,145 +5630,6 @@ def _compat_add_or_increment(
 # ya no se sobrescriben en el namespace principal. Esto evita confusión si el
 # módulo se importa parcialmente; las funciones canónicas definidas arriba
 # (e.g. `increment_stock`, `add_or_increment`) son las utilizadas.
-
-import sqlite3
-
-# === PEGAR AL FINAL DE models/stock_model.py ===
-from models.db import get_connection
-
-_CANDIDATE_TABLES = ["stock", "productos", "inventario"]
-
-
-def _table_exists(cur, name):
-    cur.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (name,)
-    )
-    return cur.fetchone() is not None
-
-
-def _detect_stock_table(cur):
-    for t in _CANDIDATE_TABLES:
-        if _table_exists(cur, t):
-            return t
-    return None
-
-
-def _create_stock_table(cur):
-    # Solo se crea si no existe NINGUNA de las tablas candidatas
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS stock (
-            id INTEGER PRIMARY KEY,
-            nombre TEXT NOT NULL,
-            categoria TEXT,
-            precio_venta REAL NOT NULL DEFAULT 0,
-            cantidad INTEGER NOT NULL DEFAULT 0,
-            local TEXT NOT NULL,
-            medida TEXT,
-            estado TEXT DEFAULT 'Nuevo',
-            color TEXT,
-            created_at TEXT DEFAULT (datetime('now','localtime')),
-            updated_at TEXT DEFAULT (datetime('now','localtime'))
-        );
-    """
-    )
-    cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_stock_local_nombre ON stock(local, nombre);"
-    )
-
-
-def get_stock_for_local(local_name: str):
-    """
-    Devuelve lista de dicts uniformes: [{id, nombre, categoria, precio, disponible}, ...]
-    Busca primero tablas candidatas; si no hay ninguna, crea 'stock' vacía (para no fallar).
-    """
-    con = get_connection()
-    try:
-        cur = con.cursor()
-        table = _detect_stock_table(cur)
-        if table is None:
-            _create_stock_table(cur)
-            con.commit()
-            table = "stock"  # recién creada (vacía)
-
-        # detectar nombre real de columna precio
-        # asegurar que `table` es un identificador seguro y conocido
-        if not _is_safe_identifier(table) or table not in _CANDIDATE_TABLES:
-            logger.warning(
-                f"Nombre de tabla sospechoso/inesperado: {table}; usando 'stock' por defecto"
-            )
-            table = "stock"
-
-        cur.execute(f"PRAGMA table_info({table});")
-        cols = {row[1] for row in cur.fetchall()}
-
-        # elegir columnas preferidas, validando cada identificador
-        def _safe_col(name, default):
-            # si es literal (entre comillas) lo permitimos tal cual
-            if isinstance(name, str) and (name.startswith("'") or name.startswith('"')):
-                return name
-            if name in cols and _is_safe_identifier(name):
-                return name
-            return default
-
-        precio_col = _safe_col("precio_venta", "precio_venta")
-        if (
-            precio_col == "precio_venta"
-            and "precio" in cols
-            and _is_safe_identifier("precio")
-        ):
-            precio_col = "precio"
-        elif "precio_unit" in cols and _is_safe_identifier("precio_unit"):
-            precio_col = "precio_unit"
-
-        id_col = _safe_col("id", "id")
-        nombre_col = _safe_col("nombre", "nombre")
-        categoria_col = _safe_col("categoria", "COALESCE('', '')")
-        cantidad_col = _safe_col("cantidad", "cantidad")
-        local_col = _safe_col("local", "local")
-
-        # Asegurar que al menos las columnas por defecto sean usadas (evitar inyección)
-        if not _is_safe_identifier(id_col):
-            id_col = "id"
-        if not _is_safe_identifier(nombre_col):
-            nombre_col = "nombre"
-        if not _is_safe_identifier(precio_col):
-            precio_col = "precio_venta"
-        if not _is_safe_identifier(cantidad_col):
-            cantidad_col = "cantidad"
-        if not _is_safe_identifier(local_col):
-            local_col = "local"
-
-        q = f"""
-            SELECT
-                {id_col} AS id,
-                {nombre_col} AS nombre,
-                COALESCE({categoria_col}, '') AS categoria,
-                COALESCE({precio_col}, 0) AS precio,
-                COALESCE({cantidad_col}, 0) AS cantidad,
-                {local_col} AS local
-            FROM {table}
-            WHERE {local_col} = ?
-            ORDER BY {nombre_col} COLLATE NOCASE;
-        """
-        cur.execute(q, (local_name,))
-        rows = cur.fetchall()
-
-        productos = []
-        for r in rows:
-            productos.append(
-                {
-                    "id": r["id"],
-                    "nombre": r["nombre"],
-                    "categoria": r["categoria"],
-                    "precio": float(r["precio"] or 0),
-                    "disponible": int(r["cantidad"] or 0),
-                }
-            )
-        return productos
-    finally:
-        con.close()
-
 
 try:
     # Importar la API dedicada de cola (implementación separada)
