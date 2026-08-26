@@ -376,6 +376,10 @@ class RetirarDineroWindow(QMainWindow):
                 for c in vm.get_domicilio_pagos_pending():
                     monto = float(c.get("monto_productos") or c.get("monto") or 0)
                     creado = c.get("created_at")
+                    # El registro se crea al VENDER, pero esa plata se cobra
+                    # recien al ENTREGAR: si todavia no se entrego, no esta.
+                    if not int(c.get("entregada") or 0):
+                        continue
                     # Solo lo cobrado DESPUES del ultimo retiro.
                     if last_dt and str(creado or "") <= str(last_dt):
                         viejos_cant += 1
