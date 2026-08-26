@@ -1153,14 +1153,14 @@ class VentasWindow(QMainWindow):
         self.cash_local_label.setStyleSheet("font-weight: 800; color: #22c55e;")
         right_cash.addWidget(self.cash_local_label)
 
-        self.cash_withdraw_btn = QPushButton("💰 Cierre de turno")
+        self.cash_withdraw_btn = QPushButton("💰 Retirar dinero")
         self.cash_withdraw_btn.setCursor(Qt.PointingHandCursor)
         self.cash_withdraw_btn.setStyleSheet(
             f"QPushButton {{background:#1a2a1a;color:#4ade80;"
             f"border:1px solid #4ade80;border-radius:10px;padding:6px 16px;font-weight:800;}}"
             f"QPushButton:hover {{background:#4ade80;color:#000;}}"
         )
-        self.cash_withdraw_btn.clicked.connect(self._on_cierre_turno)
+        self.cash_withdraw_btn.clicked.connect(self._abrir_retirar_dinero)
         right_cash.addWidget(self.cash_withdraw_btn)
 
         self.cobros_domicilio_btn = QPushButton("Cobros domicilio")
@@ -2385,8 +2385,23 @@ class VentasWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Cobros domicilio", str(e))
 
+    def _abrir_retirar_dinero(self):
+        """Abre la pantalla nueva de Retirar dinero (boleta por boleta)."""
+        try:
+            from views.retirar_dinero_view import RetirarDineroWindow
+
+            win = RetirarDineroWindow(self.username, self.role, self.user_local)
+            win.back_command = win.close
+            # Guardar referencia para que no lo borre el recolector de basura.
+            self._retirar_win = win
+            win.show()
+            win.raise_()
+            win.activateWindow()
+        except Exception as e:
+            QMessageBox.warning(self, "Retirar dinero", str(e))
+
     def _on_cierre_turno(self):  # noqa: C901
-        """Cierre de turno: gastos + cuadre automático + retiro."""
+        """[OBSOLETO] Cierre de turno viejo. Reemplazado por _abrir_retirar_dinero."""
         try:
             local_arg = (getattr(self, "_current_local_arg", "") or "").strip() or (
                 self.user_local or ""
