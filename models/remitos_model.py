@@ -96,6 +96,28 @@ def _is_delivered(venta: dict) -> bool:
         return False
 
 
+def _se_cobra_en_domicilio(venta: dict) -> bool:
+    """Dice si de esta venta se cobra (o se cobro) plata AL ENTREGAR.
+
+    Si el cliente ya pago todo en el local, al entregar no se cobra nada y el
+    remito NO tiene que decir "PAGADO EN DOMICILIO": eso hacia figurar como
+    cobrado en la puerta un dinero que ya estaba en la caja del local.
+    """
+    tipo = _safe_str(venta.get("tipo_pago")).lower()
+    if "domicilio" in tipo:
+        return True
+    # Queda saldo por cobrar al entregar (por ejemplo, una sena)
+    if _get_pending_product_amount(venta) > 0.01:
+        return True
+    # Se registro un pago al completar la entrega
+    try:
+        if float(venta.get("pago_completado_monto") or 0) > 0.01:
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _get_collected_at_domicile_amount(venta: dict) -> float:
     try:
         monto = float(venta.get("pago_completado_monto") or 0)
@@ -111,17 +133,25 @@ def _get_collected_at_domicile_amount(venta: dict) -> float:
 
 def _get_delivery_payment_block(venta: dict) -> list[tuple[str, float, colors.Color]]:
     bloques = []
-    monto_cobrado_domicilio = _get_collected_at_domicile_amount(venta)
     monto_envio = float(venta.get("precio_envio") or 0)
     forma_envio = _safe_str(venta.get("forma_pago_envio")).lower()
 
-    if monto_cobrado_domicilio > 0.01:
-        bloques.append(
-            ("PAGADO EN DOMICILIO", monto_cobrado_domicilio, colors.darkgreen)
-        )
+    # Solo si de verdad se cobra algo al entregar. Si ya se pago todo en el
+    # local, no corresponde ningun cartel de cobro en domicilio.
+    if _se_cobra_en_domicilio(venta):
+        monto_cobrado_domicilio = _get_collected_at_domicile_amount(venta)
+        if monto_cobrado_domicilio > 0.01:
+            bloques.append(
+                ("PAGADO EN DOMICILIO", monto_cobrado_domicilio, colors.darkgreen)
+            )
 
     if monto_envio > 0.01:
-        if forma_envio in ("local", "en local"):
+        # Si no se cobra nada al entregar, el envio tambien se pago en el local,
+        # aunque la venta tenga guardado "domicilio" (ventas viejas, cuando el
+        # sistema marcaba domicilio a todo lo que llevara envio).
+        if not _se_cobra_en_domicilio(venta):
+            bloques.append(("ENVIO PAGADO EN LOCAL", monto_envio, colors.darkgreen))
+        elif forma_envio in ("local", "en local"):
             bloques.append(("ENVIO PAGADO EN LOCAL", monto_envio, colors.darkgreen))
         elif forma_envio in ("domicilio", "en domicilio"):
             bloques.append(("ENVIO PAGADO EN DOMICILIO", monto_envio, colors.darkgreen))
@@ -140,6 +170,9 @@ def _remito_payment_notice(venta: dict) -> tuple[str, str]:
         if forma_envio in ("domicilio", "en domicilio"):
             return f"Monto de envio: ${_fmt_money(monto_envio)}", ""
         return "", ""
+    # Si ya se pago todo en el local, el envio tambien: no hay nada que cobrar.
+    if not _se_cobra_en_domicilio(venta):
+        return "ENVIO PAGADO EN LOCAL", ""
     if forma_envio in ("local", "en local"):
         return "ENVIO PAGADO EN LOCAL", ""
     if forma_envio in ("domicilio", "en domicilio"):
