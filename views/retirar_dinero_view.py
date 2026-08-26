@@ -1,22 +1,21 @@
 """Retirar dinero — reemplaza el viejo 'Cierre de caja'.
 
-Muestra el efectivo que entró al local BOLETA POR BOLETA (y, en Longchamps,
-los cobros en domicilio hechos en la casa), permite abrir la boleta o el
-remito de cada una, y registra el retiro con contraseña anotando QUIEN retiró,
-CUANDO y CUANTO dejó en la caja. Abajo, el historial de retiros.
+Muestra, DESDE EL ULTIMO RETIRO, toda la plata que entro al local boleta por
+boleta (y en Longchamps los cobros hechos en la casa), deja abrir la boleta o
+el remito de cada una, y registra el retiro con contrasena anotando QUIEN
+retiro, CUANDO y CUANTO dejo en la caja.
 """
+
 from __future__ import annotations
 
-import logging
 import os
+from datetime import datetime
 from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
-    QFormLayout,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -34,8 +33,6 @@ from PySide6.QtWidgets import (
 
 from models import cierre_caja_model as ccm
 from models import ventas_model as vm
-
-logger = logging.getLogger(__name__)
 
 try:
     import app_theme as _at
@@ -55,8 +52,9 @@ BORDER = _T("BORDER", "#2a2a35")
 TEXT = _T("TEXT", "#e5e7eb")
 MUTED = _T("TEXT_MUTED", "#a0a0a8")
 GOLD = _T("GOLD", "#C9A040")
-GREEN = _T("GREEN", "#3fae6b")
-RED = _T("RED", "#e05656")
+GREEN = "#4ade80"
+RED = "#f87171"
+ROW_ALT = "#15151c"
 
 _LOCAL_DOMICILIO = "Longchamps"
 
@@ -65,40 +63,50 @@ def _es_local_domicilio(local: str) -> bool:
     return (local or "").strip().lower() == _LOCAL_DOMICILIO.lower()
 
 
-def _fmt(v: float) -> str:
+def _fmt(v) -> str:
+    """Plata siempre con punto cada tres numeros: $1.234.567"""
     try:
         return "${:,.0f}".format(float(v or 0)).replace(",", ".")
     except Exception:
         return "$0"
 
 
-def _card_style(border: str = BORDER) -> str:
-    return (
-        f"QFrame {{ background:{CARD}; border:1px solid {border};"
-        f" border-radius:14px; }}"
-    )
+def _fmt_num(v) -> str:
+    """Numero sin el signo $, tambien con puntos: 1.234.567"""
+    try:
+        return "{:,.0f}".format(float(v or 0)).replace(",", ".")
+    except Exception:
+        return "0"
 
 
-class StatCard(QFrame):
-    def __init__(self, label: str, value: str, color: str = GOLD):
-        super().__init__()
-        self.setStyleSheet(_card_style())
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(18, 14, 18, 14)
-        lbl = QLabel(label)
-        lbl.setStyleSheet(f"color:{MUTED}; font-size:13px; border:none;")
-        self._val = QLabel(value)
-        self._val.setStyleSheet(
-            f"color:{color}; font-size:26px; font-weight:800; border:none;"
-        )
-        lay.addWidget(lbl)
-        lay.addWidget(self._val)
+def _a_numero(texto) -> float:
+    """Lee lo que escribio el usuario aunque tenga puntos o comas."""
+    try:
+        limpio = str(texto).replace("$", "").replace(" ", "")
+        limpio = limpio.replace(".", "").replace(",", ".")
+        return float(limpio or 0)
+    except Exception:
+        return 0.0
 
-    def set_value(self, v: str, color: str = GOLD):
-        self._val.setText(v)
-        self._val.setStyleSheet(
-            f"color:{color}; font-size:26px; font-weight:800; border:none;"
-        )
+
+def _fmt_fecha(v, con_hora: bool = True) -> str:
+    """Fecha en criollo: 26/08 14:35"""
+    if not v:
+        return "-"
+    if isinstance(v, datetime):
+        dt = v
+    else:
+        txt = str(v)
+        dt = None
+        for f in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+            try:
+                dt = datetime.strptime(txt[: len(f) + 2].strip(), f)
+                break
+            except Exception:
+                continue
+        if dt is None:
+            return txt[:16]
+    return dt.strftime("%d/%m %H:%M") if con_hora else dt.strftime("%d/%m/%Y")
 
 
 class RetirarDineroWindow(QMainWindow):
@@ -114,11 +122,12 @@ class RetirarDineroWindow(QMainWindow):
         self.role = role
         self.local = local
         self.back_command = back_command
-        self._entradas: list = []  # cache de la ultima carga
+        self._entradas: list = []
+        self._total_disponible = 0.0
 
         self.setWindowTitle(f"Retirar dinero — {local}")
-        self.setMinimumSize(940, 660)
-        self.resize(1100, 780)
+        self.setMinimumSize(980, 680)
+        self.resize(1180, 820)
         self.setStyleSheet(
             f"QMainWindow {{ background:{BG}; }} QLabel {{ color:{TEXT}; }}"
         )
@@ -130,151 +139,209 @@ class RetirarDineroWindow(QMainWindow):
         root_w = QWidget()
         scroll.setWidget(root_w)
         self._root = QVBoxLayout(root_w)
-        self._root.setContentsMargins(24, 20, 24, 24)
-        self._root.setSpacing(16)
+        self._root.setContentsMargins(28, 22, 28, 28)
+        self._root.setSpacing(18)
 
         self._build_header()
-        self._build_stats_row()
+        self._build_hero()
         self._build_entradas_section()
         self._build_gastos_section()
         self._build_historial_section()
+        self._root.addStretch()
 
         self._refresh()
 
     # ── Header ──────────────────────────────────────────────────────────────
     def _build_header(self):
         row = QHBoxLayout()
+        row.setSpacing(12)
         if self.back_command:
-            back = QPushButton("← Volver")
+            back = QPushButton("←  Volver")
             back.setCursor(Qt.PointingHandCursor)
-            back.setStyleSheet(self._btn_style(CARD, TEXT))
+            back.setStyleSheet(self._btn(CARD, TEXT))
             back.clicked.connect(self.back_command)
             row.addWidget(back)
-        title = QLabel("Retirar dinero")
-        title.setStyleSheet(f"color:{GOLD}; font-size:24px; font-weight:800;")
-        row.addWidget(title)
+
+        titulo_box = QVBoxLayout()
+        titulo_box.setSpacing(1)
+        t = QLabel("Retirar dinero")
+        t.setStyleSheet(f"color:{GOLD}; font-size:25px; font-weight:800;")
+        sub = QLabel(self.local)
+        sub.setStyleSheet(f"color:{MUTED}; font-size:14px;")
+        titulo_box.addWidget(t)
+        titulo_box.addWidget(sub)
+        row.addLayout(titulo_box)
         row.addStretch()
-        refresh = QPushButton("↻ Actualizar")
+
+        refresh = QPushButton("↻  Actualizar")
         refresh.setCursor(Qt.PointingHandCursor)
-        refresh.setStyleSheet(self._btn_style(CARD, TEXT))
+        refresh.setStyleSheet(self._btn(CARD, TEXT))
         refresh.clicked.connect(self._refresh)
         row.addWidget(refresh)
         self._root.addLayout(row)
 
-    def _build_stats_row(self):
-        row = QHBoxLayout()
-        row.setSpacing(14)
-        self._card_efectivo = StatCard("Efectivo en caja", "$0", GREEN)
-        self._card_domicilio = StatCard("Cobros en domicilio", "$0", GOLD)
-        self._card_total = StatCard("Total para retirar", "$0", GOLD)
-        row.addWidget(self._card_efectivo)
-        if _es_local_domicilio(self.local):
-            row.addWidget(self._card_domicilio)
-        row.addWidget(self._card_total)
-        self._root.addLayout(row)
+    # ── Hero: el total grande y el boton de retirar ─────────────────────────
+    def _build_hero(self):
+        card = QFrame()
+        card.setStyleSheet(
+            f"QFrame {{ background:{CARD}; border:2px solid {GOLD};"
+            f" border-radius:18px; }}"
+        )
+        lay = QHBoxLayout(card)
+        lay.setContentsMargins(28, 24, 28, 24)
+        lay.setSpacing(24)
 
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        self._btn_retirar = QPushButton("💵  Retirar dinero")
+        izq = QVBoxLayout()
+        izq.setSpacing(4)
+        cap = QLabel("TOTAL PARA RETIRAR")
+        cap.setStyleSheet(
+            f"color:{MUTED}; font-size:13px; font-weight:800;"
+            f" letter-spacing:1px; border:none;"
+        )
+        self._lbl_total = QLabel("$0")
+        self._lbl_total.setStyleSheet(
+            f"color:{GOLD}; font-size:48px; font-weight:800; border:none;"
+        )
+        self._lbl_desde = QLabel("")
+        self._lbl_desde.setStyleSheet(f"color:{MUTED}; font-size:14px; border:none;")
+        izq.addWidget(cap)
+        izq.addWidget(self._lbl_total)
+        izq.addWidget(self._lbl_desde)
+
+        self._lbl_desglose = QLabel("")
+        self._lbl_desglose.setStyleSheet(f"color:{TEXT}; font-size:15px; border:none;")
+        self._lbl_desglose.setWordWrap(True)
+        izq.addSpacing(6)
+        izq.addWidget(self._lbl_desglose)
+        lay.addLayout(izq, 1)
+
+        self._btn_retirar = QPushButton("Retirar dinero")
         self._btn_retirar.setCursor(Qt.PointingHandCursor)
-        self._btn_retirar.setMinimumHeight(48)
-        self._btn_retirar.setStyleSheet(self._btn_style(GOLD, "#171717", big=True))
+        self._btn_retirar.setMinimumHeight(62)
+        self._btn_retirar.setMinimumWidth(230)
+        self._btn_retirar.setStyleSheet(
+            f"QPushButton {{ background:{GOLD}; color:#171717; border:none;"
+            f" border-radius:14px; font-size:19px; font-weight:800; padding:0 26px; }}"
+            f"QPushButton:hover {{ background:#dcb45a; }}"
+            f"QPushButton:disabled {{ background:{BORDER}; color:{MUTED}; }}"
+        )
         self._btn_retirar.clicked.connect(self._on_retirar)
-        btn_row.addWidget(self._btn_retirar)
-        self._root.addLayout(btn_row)
+        lay.addWidget(self._btn_retirar, 0, Qt.AlignVCenter)
+        self._root.addWidget(card)
 
     # ── Entradas (boleta por boleta) ────────────────────────────────────────
     def _build_entradas_section(self):
         card = QFrame()
-        card.setStyleSheet(_card_style())
+        card.setStyleSheet(self._card_qss())
         lay = QVBoxLayout(card)
-        lay.setContentsMargins(16, 14, 16, 16)
-        hdr = QLabel("Efectivo que entró (boleta por boleta)")
+        lay.setContentsMargins(20, 18, 20, 20)
+        lay.setSpacing(10)
+
+        top = QHBoxLayout()
+        hdr = QLabel("Plata que entró, una por una")
         hdr.setStyleSheet(
-            f"color:{TEXT}; font-size:17px; font-weight:700; border:none;"
+            f"color:{TEXT}; font-size:18px; font-weight:800; border:none;"
         )
-        lay.addWidget(hdr)
-        sub = QLabel(
-            "Desde el último retiro. En Longchamps incluye los cobros en domicilio."
-            if _es_local_domicilio(self.local)
-            else "Desde el último retiro."
+        top.addWidget(hdr)
+        top.addStretch()
+        self._lbl_conteo = QLabel("")
+        self._lbl_conteo.setStyleSheet(f"color:{MUTED}; font-size:14px; border:none;")
+        top.addWidget(self._lbl_conteo)
+        lay.addLayout(top)
+
+        self._lbl_aviso = QLabel("")
+        self._lbl_aviso.setStyleSheet(f"color:{RED}; font-size:13px; border:none;")
+        self._lbl_aviso.setVisible(False)
+        lay.addWidget(self._lbl_aviso)
+
+        self._lbl_vacio = QLabel("No entró plata desde el último retiro.")
+        self._lbl_vacio.setAlignment(Qt.AlignCenter)
+        self._lbl_vacio.setStyleSheet(
+            f"color:{MUTED}; font-size:15px; border:none; padding:34px;"
         )
-        sub.setStyleSheet(f"color:{MUTED}; font-size:12px; border:none;")
-        lay.addWidget(sub)
+        self._lbl_vacio.setVisible(False)
+        lay.addWidget(self._lbl_vacio)
 
         self._tabla = QTableWidget(0, 6)
         self._tabla.setHorizontalHeaderLabels(
-            ["Fecha", "N° / Tipo", "Cliente", "Forma", "Monto", "Comprobante"]
+            ["Cuándo", "Boleta", "Cliente", "Cómo pagó", "Monto", ""]
         )
-        self._tabla.setStyleSheet(self._table_style())
-        self._tabla.verticalHeader().setVisible(False)
-        self._tabla.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._tabla.setSelectionMode(QTableWidget.NoSelection)
+        self._aplicar_estilo_tabla(self._tabla, alto_fila=46)
         h = self._tabla.horizontalHeader()
         h.setSectionResizeMode(2, QHeaderView.Stretch)
         for i in (0, 1, 3, 4, 5):
             h.setSectionResizeMode(i, QHeaderView.ResizeToContents)
-        self._tabla.setMinimumHeight(280)
+        self._tabla.setMinimumHeight(300)
         lay.addWidget(self._tabla)
         self._root.addWidget(card)
 
     # ── Gastos ──────────────────────────────────────────────────────────────
     def _build_gastos_section(self):
         card = QFrame()
-        card.setStyleSheet(_card_style())
+        card.setStyleSheet(self._card_qss())
         lay = QVBoxLayout(card)
-        lay.setContentsMargins(16, 14, 16, 16)
+        lay.setContentsMargins(20, 18, 20, 20)
+        lay.setSpacing(10)
+
         top = QHBoxLayout()
+        top.setSpacing(10)
         hdr = QLabel("Gastos del turno")
         hdr.setStyleSheet(
-            f"color:{TEXT}; font-size:16px; font-weight:700; border:none;"
+            f"color:{TEXT}; font-size:18px; font-weight:800; border:none;"
         )
         top.addWidget(hdr)
+        ayuda = QLabel("(se descuentan del total)")
+        ayuda.setStyleSheet(f"color:{MUTED}; font-size:13px; border:none;")
+        top.addWidget(ayuda)
         top.addStretch()
         self._gasto_concepto = QLineEdit()
-        self._gasto_concepto.setPlaceholderText("Concepto")
-        self._gasto_concepto.setFixedWidth(220)
-        self._gasto_concepto.setStyleSheet(self._input_style())
+        self._gasto_concepto.setPlaceholderText("En qué se gastó")
+        self._gasto_concepto.setFixedWidth(240)
+        self._gasto_concepto.setStyleSheet(self._input_qss())
         self._gasto_monto = QLineEdit()
         self._gasto_monto.setPlaceholderText("Monto")
-        self._gasto_monto.setFixedWidth(110)
-        self._gasto_monto.setStyleSheet(self._input_style())
-        add = QPushButton("+ Agregar")
+        self._gasto_monto.setFixedWidth(130)
+        self._gasto_monto.setStyleSheet(self._input_qss())
+        self._gasto_monto.textEdited.connect(
+            lambda _t: self._formatear_campo(self._gasto_monto)
+        )
+        add = QPushButton("+  Agregar")
         add.setCursor(Qt.PointingHandCursor)
-        add.setStyleSheet(self._btn_style(CARD, TEXT))
+        add.setStyleSheet(self._btn(CARD, GREEN))
         add.clicked.connect(self._on_add_gasto)
         top.addWidget(self._gasto_concepto)
         top.addWidget(self._gasto_monto)
         top.addWidget(add)
         lay.addLayout(top)
+
         self._gastos_box = QVBoxLayout()
+        self._gastos_box.setSpacing(6)
         lay.addLayout(self._gastos_box)
         self._root.addWidget(card)
 
     # ── Historial ───────────────────────────────────────────────────────────
     def _build_historial_section(self):
         card = QFrame()
-        card.setStyleSheet(_card_style())
+        card.setStyleSheet(self._card_qss())
         lay = QVBoxLayout(card)
-        lay.setContentsMargins(16, 14, 16, 16)
-        hdr = QLabel("Historial de retiros")
+        lay.setContentsMargins(20, 18, 20, 20)
+        lay.setSpacing(10)
+        hdr = QLabel("Retiros anteriores")
         hdr.setStyleSheet(
-            f"color:{TEXT}; font-size:16px; font-weight:700; border:none;"
+            f"color:{TEXT}; font-size:18px; font-weight:800; border:none;"
         )
         lay.addWidget(hdr)
+
         self._tabla_hist = QTableWidget(0, 5)
         self._tabla_hist.setHorizontalHeaderLabels(
-            ["Fecha", "Quién retiró", "Local", "Retiró", "Dejó"]
+            ["Cuándo", "Quién retiró", "Local", "Se llevó", "Dejó en caja"]
         )
-        self._tabla_hist.setStyleSheet(self._table_style())
-        self._tabla_hist.verticalHeader().setVisible(False)
-        self._tabla_hist.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._tabla_hist.setSelectionMode(QTableWidget.NoSelection)
+        self._aplicar_estilo_tabla(self._tabla_hist, alto_fila=42)
         hh = self._tabla_hist.horizontalHeader()
         hh.setSectionResizeMode(1, QHeaderView.Stretch)
         for i in (0, 2, 3, 4):
             hh.setSectionResizeMode(i, QHeaderView.ResizeToContents)
-        self._tabla_hist.setMinimumHeight(180)
+        self._tabla_hist.setMinimumHeight(200)
         lay.addWidget(self._tabla_hist)
         self._root.addWidget(card)
 
@@ -296,79 +363,120 @@ class RetirarDineroWindow(QMainWindow):
             efectivo = vm.get_cash_earned_since(self.local, last_dt)
         except Exception:
             efectivo = 0.0
-        entradas = []
         try:
             entradas = list(vm.get_cash_entries_since(self.local, last_dt))
         except Exception:
-            logger.exception("Error cargando entradas de efectivo")
+            entradas = []
 
         domicilio_total = 0.0
+        viejos_cant, viejos_monto = 0, 0.0
         if _es_local_domicilio(self.local):
             try:
                 for c in vm.get_domicilio_pagos_pending():
                     monto = float(c.get("monto_productos") or c.get("monto") or 0)
+                    creado = c.get("created_at")
+                    # Solo lo cobrado DESPUES del ultimo retiro.
+                    if last_dt and str(creado or "") <= str(last_dt):
+                        viejos_cant += 1
+                        viejos_monto += monto
+                        continue
                     domicilio_total += monto
                     entradas.append(
                         {
                             "venta_id": c.get("venta_id"),
                             "_pago_id": c.get("id"),
                             "numero_venta": c.get("numero_venta"),
-                            "fecha": c.get("fecha") or c.get("created_at"),
+                            "fecha": creado or c.get("fecha"),
                             "cliente": (c.get("cliente_nombre") or "").strip(),
-                            "forma_pago": "Cobro domicilio",
+                            "forma_pago": "Cobro en domicilio",
                             "monto": monto,
                             "origen": "domicilio",
                         }
                     )
             except Exception:
-                logger.exception("Error cargando cobros en domicilio")
+                pass
 
         gastos = self._gastos_pendientes_total()
         efectivo_neto = max(0.0, efectivo - gastos)
         total = efectivo_neto + domicilio_total
         self._entradas = entradas
+        self._total_disponible = total
 
-        self._card_efectivo.set_value(_fmt(efectivo_neto), GREEN)
+        # ── Hero ──
+        self._lbl_total.setText(_fmt(total))
+        self._lbl_desde.setText(
+            f"Desde el último retiro ({_fmt_fecha(last_dt)})"
+            if last_dt
+            else "Desde el principio (todavía no se hizo ningún retiro)"
+        )
+        partes = [f"Efectivo en caja: <b>{_fmt(efectivo)}</b>"]
         if _es_local_domicilio(self.local):
-            self._card_domicilio.set_value(_fmt(domicilio_total), GOLD)
-        self._card_total.set_value(_fmt(total), GOLD)
+            partes.append(f"Cobros en domicilio: <b>{_fmt(domicilio_total)}</b>")
+        if gastos > 0:
+            partes.append(f"<span style='color:{RED}'>Gastos: −{_fmt(gastos)}</span>")
+        self._lbl_desglose.setText("　·　".join(partes))
+        self._btn_retirar.setEnabled(total > 0)
 
+        # ── Aviso de cobros viejos sin retirar (para que no desaparezcan) ──
+        if viejos_cant:
+            self._lbl_aviso.setText(
+                f"⚠  Hay {viejos_cant} cobro(s) en domicilio anteriores al último "
+                f"retiro que siguen sin retirar por {_fmt(viejos_monto)}."
+            )
+            self._lbl_aviso.setVisible(True)
+        else:
+            self._lbl_aviso.setVisible(False)
+
+        # ── Tabla ──
         self._tabla.setRowCount(0)
         for e in entradas:
             self._add_entrada_row(e)
+        hay = len(entradas) > 0
+        self._tabla.setVisible(hay)
+        self._lbl_vacio.setVisible(not hay)
+        self._lbl_conteo.setText(
+            f"{len(entradas)} comprobante(s)  ·  {_fmt(total)}" if hay else ""
+        )
 
     def _add_entrada_row(self, e: dict):
         r = self._tabla.rowCount()
         self._tabla.insertRow(r)
-        fecha = str(e.get("fecha") or "")[:16]
         es_dom = e.get("origen") == "domicilio"
-        tipo = "Domicilio" if es_dom else str(e.get("numero_venta") or "")
-        cols = [
-            fecha,
-            tipo,
+        venta_id = e.get("venta_id")
+        # El numero de venta es un codigo largo e ilegible: mostramos el numero
+        # corto y dejamos el completo en el globito, por si hay que buscarlo.
+        corto = f"#{venta_id}" if venta_id else "-"
+        vals = [
+            _fmt_fecha(e.get("fecha")),
+            corto,
             e.get("cliente") or "-",
             e.get("forma_pago") or "",
             _fmt(e.get("monto")),
         ]
-        for i, val in enumerate(cols):
+        for i, val in enumerate(vals):
             it = QTableWidgetItem(str(val))
+            if i == 1:
+                completo = str(e.get("numero_venta") or "").strip()
+                if completo:
+                    it.setToolTip(f"Boleta Nº {completo}")
             if i == 4:
-                it.setForeground(Qt.green if not es_dom else Qt.yellow)
                 it.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                f = it.font()
+                f.setBold(True)
+                it.setFont(f)
             self._tabla.setItem(r, i, it)
 
-        venta_id = e.get("venta_id")
         cell = QWidget()
         cl = QHBoxLayout(cell)
-        cl.setContentsMargins(4, 2, 4, 2)
-        cl.setSpacing(6)
+        cl.setContentsMargins(6, 4, 6, 4)
+        cl.setSpacing(8)
         b_bol = QPushButton("Boleta")
         b_bol.setCursor(Qt.PointingHandCursor)
-        b_bol.setStyleSheet(self._btn_style(CARD, TEXT, small=True))
+        b_bol.setStyleSheet(self._btn(BG, TEXT, chico=True))
         b_bol.clicked.connect(lambda _=False, v=venta_id: self._ver_boleta(v))
         b_rem = QPushButton("Remito")
         b_rem.setCursor(Qt.PointingHandCursor)
-        b_rem.setStyleSheet(self._btn_style(CARD, TEXT, small=True))
+        b_rem.setStyleSheet(self._btn(BG, TEXT, chico=True))
         b_rem.clicked.connect(lambda _=False, v=venta_id: self._ver_remito(v))
         cl.addWidget(b_bol)
         cl.addWidget(b_rem)
@@ -385,22 +493,30 @@ class RetirarDineroWindow(QMainWindow):
         except Exception:
             gastos = []
         if not gastos:
-            lbl = QLabel("Sin gastos cargados hoy.")
-            lbl.setStyleSheet(f"color:{MUTED}; font-size:13px; border:none;")
+            lbl = QLabel("No se cargó ningún gasto hoy.")
+            lbl.setStyleSheet(f"color:{MUTED}; font-size:14px; border:none;")
             self._gastos_box.addWidget(lbl)
             return
         for g in gastos:
-            row = QWidget()
+            row = QFrame()
+            row.setStyleSheet(
+                f"QFrame {{ background:{BG}; border:1px solid {BORDER};"
+                f" border-radius:10px; }}"
+            )
             rl = QHBoxLayout(row)
-            rl.setContentsMargins(0, 2, 0, 2)
-            txt = QLabel(f"{g.get('concepto', '')}  —  {_fmt(g.get('monto'))}")
-            txt.setStyleSheet(f"color:{TEXT}; font-size:13px; border:none;")
+            rl.setContentsMargins(14, 8, 10, 8)
+            txt = QLabel(str(g.get("concepto") or ""))
+            txt.setStyleSheet(f"color:{TEXT}; font-size:14px; border:none;")
             rl.addWidget(txt)
             rl.addStretch()
-            btn = QPushButton("✕")
-            btn.setFixedWidth(34)
+            monto = QLabel(f"−{_fmt(g.get('monto'))}")
+            monto.setStyleSheet(
+                f"color:{RED}; font-size:15px; font-weight:800; border:none;"
+            )
+            rl.addWidget(monto)
+            btn = QPushButton("Borrar")
             btn.setCursor(Qt.PointingHandCursor)
-            btn.setStyleSheet(self._btn_style(CARD, RED, small=True))
+            btn.setStyleSheet(self._btn(CARD, RED, chico=True))
             btn.clicked.connect(
                 lambda _=False, gid=g.get("id"): self._on_delete_gasto(gid)
             )
@@ -417,7 +533,7 @@ class RetirarDineroWindow(QMainWindow):
             r = self._tabla_hist.rowCount()
             self._tabla_hist.insertRow(r)
             vals = [
-                str(w.get("fecha") or "")[:16],
+                _fmt_fecha(w.get("fecha")),
                 w.get("usuario") or "-",
                 w.get("local") or "",
                 _fmt(w.get("retirado")),
@@ -427,19 +543,24 @@ class RetirarDineroWindow(QMainWindow):
                 it = QTableWidgetItem(str(val))
                 if i in (3, 4):
                     it.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                    f = it.font()
+                    f.setBold(True)
+                    it.setFont(f)
                 self._tabla_hist.setItem(r, i, it)
 
     # ── Acciones ────────────────────────────────────────────────────────────
+    def _formatear_campo(self, campo: QLineEdit):
+        """Mientras escribe, va poniendo el punto cada tres numeros."""
+        valor = _a_numero(campo.text())
+        campo.blockSignals(True)
+        campo.setText(_fmt_num(valor) if valor else "")
+        campo.blockSignals(False)
+
     def _on_add_gasto(self):
         concepto = self._gasto_concepto.text().strip()
-        try:
-            monto = float(
-                str(self._gasto_monto.text()).replace(".", "").replace(",", ".")
-            )
-        except Exception:
-            monto = 0.0
+        monto = _a_numero(self._gasto_monto.text())
         if not concepto or monto <= 0:
-            QMessageBox.warning(self, "Gasto", "Poné un concepto y un monto válido.")
+            QMessageBox.warning(self, "Gasto", "Escribí en qué se gastó y cuánto fue.")
             return
         if ccm.add_gasto(self.local, self.username, concepto, monto):
             self._gasto_concepto.clear()
@@ -454,34 +575,43 @@ class RetirarDineroWindow(QMainWindow):
 
     def _pedir_password(self) -> bool:
         pwd_real = vm.get_cash_withdraw_password()
-        pwd, ok = self._input_password()
-        if not ok:
-            return False
-        if (pwd or "").strip() != (pwd_real or "").strip():
-            QMessageBox.warning(self, "Retirar dinero", "Contraseña incorrecta.")
-            return False
-        return True
-
-    def _input_password(self):
         dlg = QDialog(self)
         dlg.setWindowTitle("Contraseña")
         dlg.setStyleSheet(
             f"QDialog {{ background:{CARD}; }} QLabel {{ color:{TEXT}; }}"
         )
         lay = QVBoxLayout(dlg)
-        lay.addWidget(QLabel("Ingresá la contraseña para retirar:"))
+        lay.setContentsMargins(24, 22, 24, 20)
+        lay.setSpacing(12)
+        t = QLabel("Contraseña para retirar")
+        t.setStyleSheet(f"color:{GOLD}; font-size:18px; font-weight:800;")
+        lay.addWidget(t)
         edit = QLineEdit()
         edit.setEchoMode(QLineEdit.Password)
-        edit.setStyleSheet(self._input_style())
+        edit.setMinimumWidth(280)
+        edit.setStyleSheet(self._input_qss())
         lay.addWidget(edit)
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.button(QDialogButtonBox.Ok).setText("Continuar")
+        bb.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        bb.button(QDialogButtonBox.Ok).setStyleSheet(self._btn(GOLD, "#171717"))
+        bb.button(QDialogButtonBox.Cancel).setStyleSheet(self._btn(CARD, TEXT))
         bb.accepted.connect(dlg.accept)
         bb.rejected.connect(dlg.reject)
         lay.addWidget(bb)
-        ok = dlg.exec() == QDialog.Accepted
-        return edit.text(), ok
+        if dlg.exec() != QDialog.Accepted:
+            return False
+        if (edit.text() or "").strip() != (pwd_real or "").strip():
+            QMessageBox.warning(self, "Retirar dinero", "Contraseña incorrecta.")
+            return False
+        return True
 
     def _on_retirar(self):
+        if self._total_disponible <= 0:
+            QMessageBox.information(
+                self, "Retirar dinero", "No hay plata para retirar."
+            )
+            return
         if not self._pedir_password():
             return
         datos = self._dialogo_retiro()
@@ -489,7 +619,6 @@ class RetirarDineroWindow(QMainWindow):
             return
         retiro, dejado = datos
 
-        # Marcar cobros en domicilio como retirados (Longchamps)
         dom_ids = [
             e.get("_pago_id")
             for e in self._entradas
@@ -499,7 +628,7 @@ class RetirarDineroWindow(QMainWindow):
             try:
                 vm.retirar_domicilio_pagos(dom_ids, self.username)
             except Exception:
-                logger.exception("Error retirando cobros domicilio")
+                pass
 
         ok, msg = vm.add_cash_withdrawal(
             self.local, retiro, self.username, dejado=dejado
@@ -507,58 +636,75 @@ class RetirarDineroWindow(QMainWindow):
         if ok:
             QMessageBox.information(
                 self,
-                "Retirar dinero",
-                f"Retiro registrado.\nRetirado: {_fmt(retiro)}\nDejado en caja: {_fmt(dejado)}",
+                "Listo",
+                f"Retiro registrado.\n\nSe llevó: {_fmt(retiro)}\n"
+                f"Quedó en caja: {_fmt(dejado)}",
             )
             self._refresh()
         else:
             QMessageBox.warning(self, "Retirar dinero", f"No se pudo registrar:\n{msg}")
 
     def _dialogo_retiro(self):
-        try:
-            total = float(
-                self._card_total._val.text().replace("$", "").replace(".", "") or 0
-            )
-        except Exception:
-            total = 0.0
+        total = float(self._total_disponible or 0)
         dlg = QDialog(self)
         dlg.setWindowTitle("Retirar dinero")
+        dlg.setMinimumWidth(420)
         dlg.setStyleSheet(
             f"QDialog {{ background:{CARD}; }} QLabel {{ color:{TEXT}; }}"
         )
-        form = QFormLayout(dlg)
-        info = QLabel(f"Disponible: {_fmt(total)}")
-        info.setStyleSheet(f"color:{GOLD}; font-size:16px; font-weight:700;")
-        form.addRow(info)
-        e_ret = QLineEdit(str(int(total)))
-        e_ret.setStyleSheet(self._input_style())
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(26, 24, 26, 22)
+        lay.setSpacing(8)
+
+        cap = QLabel("HAY EN CAJA")
+        cap.setStyleSheet(
+            f"color:{MUTED}; font-size:12px; font-weight:800; letter-spacing:1px;"
+        )
+        lay.addWidget(cap)
+        disp = QLabel(_fmt(total))
+        disp.setStyleSheet(f"color:{GOLD}; font-size:34px; font-weight:800;")
+        lay.addWidget(disp)
+        lay.addSpacing(12)
+
+        l1 = QLabel("¿Cuánto te llevás?")
+        l1.setStyleSheet(f"color:{TEXT}; font-size:15px; font-weight:700;")
+        lay.addWidget(l1)
+        e_ret = QLineEdit(_fmt_num(total))
+        e_ret.setStyleSheet(self._input_qss(grande=True))
+        lay.addWidget(e_ret)
+
+        l2 = QLabel("¿Cuánto dejás en la caja?")
+        l2.setStyleSheet(f"color:{TEXT}; font-size:15px; font-weight:700;")
+        lay.addWidget(l2)
         e_dej = QLineEdit("0")
-        e_dej.setStyleSheet(self._input_style())
-        form.addRow("Cuánto retirás ($)", e_ret)
-        form.addRow("Cuánto dejás ($)", e_dej)
+        e_dej.setStyleSheet(self._input_qss(grande=True))
+        lay.addWidget(e_dej)
+
+        e_ret.textEdited.connect(lambda _t: self._formatear_campo(e_ret))
+        e_dej.textEdited.connect(lambda _t: self._formatear_campo(e_dej))
+
+        lay.addSpacing(14)
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.button(QDialogButtonBox.Ok).setText("Confirmar retiro")
+        bb.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        bb.button(QDialogButtonBox.Ok).setStyleSheet(self._btn(GOLD, "#171717"))
+        bb.button(QDialogButtonBox.Cancel).setStyleSheet(self._btn(CARD, TEXT))
         bb.accepted.connect(dlg.accept)
         bb.rejected.connect(dlg.reject)
-        form.addRow(bb)
+        lay.addWidget(bb)
+
         if dlg.exec() != QDialog.Accepted:
             return None
-
-        def _num(s):
-            try:
-                return float(str(s).replace(".", "").replace(",", "."))
-            except Exception:
-                return 0.0
-
-        retiro = _num(e_ret.text())
-        dejado = _num(e_dej.text())
+        retiro = _a_numero(e_ret.text())
+        dejado = _a_numero(e_dej.text())
         if retiro <= 0:
-            QMessageBox.warning(
-                self, "Retirar dinero", "El monto a retirar debe ser mayor a 0."
-            )
+            QMessageBox.warning(self, "Retirar dinero", "Poné cuánto te llevás.")
             return None
         if retiro > total + 1:
             QMessageBox.warning(
-                self, "Retirar dinero", "No podés retirar más de lo disponible."
+                self,
+                "Retirar dinero",
+                f"No podés llevarte más de lo que hay en caja ({_fmt(total)}).",
             )
             return None
         return retiro, dejado
@@ -572,7 +718,7 @@ class RetirarDineroWindow(QMainWindow):
         try:
             ok, res = vm.generar_pdf_boleta(int(venta_id))
             if ok:
-                self._open_pdf_path(res)
+                self._open_pdf(res)
             else:
                 QMessageBox.warning(self, "Boleta", res)
         except Exception as e:
@@ -587,13 +733,13 @@ class RetirarDineroWindow(QMainWindow):
         try:
             ok, res = vm.generar_pdf_remito(int(venta_id))
             if ok:
-                self._open_pdf_path(res)
+                self._open_pdf(res)
             else:
                 QMessageBox.warning(self, "Remito", res)
         except Exception as e:
             QMessageBox.warning(self, "Remito", f"No se pudo abrir el remito:\n{e}")
 
-    def _open_pdf_path(self, filepath: str):
+    def _open_pdf(self, filepath: str):
         try:
             if filepath and os.path.exists(filepath):
                 os.startfile(filepath)  # Windows
@@ -606,28 +752,47 @@ class RetirarDineroWindow(QMainWindow):
 
     # ── Estilos ─────────────────────────────────────────────────────────────
     @staticmethod
-    def _btn_style(bg: str, fg: str, big: bool = False, small: bool = False) -> str:
-        pad = "12px 22px" if big else ("4px 10px" if small else "8px 14px")
-        fs = "17px" if big else ("12px" if small else "14px")
+    def _card_qss() -> str:
+        return (
+            f"QFrame {{ background:{CARD}; border:1px solid {BORDER};"
+            f" border-radius:16px; }}"
+        )
+
+    @staticmethod
+    def _btn(bg: str, fg: str, chico: bool = False) -> str:
+        pad = "6px 14px" if chico else "10px 20px"
+        fs = "13px" if chico else "15px"
         return (
             f"QPushButton {{ background:{bg}; color:{fg}; border:1px solid {BORDER};"
             f" border-radius:10px; padding:{pad}; font-size:{fs}; font-weight:700; }}"
-            f"QPushButton:hover {{ border:1px solid {GOLD}; }}"
+            f"QPushButton:hover {{ border:1px solid {GOLD}; color:{GOLD}; }}"
         )
 
     @staticmethod
-    def _input_style() -> str:
+    def _input_qss(grande: bool = False) -> str:
+        fs = "20px" if grande else "14px"
+        pad = "12px 14px" if grande else "8px 12px"
+        peso = "800" if grande else "500"
         return (
             f"QLineEdit {{ background:{BG}; color:{TEXT}; border:1px solid {BORDER};"
-            f" border-radius:8px; padding:7px 10px; font-size:14px; }}"
+            f" border-radius:10px; padding:{pad}; font-size:{fs};"
+            f" font-weight:{peso}; }}"
+            f"QLineEdit:focus {{ border:1px solid {GOLD}; }}"
         )
 
-    @staticmethod
-    def _table_style() -> str:
-        return (
-            f"QTableWidget {{ background:{BG}; color:{TEXT}; border:none;"
-            f" gridline-color:{BORDER}; }}"
+    def _aplicar_estilo_tabla(self, tabla: QTableWidget, alto_fila: int = 44):
+        tabla.setStyleSheet(
+            f"QTableWidget {{ background:{BG}; color:{TEXT}; border:1px solid {BORDER};"
+            f" border-radius:12px; gridline-color:transparent;"
+            f" alternate-background-color:{ROW_ALT}; font-size:14px; }}"
             f"QHeaderView::section {{ background:{CARD}; color:{MUTED};"
-            f" border:none; padding:8px; font-weight:700; }}"
-            f"QTableWidget::item {{ padding:6px; }}"
+            f" border:none; border-bottom:1px solid {BORDER}; padding:10px 12px;"
+            f" font-weight:800; font-size:13px; }}"
+            f"QTableWidget::item {{ padding:8px 12px; border:none; }}"
         )
+        tabla.setAlternatingRowColors(True)
+        tabla.verticalHeader().setVisible(False)
+        tabla.verticalHeader().setDefaultSectionSize(alto_fila)
+        tabla.setEditTriggers(QTableWidget.NoEditTriggers)
+        tabla.setSelectionMode(QTableWidget.NoSelection)
+        tabla.setShowGrid(False)
