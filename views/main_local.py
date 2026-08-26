@@ -925,11 +925,11 @@ class LocalWindow(QMainWindow):
 
     def open_cierre_caja(self):
         self._open_view(
-            "cierre_caja",
-            "Cierre de caja",
+            "retirar_dinero",
+            "Retirar dinero",
             lambda: __import__(
-                "views.cierre_caja_view", fromlist=["CierreCajaWindow"]
-            ).CierreCajaWindow(
+                "views.retirar_dinero_view", fromlist=["RetirarDineroWindow"]
+            ).RetirarDineroWindow(
                 self.username, self.role, self.local, back_command=self.on_back
             ),
         )

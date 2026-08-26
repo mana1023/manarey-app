@@ -209,8 +209,8 @@ class AdminWindow(QMainWindow):
             ),
             (
                 "💰",
-                "Cierre de caja",
-                "Cierre de turno, gastos y cuadre de efectivo.",
+                "Retirar dinero",
+                "Efectivo que entró, boleta por boleta, y retiros.",
                 "#4ade80",
                 self.open_cierre_caja,
             ),
@@ -633,18 +633,18 @@ class AdminWindow(QMainWindow):
 
     def open_cierre_caja(self):
         try:
-            from views.cierre_caja_view import CierreCajaWindow
+            from views.retirar_dinero_view import RetirarDineroWindow
 
-            win = CierreCajaWindow(
+            win = RetirarDineroWindow(
                 self.username,
                 self.role,
                 self.local or "Todos",
                 back_command=self._back_to_menu,
             )
-            self._push_view(win, "Cierre de caja")
+            self._push_view(win, "Retirar dinero")
         except Exception as e:
             QMessageBox.critical(
-                self, "Error", f"No se pudo abrir cierre de caja:\n{e}"
+                self, "Error", f"No se pudo abrir retirar dinero:\n{e}"
             )
 
     def open_clientes(self):

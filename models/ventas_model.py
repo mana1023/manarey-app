@@ -1186,6 +1186,20 @@ def ensure_cash_withdrawals_schema() -> Tuple[bool, str]:
                 )
             """
             )
+        # 'dejado' = cuanto efectivo dejo en la caja el que retiro (residual).
+        # Se agrega aparte para no romper instalaciones con la tabla ya creada.
+        if is_postgres():
+            cur.execute(
+                "ALTER TABLE cash_withdrawals "
+                "ADD COLUMN IF NOT EXISTS dejado NUMERIC DEFAULT 0"
+            )
+        else:
+            try:
+                cur.execute(
+                    "ALTER TABLE cash_withdrawals ADD COLUMN dejado REAL DEFAULT 0"
+                )
+            except Exception:
+                pass  # ya existe
         conn.commit()
         _CASH_SCHEMA_OK = True
         return True, "OK"
@@ -2143,7 +2157,9 @@ def get_domicilio_retirados_since(since_dt: Optional[str] = None) -> float:
             pass
 
 
-def add_cash_withdrawal(local: str, amount: float, usuario: str) -> Tuple[bool, str]:
+def add_cash_withdrawal(
+    local: str, amount: float, usuario: str, dejado: float = 0.0
+) -> Tuple[bool, str]:
     try:
         ok, msg = ensure_cash_withdrawals_schema()
         if not ok:
@@ -2152,12 +2168,14 @@ def add_cash_withdrawal(local: str, amount: float, usuario: str) -> Tuple[bool, 
         cur = conn.cursor()
         ph = "%s" if is_postgres() else "?"
         cur.execute(
-            f"INSERT INTO cash_withdrawals (local, amount, usuario, created_at) VALUES ({ph},{ph},{ph},{ph})",
+            f"INSERT INTO cash_withdrawals (local, amount, usuario, created_at, dejado) "
+            f"VALUES ({ph},{ph},{ph},{ph},{ph})",
             (
                 (local or "").strip(),
                 float(amount or 0),
                 (usuario or "").strip(),
                 _now_local(),
+                float(dejado or 0),
             ),
         )
         conn.commit()
@@ -2170,6 +2188,143 @@ def add_cash_withdrawal(local: str, amount: float, usuario: str) -> Tuple[bool, 
         except Exception:
             pass
         return False, str(e)
+    finally:
+        try:
+            if "conn" in locals() and conn:
+                put_conn(conn)
+        except Exception:
+            pass
+
+
+def get_cash_entries_since(
+    local: str, since_dt: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Detalle BOLETA POR BOLETA del efectivo cobrado en `local` desde `since_dt`.
+
+    Mismo criterio que get_cash_earned_since (efectivo real, sin ventas
+    canceladas ni tipo_pago='domicilio'), pero devuelve una fila por venta con
+    el efectivo cobrado en ella. La suma de 'monto' coincide con el total.
+    """
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        ph = "%s" if is_postgres() else "?"
+
+        has_vp = False
+        try:
+            if is_postgres():
+                cur.execute("SELECT to_regclass('venta_pagos')")
+                r = cur.fetchone()
+                has_vp = bool(r and r[0])
+            else:
+                cur.execute(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type='table' AND name='venta_pagos'"
+                )
+                has_vp = cur.fetchone() is not None
+        except Exception:
+            try:
+                if is_postgres():
+                    conn.rollback()
+            except Exception:
+                pass
+
+        local_filter, params_local = "", []
+        if local and local not in ("Todos", "Todos los locales"):
+            local_filter = f" AND v.local = {ph}"
+            params_local.append(local)
+        date_filter, params_date = "", []
+        if since_dt:
+            date_filter = f" AND v.fecha > {ph}"
+            params_date.append(str(since_dt))
+
+        base = (
+            " AND v.estado IN ('completada','cancelada')"
+            " AND LOWER(TRIM(COALESCE(v.tipo_pago,''))) != 'domicilio'"
+            " AND v.estado != 'cancelada'"
+        )
+
+        if has_vp:
+            sql = (
+                "SELECT v.id, v.numero_venta, v.fecha, v.cliente_nombre, "
+                "v.forma_pago, COALESCE(SUM(vp.monto),0) AS efectivo "
+                "FROM venta_pagos vp JOIN ventas v ON v.id = vp.venta_id "
+                "WHERE LOWER(TRIM(COALESCE(vp.forma,''))) = 'efectivo'"
+                f"{base}{local_filter}{date_filter} "
+                "GROUP BY v.id, v.numero_venta, v.fecha, v.cliente_nombre, "
+                "v.forma_pago "
+                "ORDER BY v.fecha DESC"
+            )
+        else:
+            sql = (
+                "SELECT v.id, v.numero_venta, v.fecha, v.cliente_nombre, "
+                "v.forma_pago, "
+                "CASE WHEN COALESCE(v.monto_pendiente,0) > 0.009 "
+                "     THEN COALESCE(v.monto_pagado, v.total) "
+                "     ELSE v.total END AS efectivo "
+                "FROM ventas v "
+                "WHERE LOWER(TRIM(COALESCE(v.forma_pago,''))) = 'efectivo'"
+                f"{base}{local_filter}{date_filter} "
+                "ORDER BY v.fecha DESC"
+            )
+        cur.execute(sql, tuple(params_local + params_date))
+        cols = [d[0] for d in cur.description]
+        out = []
+        for row in cur.fetchall() or []:
+            rec = dict(zip(cols, row))
+            out.append(
+                {
+                    "venta_id": rec.get("id"),
+                    "numero_venta": rec.get("numero_venta"),
+                    "fecha": rec.get("fecha"),
+                    "cliente": (rec.get("cliente_nombre") or "").strip(),
+                    "forma_pago": (rec.get("forma_pago") or "").strip(),
+                    "monto": float(rec.get("efectivo") or 0),
+                    "origen": "efectivo",
+                }
+            )
+        return out
+    except Exception:
+        logger.exception("Error obteniendo detalle de efectivo por venta")
+        return []
+    finally:
+        try:
+            if "conn" in locals() and conn:
+                put_conn(conn)
+        except Exception:
+            pass
+
+
+def get_cash_withdrawals(local: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """Historial de retiros de efectivo: quien retiro, cuando, cuanto y cuanto dejo."""
+    try:
+        ok, _ = ensure_cash_withdrawals_schema()
+        if not ok:
+            return []
+        conn = get_conn()
+        cur = conn.cursor()
+        ph = "%s" if is_postgres() else "?"
+        where, params = "", []
+        if local and local not in ("Todos", "Todos los locales"):
+            where = f"WHERE local = {ph}"
+            params.append(local)
+        cur.execute(
+            f"SELECT id, local, usuario, created_at, amount, COALESCE(dejado,0) "
+            f"FROM cash_withdrawals {where} "
+            f"ORDER BY created_at DESC LIMIT {int(limit)}",
+            tuple(params),
+        )
+        cols = ["id", "local", "usuario", "fecha", "retirado", "dejado"]
+        out = []
+        for r in cur.fetchall() or []:
+            d = dict(zip(cols, r))
+            d["retirado"] = float(d.get("retirado") or 0)
+            d["dejado"] = float(d.get("dejado") or 0)
+            out.append(d)
+        return out
+    except Exception:
+        logger.exception("Error obteniendo historial de retiros")
+        return []
     finally:
         try:
             if "conn" in locals() and conn:
@@ -2969,6 +3124,17 @@ def _registrar_venta_online(
                 )
             except Exception:
                 logger.exception("Error registrando pago en domicilio post-venta")
+
+        # ── Auto-guardar cliente en tabla clientes (CRM) ─────────────────────────
+        try:
+            _nombre_c = (cliente_data.get("nombre") or "").strip()
+            _tel_c = (cliente_data.get("telefono") or "").strip()
+            if _nombre_c and _tel_c:
+                from models.clientes_model import upsert_cliente_desde_venta
+
+                upsert_cliente_desde_venta(_nombre_c, _tel_c)
+        except Exception:
+            pass  # nunca bloquea la venta
 
         # ── Notificación WhatsApp al cliente (fire-and-forget, nunca bloquea) ──
         try:
