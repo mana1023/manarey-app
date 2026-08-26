@@ -14,6 +14,7 @@ from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFrame,
@@ -390,6 +391,8 @@ class RetirarDineroWindow(QMainWindow):
                             "cliente": (c.get("cliente_nombre") or "").strip(),
                             "forma_pago": "Cobro en domicilio",
                             "monto": monto,
+                            # Un cobro en domicilio siempre viene de un envio
+                            "tiene_remito": True,
                             "origen": "domicilio",
                         }
                     )
@@ -468,18 +471,24 @@ class RetirarDineroWindow(QMainWindow):
 
         cell = QWidget()
         cl = QHBoxLayout(cell)
-        cl.setContentsMargins(6, 4, 6, 4)
+        cl.setContentsMargins(6, 5, 6, 5)
         cl.setSpacing(8)
-        b_bol = QPushButton("Boleta")
-        b_bol.setCursor(Qt.PointingHandCursor)
-        b_bol.setStyleSheet(self._btn(BG, TEXT, chico=True))
-        b_bol.clicked.connect(lambda _=False, v=venta_id: self._ver_boleta(v))
-        b_rem = QPushButton("Remito")
-        b_rem.setCursor(Qt.PointingHandCursor)
-        b_rem.setStyleSheet(self._btn(BG, TEXT, chico=True))
-        b_rem.clicked.connect(lambda _=False, v=venta_id: self._ver_remito(v))
-        cl.addWidget(b_bol)
-        cl.addWidget(b_rem)
+        if venta_id:
+            b_bol = QPushButton("Boleta")
+            b_bol.setCursor(Qt.PointingHandCursor)
+            b_bol.setMinimumHeight(30)
+            b_bol.setStyleSheet(self._btn_tabla())
+            b_bol.clicked.connect(lambda _=False, v=venta_id: self._ver_boleta(v))
+            cl.addWidget(b_bol)
+            # El remito es del envio: si la venta no lleva envio, no hay remito.
+            if e.get("tiene_remito"):
+                b_rem = QPushButton("Remito")
+                b_rem.setCursor(Qt.PointingHandCursor)
+                b_rem.setMinimumHeight(30)
+                b_rem.setStyleSheet(self._btn_tabla())
+                b_rem.clicked.connect(lambda _=False, v=venta_id: self._ver_remito(v))
+                cl.addWidget(b_rem)
+        cl.addStretch()
         self._tabla.setCellWidget(r, 5, cell)
 
     def _load_gastos(self):
@@ -617,7 +626,7 @@ class RetirarDineroWindow(QMainWindow):
         datos = self._dialogo_retiro()
         if datos is None:
             return
-        retiro, dejado = datos
+        quien, retiro, dejado = datos
 
         dom_ids = [
             e.get("_pago_id")
@@ -626,18 +635,17 @@ class RetirarDineroWindow(QMainWindow):
         ]
         if dom_ids:
             try:
-                vm.retirar_domicilio_pagos(dom_ids, self.username)
+                vm.retirar_domicilio_pagos(dom_ids, quien)
             except Exception:
                 pass
 
-        ok, msg = vm.add_cash_withdrawal(
-            self.local, retiro, self.username, dejado=dejado
-        )
+        ok, msg = vm.add_cash_withdrawal(self.local, retiro, quien, dejado=dejado)
         if ok:
             QMessageBox.information(
                 self,
                 "Listo",
-                f"Retiro registrado.\n\nSe llevó: {_fmt(retiro)}\n"
+                f"Retiro registrado.\n\nSe lo llevó: {quien}\n"
+                f"Se llevó: {_fmt(retiro)}\n"
                 f"Quedó en caja: {_fmt(dejado)}",
             )
             self._refresh()
@@ -665,6 +673,20 @@ class RetirarDineroWindow(QMainWindow):
         disp.setStyleSheet(f"color:{GOLD}; font-size:34px; font-weight:800;")
         lay.addWidget(disp)
         lay.addSpacing(12)
+
+        l0 = QLabel("¿Quién se lleva la plata?")
+        l0.setStyleSheet(f"color:{TEXT}; font-size:15px; font-weight:700;")
+        lay.addWidget(l0)
+        cb_quien = QComboBox()
+        cb_quien.setEditable(True)
+        cb_quien.setStyleSheet(self._combo_qss())
+        cb_quien.addItem("")
+        for nombre in self._nombres_conocidos():
+            cb_quien.addItem(nombre)
+        cb_quien.setCurrentText("")
+        cb_quien.lineEdit().setPlaceholderText("Nombre de quien retira")
+        lay.addWidget(cb_quien)
+        lay.addSpacing(6)
 
         l1 = QLabel("¿Cuánto te llevás?")
         l1.setStyleSheet(f"color:{TEXT}; font-size:15px; font-weight:700;")
@@ -695,8 +717,14 @@ class RetirarDineroWindow(QMainWindow):
 
         if dlg.exec() != QDialog.Accepted:
             return None
+        quien = (cb_quien.currentText() or "").strip()
         retiro = _a_numero(e_ret.text())
         dejado = _a_numero(e_dej.text())
+        if not quien:
+            QMessageBox.warning(
+                self, "Retirar dinero", "Poné el nombre de quien se lleva la plata."
+            )
+            return None
         if retiro <= 0:
             QMessageBox.warning(self, "Retirar dinero", "Poné cuánto te llevás.")
             return None
@@ -707,7 +735,20 @@ class RetirarDineroWindow(QMainWindow):
                 f"No podés llevarte más de lo que hay en caja ({_fmt(total)}).",
             )
             return None
-        return retiro, dejado
+        return quien, retiro, dejado
+
+    def _nombres_conocidos(self) -> list:
+        """Nombres ya usados antes, para no tener que escribirlos siempre."""
+        try:
+            vistos = []
+            for w in vm.get_cash_withdrawals(self.local, limit=50):
+                n = (w.get("usuario") or "").strip()
+                if n and n.lower() != (self.local or "").strip().lower():
+                    if n not in vistos:
+                        vistos.append(n)
+            return vistos[:12]
+        except Exception:
+            return []
 
     def _ver_boleta(self, venta_id):
         if not venta_id:
@@ -756,6 +797,28 @@ class RetirarDineroWindow(QMainWindow):
         return (
             f"QFrame {{ background:{CARD}; border:1px solid {BORDER};"
             f" border-radius:16px; }}"
+        )
+
+    @staticmethod
+    def _combo_qss() -> str:
+        return (
+            f"QComboBox {{ background:{BG}; color:{TEXT}; border:1px solid {BORDER};"
+            f" border-radius:10px; padding:10px 12px; font-size:16px;"
+            f" font-weight:700; }}"
+            f"QComboBox:focus {{ border:1px solid {GOLD}; }}"
+            f"QComboBox QAbstractItemView {{ background:{CARD}; color:{TEXT};"
+            f" selection-background-color:{GOLD}; selection-color:#171717; }}"
+        )
+
+    @staticmethod
+    def _btn_tabla() -> str:
+        """Botones de adentro de la tabla: tienen que LEERSE, no camuflarse
+        con el fondo de la fila."""
+        return (
+            f"QPushButton {{ background:{CARD}; color:{GOLD};"
+            f" border:1px solid {GOLD}; border-radius:8px;"
+            f" padding:4px 16px; font-size:13px; font-weight:800; }}"
+            f"QPushButton:hover {{ background:{GOLD}; color:#171717; }}"
         )
 
     @staticmethod

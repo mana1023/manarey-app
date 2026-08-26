@@ -2247,18 +2247,19 @@ def get_cash_entries_since(
         if has_vp:
             sql = (
                 "SELECT v.id, v.numero_venta, v.fecha, v.cliente_nombre, "
-                "v.forma_pago, COALESCE(SUM(vp.monto),0) AS efectivo "
+                "v.forma_pago, COALESCE(v.incluye_envio,0) AS incluye_envio, "
+                "COALESCE(SUM(vp.monto),0) AS efectivo "
                 "FROM venta_pagos vp JOIN ventas v ON v.id = vp.venta_id "
                 "WHERE LOWER(TRIM(COALESCE(vp.forma,''))) = 'efectivo'"
                 f"{base}{local_filter}{date_filter} "
                 "GROUP BY v.id, v.numero_venta, v.fecha, v.cliente_nombre, "
-                "v.forma_pago "
+                "v.forma_pago, v.incluye_envio "
                 "ORDER BY v.fecha DESC"
             )
         else:
             sql = (
                 "SELECT v.id, v.numero_venta, v.fecha, v.cliente_nombre, "
-                "v.forma_pago, "
+                "v.forma_pago, COALESCE(v.incluye_envio,0) AS incluye_envio, "
                 "CASE WHEN COALESCE(v.monto_pendiente,0) > 0.009 "
                 "     THEN COALESCE(v.monto_pagado, v.total) "
                 "     ELSE v.total END AS efectivo "
@@ -2280,6 +2281,8 @@ def get_cash_entries_since(
                     "cliente": (rec.get("cliente_nombre") or "").strip(),
                     "forma_pago": (rec.get("forma_pago") or "").strip(),
                     "monto": float(rec.get("efectivo") or 0),
+                    # Solo las ventas con envio tienen remito
+                    "tiene_remito": int(rec.get("incluye_envio") or 0) == 1,
                     "origen": "efectivo",
                 }
             )
