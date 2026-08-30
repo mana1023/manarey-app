@@ -590,7 +590,9 @@ def _is_admin(username: str) -> bool:
     try:
         with _get_conn_cm() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT role FROM usuarios WHERE username=?", (username,))
+            cur.execute(
+                _sql_ph("SELECT role FROM usuarios WHERE username=?"), (username,)
+            )
             r = cur.fetchone()
         return r and (r[0] or "").lower() == "admin"
     except Exception:
@@ -1296,16 +1298,19 @@ def flush_notifications_for_local(target_local: str, force: bool = False) -> int
             )
 
             cur.execute(
-                """
+                _sql_ph(
+                    """
                 INSERT INTO noti_messages (target_local, title, body, payload, created_at, seen)
                 VALUES (?,?,?,?,?,0)
-            """,
+            """
+                ),
                 (target_local, title, body, payload, now),
             )
 
             ids = [r[0] for r in items]
+            marcas = ",".join(["%s" if _is_postgres() else "?"] * len(ids))
             cur.execute(
-                f"UPDATE noti_buffer SET flushed=1 WHERE id IN ({','.join('?'*len(ids))})",
+                f"UPDATE noti_buffer SET flushed=1 WHERE id IN ({marcas})",
                 ids,
             )
 
@@ -1330,12 +1335,14 @@ def get_unread_notifications(local: str) -> List[dict]:
             _ensure_notif_tables(conn)
             cur = conn.cursor()
             cur.execute(
-                """
+                _sql_ph(
+                    """
                 SELECT id, title, body, payload, created_at
                 FROM noti_messages
                 WHERE target_local=? AND seen=0
                 ORDER BY created_at ASC, id ASC
-            """,
+            """
+                ),
                 (local,),
             )
             rows = cur.fetchall()
@@ -1362,8 +1369,9 @@ def mark_notifications_seen(ids: List[int]) -> None:
         with _get_conn_cm() as conn:
             _ensure_notif_tables(conn)
             cur = conn.cursor()
+            marcas = ",".join(["%s" if _is_postgres() else "?"] * len(ids))
             cur.execute(
-                f"UPDATE noti_messages SET seen=1 WHERE id IN ({','.join('?'*len(ids))})",
+                f"UPDATE noti_messages SET seen=1 WHERE id IN ({marcas})",
                 ids,
             )
             conn.commit()
