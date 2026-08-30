@@ -2,7 +2,7 @@
 !include "WinMessages.nsh"
 
 !define APP_NAME "Manarey"
-!define APP_VERSION "1.0.99"
+!define APP_VERSION "1.1.0"
 !define APP_PUBLISHER "Manarey"
 !define APP_EXE "Manarey.exe"
 !define ROOT_DIR "C:\Users\USUARIO\Desktop\Manarey"
@@ -90,6 +90,7 @@ Section "Uninstall"
   DeleteRegKey HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_NAME}"
   DeleteRegKey HKLM "Software\\${APP_NAME}"
 SectionEnd
+
 
 
 
