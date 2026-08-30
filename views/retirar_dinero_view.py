@@ -130,6 +130,7 @@ class RetirarDineroWindow(QMainWindow):
         self.back_command = back_command
         self._entradas: list = []
         self._total_disponible = 0.0
+        self._corte_al_cargar = None
 
         self.setWindowTitle(f"Retirar dinero — {local}")
         self.setMinimumSize(980, 680)
@@ -441,6 +442,7 @@ class RetirarDineroWindow(QMainWindow):
             except Exception:
                 pass
 
+        self._corte_al_cargar = vm.get_last_withdrawal_datetime(self.local)
         gastos = self._gastos_pendientes_total()
         efectivo_neto = max(0.0, efectivo - gastos)
         total = efectivo_neto + domicilio_total
@@ -682,6 +684,25 @@ class RetirarDineroWindow(QMainWindow):
         if datos is None:
             return
         quien, retiro, dejado = datos
+
+        # QUE PASA SI otro retiro entro mientras se completaba este dialogo
+        # (el jefe desde el celular, o el admin desde otra PC): el total que se
+        # mostro quedo viejo y se retiraria plata dos veces. Se vuelve a mirar.
+        if not _es_todos(self.local):
+            try:
+                corte_ahora = vm.get_last_withdrawal_datetime(self.local)
+                if str(corte_ahora or "") != str(self._corte_al_cargar or ""):
+                    QMessageBox.warning(
+                        self,
+                        "Alguien retiró recién",
+                        "Se registró otro retiro de este local mientras estabas "
+                        "en esta pantalla.\n\nSe van a actualizar los números. "
+                        "Fijate el total nuevo y volvé a intentar.",
+                    )
+                    self._refresh()
+                    return
+            except Exception:
+                pass
 
         dom_ids = [
             e.get("_pago_id")
