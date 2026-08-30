@@ -109,12 +109,17 @@ def _se_cobra_en_domicilio(venta: dict) -> bool:
     # Queda saldo por cobrar al entregar (por ejemplo, una sena)
     if _get_pending_product_amount(venta) > 0.01:
         return True
-    # Se registro un pago al completar la entrega
+    # Se registro un pago al completar. Ojo: la sena se puede completar EN EL
+    # LOCAL (el cliente vuelve y paga el resto) o AL ENTREGAR. Solo cuenta como
+    # cobro en domicilio la segunda: completar_sena() marca 'sena' y
+    # marcar_entrega() marca 'domicilio'.
     try:
-        if float(venta.get("pago_completado_monto") or 0) > 0.01:
-            return True
+        comp_monto = float(venta.get("pago_completado_monto") or 0)
     except Exception:
-        pass
+        comp_monto = 0.0
+    comp_tipo = _safe_str(venta.get("pago_completado_tipo")).lower()
+    if comp_monto > 0.01 and comp_tipo != "sena":
+        return True
     return False
 
 
