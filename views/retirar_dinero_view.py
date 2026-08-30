@@ -790,6 +790,28 @@ class RetirarDineroWindow(QMainWindow):
                 f"No podés llevarte más de lo que hay en caja ({_fmt(total)}).",
             )
             return None
+        if dejado < 0:
+            QMessageBox.warning(
+                self, "Retirar dinero", "Lo que dejás no puede ser negativo."
+            )
+            return None
+        # Cuadre: lo que se lleva + lo que deja tiene que dar lo que habia.
+        # Si no da, falta (o sobra) plata y hay que verlo AHORA, no despues.
+        diferencia = total - (retiro + dejado)
+        if abs(diferencia) > 1:
+            falta = diferencia > 0
+            resp = QMessageBox.question(
+                self,
+                "Las cuentas no cierran",
+                f"En la caja había {_fmt(total)}.\n"
+                f"Te llevás {_fmt(retiro)} y dejás {_fmt(dejado)}.\n\n"
+                f"{'FALTAN' if falta else 'SOBRAN'} {_fmt(abs(diferencia))}.\n\n"
+                "¿Registrar el retiro igual?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if resp != QMessageBox.Yes:
+                return None
         return quien, retiro, dejado
 
     def _nombres_conocidos(self) -> list:
