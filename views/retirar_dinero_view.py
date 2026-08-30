@@ -57,7 +57,12 @@ GREEN = "#4ade80"
 RED = "#f87171"
 ROW_ALT = "#15151c"
 
+LOCALES = ["Longchamps", "Cane", "Estacion", "Glew", "Vidriera"]
 _LOCAL_DOMICILIO = "Longchamps"
+
+
+def _es_todos(local: str) -> bool:
+    return (local or "").strip().lower() in ("", "todos", "todos los locales")
 
 
 def _es_local_domicilio(local: str) -> bool:
@@ -174,12 +179,25 @@ class RetirarDineroWindow(QMainWindow):
         row.addLayout(titulo_box)
         row.addStretch()
 
+        if _es_todos(self.local):
+            self._sel_local = QComboBox()
+            self._sel_local.setStyleSheet(self._combo_qss())
+            self._sel_local.addItem("Todos los locales")
+            for loc in LOCALES:
+                self._sel_local.addItem(loc)
+            self._sel_local.currentIndexChanged.connect(self._cambiar_local)
+            row.addWidget(self._sel_local)
+
         refresh = QPushButton("↻  Actualizar")
         refresh.setCursor(Qt.PointingHandCursor)
         refresh.setStyleSheet(self._btn(CARD, TEXT))
         refresh.clicked.connect(self._refresh)
         row.addWidget(refresh)
         self._root.addLayout(row)
+
+    def _cambiar_local(self, idx: int):
+        self.local = "Todos" if idx == 0 else LOCALES[idx - 1]
+        self._refresh()
 
     # ── Hero: el total grande y el boton de retirar ─────────────────────────
     def _build_hero(self):
@@ -365,19 +383,30 @@ class RetirarDineroWindow(QMainWindow):
             return 0.0
 
     def _load_entradas(self):
+        # En modo "Todos" hay que sumar CADA local con su propio ultimo retiro:
+        # usar un solo corte global daba un total mucho menor que el real.
+        locales = LOCALES if _es_todos(self.local) else [self.local]
         last_dt = vm.get_last_withdrawal_datetime(self.local)
-        try:
-            efectivo = vm.get_cash_earned_since(self.local, last_dt)
-        except Exception:
-            efectivo = 0.0
-        try:
-            entradas = list(vm.get_cash_entries_since(self.local, last_dt))
-        except Exception:
-            entradas = []
+        efectivo = 0.0
+        entradas = []
+        for loc in locales:
+            corte = vm.get_last_withdrawal_datetime(loc)
+            try:
+                efectivo += vm.get_cash_earned_since(loc, corte)
+            except Exception:
+                pass
+            try:
+                for e in vm.get_cash_entries_since(loc, corte):
+                    if _es_todos(self.local):
+                        e = dict(e, cliente=f"{e.get('cliente') or '-'}  ·  {loc}")
+                    entradas.append(e)
+            except Exception:
+                pass
 
         domicilio_total = 0.0
         viejos_cant, viejos_monto = 0, 0.0
-        if _es_local_domicilio(self.local):
+        if _es_local_domicilio(self.local) or _es_todos(self.local):
+            last_dt = vm.get_last_withdrawal_datetime(_LOCAL_DOMICILIO)
             try:
                 for c in vm.get_domicilio_pagos_pending():
                     monto = float(c.get("monto_productos") or c.get("monto") or 0)
@@ -417,18 +446,29 @@ class RetirarDineroWindow(QMainWindow):
 
         # ── Hero ──
         self._lbl_total.setText(_fmt(total))
-        self._lbl_desde.setText(
-            f"Desde el último retiro ({_fmt_fecha(last_dt)})"
-            if last_dt
-            else "Desde el principio (todavía no se hizo ningún retiro)"
-        )
+        if _es_todos(self.local):
+            self._lbl_desde.setText(
+                "Los 5 locales sumados, cada uno desde su último retiro"
+            )
+        elif last_dt:
+            self._lbl_desde.setText(f"Desde el último retiro ({_fmt_fecha(last_dt)})")
+        else:
+            self._lbl_desde.setText(
+                "Desde el principio (todavía no se hizo ningún retiro)"
+            )
         partes = [f"Efectivo en caja: <b>{_fmt(efectivo)}</b>"]
-        if _es_local_domicilio(self.local):
+        if _es_local_domicilio(self.local) or _es_todos(self.local):
             partes.append(f"Cobros en domicilio: <b>{_fmt(domicilio_total)}</b>")
         if gastos > 0:
             partes.append(f"<span style='color:{RED}'>Gastos: −{_fmt(gastos)}</span>")
         self._lbl_desglose.setText("　·　".join(partes))
-        self._btn_retirar.setEnabled(total > 0)
+        if _es_todos(self.local):
+            # No se puede retirar de los 5 locales a la vez: hay que elegir uno.
+            self._btn_retirar.setEnabled(False)
+            self._btn_retirar.setText("Elegí un local")
+        else:
+            self._btn_retirar.setEnabled(total > 0)
+            self._btn_retirar.setText("Retirar dinero")
 
         # ── Aviso de cobros viejos sin retirar (para que no desaparezcan) ──
         if viejos_cant:
