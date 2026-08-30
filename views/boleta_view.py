@@ -3638,18 +3638,11 @@ class BoletaView(QMainWindow):
             if incluye_envio and hasattr(self, "entrega_programada_cb")
             else ""
         )
-        # El envio se COBRA al entregar (domicilio) solo cuando el pago queda
-        # pendiente para la casa: pago en domicilio, o sena (se cobra el resto al
-        # entregar). Si se pago todo en el local (completo) o por financiera
-        # (credito personal), el envio ya esta pagado en el local. Marcarlo
-        # "domicilio" siempre hacia figurar cobros en domicilio fantasma y por eso
-        # parecia faltar dinero.
-        if not incluye_envio:
-            forma_pago_envio = ""
-        elif tipo_pago in ("domicilio", "sena"):
-            forma_pago_envio = "domicilio"
-        else:
-            forma_pago_envio = "local"
+        # OJO: el total de la venta NUNCA incluye el precio del envio (ver
+        # _current_total: total = total_base). El flete se le cobra al cliente
+        # cuando se le entrega, aunque haya pagado todo lo demas en el local.
+        # Por eso el envio se marca "domicilio" siempre que haya envio.
+        forma_pago_envio = "domicilio" if incluye_envio else ""
         desc_tipo, desc_val = self._get_descuento_info()
         descuento_tipo = None
         if desc_val > 0 and not getattr(self, "_credito_personal_mode", False):
