@@ -1663,7 +1663,8 @@ def get_domicilio_pagos_pending(search: str = "") -> List[Dict[str, Any]]:
                 COALESCE(v.remito_impreso, 0) AS remito_impreso,
                 COALESCE(v.precio_envio, 0) AS precio_envio,
                 COALESCE(v.forma_pago_envio, '') AS forma_pago_envio,
-                COALESCE(v.entrega_entregado, 0) AS entregada
+                COALESCE(v.entrega_entregado, 0) AS entregada,
+                COALESCE(v.estado, '') AS venta_estado
             FROM domicilio_pagos dp
             LEFT JOIN ventas v ON v.id = dp.venta_id
             WHERE COALESCE(dp.retirado, 0) = 0

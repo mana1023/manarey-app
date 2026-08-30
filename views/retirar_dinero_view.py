@@ -411,6 +411,9 @@ class RetirarDineroWindow(QMainWindow):
                 for c in vm.get_domicilio_pagos_pending():
                     monto = float(c.get("monto_productos") or c.get("monto") or 0)
                     creado = c.get("created_at")
+                    # Una venta cancelada no tiene plata para retirar.
+                    if str(c.get("venta_estado") or "").lower() == "cancelada":
+                        continue
                     # El registro se crea al VENDER, pero esa plata se cobra
                     # recien al ENTREGAR: si todavia no se entrego, no esta.
                     if not int(c.get("entregada") or 0):
