@@ -560,8 +560,9 @@ class CheckoutDialog(QDialog):
                 f"{method1} + {method2} + {self.method3_cb.currentText()}"
             )
             notas = (
-                f"Pago dividido: {method1}=${amount1}, {method2}=${amount2}, "
-                f"{self.method3_cb.currentText()}=${remainder}"
+                f"Pago dividido: {method1}=${_fmt_money(amount1)}, "
+                f"{method2}=${_fmt_money(amount2)}, "
+                f"{self.method3_cb.currentText()}=${_fmt_money(remainder)}"
             )
         else:
             remainder = int(total) - int(amount1)
@@ -570,7 +571,10 @@ class CheckoutDialog(QDialog):
                 {"forma": method2, "monto": float(remainder)},
             ]
             forma_pago_label = f"{method1} + {method2}"
-            notas = f"Pago dividido: {method1}=${amount1}, {method2}=${remainder}"
+            notas = (
+                f"Pago dividido: {method1}=${_fmt_money(amount1)}, "
+                f"{method2}=${_fmt_money(remainder)}"
+            )
 
         incluye_envio = 1 if self.shipping_cb.isChecked() else 0
         envio = int(self.shipping_spin.value() or 0) if incluye_envio else 0
@@ -3512,16 +3516,17 @@ class BoletaView(QMainWindow):
                 if monto2 > 0:
                     pagos.append({"forma": "Credito personal", "monto": float(monto2)})
                 notas = (
-                    f"Pago dividido credito personal: {forma1}=${monto1}, Credito personal=${monto2}"
+                    f"Pago dividido credito personal: {forma1}=${_fmt_money(monto1)}, "
+                    f"Credito personal=${_fmt_money(monto2)}"
                     if monto1 > 0 and forma1
-                    else f"Credito personal=${monto2}"
+                    else f"Credito personal=${_fmt_money(monto2)}"
                 )
             else:
                 # Credito personal sin pago dividido: no queda pendiente
                 monto_pagado = 0.0
                 monto_pendiente = 0.0
                 pagos = [{"forma": "Credito personal", "monto": float(total)}]
-                notas = f"Credito personal=${int(total)}"
+                notas = f"Credito personal=${_fmt_money(total)}"
         else:
             if not forma_pago:
                 QMessageBox.warning(self, "Pago", "Selecciona un metodo de pago.")
@@ -3610,8 +3615,9 @@ class BoletaView(QMainWindow):
                     ]
                     forma_pago = f"{forma_pago} + {method2} + {method3}"
                     notas = (
-                        f"Pago dividido: {pagos[0]['forma']}=${monto1}, "
-                        f"{pagos[1]['forma']}=${monto2_manual}, {pagos[2]['forma']}=${monto_resto}"
+                        f"Pago dividido: {pagos[0]['forma']}=${_fmt_money(monto1)}, "
+                        f"{pagos[1]['forma']}=${_fmt_money(monto2_manual)}, "
+                        f"{pagos[2]['forma']}=${_fmt_money(monto_resto)}"
                     )
                 else:
                     monto2 = int(total) - int(monto1)
@@ -3620,7 +3626,10 @@ class BoletaView(QMainWindow):
                         {"forma": method2, "monto": float(monto2)},
                     ]
                     forma_pago = f"{forma_pago} + {method2}"
-                    notas = f"Pago dividido: {pagos[0]['forma']}=${monto1}, {pagos[1]['forma']}=${monto2}"
+                    notas = (
+                        f"Pago dividido: {pagos[0]['forma']}=${_fmt_money(monto1)}, "
+                        f"{pagos[1]['forma']}=${_fmt_money(monto2)}"
+                    )
             else:
                 pagos = [
                     {

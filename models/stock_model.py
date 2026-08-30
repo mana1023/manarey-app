@@ -564,11 +564,13 @@ def _find_product(
             medida_norm = _norm_medida(medida)
             material_norm = (material or "").strip().lower()
             cur.execute(
-                """
+                _sql_ph(
+                    """
                 SELECT id, cantidad, precio_venta FROM productos
                 WHERE nombre=? AND COALESCE(material,'')=COALESCE(?,'') AND categoria=? AND COALESCE(medida,'')=COALESCE(?,'')
                     AND estado=? AND COALESCE(color,'')=COALESCE(?,'') AND local=?
-            """,
+            """
+                ),
                 (
                     nombre,
                     material_norm,
@@ -742,7 +744,8 @@ def mark_queue_item_done(qid: int) -> bool:
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            "UPDATE op_queue SET status=2, attempts=attempts+1 WHERE id=?", (qid,)
+            _sql_ph("UPDATE op_queue SET status=2, attempts=attempts+1 WHERE id=?"),
+            (qid,),
         )
         conn.commit()
         return True
@@ -769,7 +772,9 @@ def mark_queue_item_failed(qid: int, error: str) -> bool:
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            "UPDATE op_queue SET status=3, attempts=attempts+1, last_error=? WHERE id=?",
+            _sql_ph(
+                "UPDATE op_queue SET status=3, attempts=attempts+1, last_error=? WHERE id=?"
+            ),
             (str(error), qid),
         )
         conn.commit()
@@ -797,11 +802,13 @@ def mark_queue_item_retry(qid: int, error: str, attempts: int) -> bool:
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            """
+            _sql_ph(
+                """
             UPDATE op_queue 
             SET status=0, attempts=?, last_error=? 
             WHERE id=?
-        """,
+        """
+            ),
             (attempts, str(error), qid),
         )
         conn.commit()
@@ -829,7 +836,9 @@ def get_queue_items(limit: int = 50) -> list:
             cur = conn.cursor()
             _ensure_op_queue_table(conn)
             cur.execute(
-                "SELECT id, op_type, payload, attempts, created_at FROM op_queue WHERE status=0 ORDER BY created_at ASC LIMIT ?",
+                _sql_ph(
+                    "SELECT id, op_type, payload, attempts, created_at FROM op_queue WHERE status=0 ORDER BY created_at ASC LIMIT ?"
+                ),
                 (limit,),
             )
             rows = cur.fetchall()
@@ -864,7 +873,9 @@ def get_queue_all_items(limit: int = 200) -> list:
             cur = conn.cursor()
             _ensure_op_queue_table(conn)
             cur.execute(
-                "SELECT id, op_type, payload, attempts, status, last_error, created_at FROM op_queue ORDER BY created_at ASC LIMIT ?",
+                _sql_ph(
+                    "SELECT id, op_type, payload, attempts, status, last_error, created_at FROM op_queue ORDER BY created_at ASC LIMIT ?"
+                ),
                 (limit,),
             )
             rows = cur.fetchall()
@@ -901,7 +912,9 @@ def retry_queue_item(qid: int) -> bool:
             cur = conn.cursor()
             _ensure_op_queue_table(conn)
             cur.execute(
-                "UPDATE op_queue SET status=0, attempts=0, last_error=NULL WHERE id=?",
+                _sql_ph(
+                    "UPDATE op_queue SET status=0, attempts=0, last_error=NULL WHERE id=?"
+                ),
                 (qid,),
             )
             conn.commit()
@@ -917,7 +930,7 @@ def remove_queue_item(qid: int) -> bool:
         with _get_conn_cm() as conn:
             cur = conn.cursor()
             _ensure_op_queue_table(conn)
-            cur.execute("DELETE FROM op_queue WHERE id=?", (qid,))
+            cur.execute(_sql_ph("DELETE FROM op_queue WHERE id=?"), (qid,))
             conn.commit()
         return True
     except Exception as e:
@@ -934,7 +947,9 @@ def process_queue_once(limit: int = 20) -> int:
             _ensure_op_queue_table(conn)
             # Seleccionar items pendientes
             cur.execute(
-                "SELECT id, op_type, payload, attempts FROM op_queue WHERE status=0 ORDER BY created_at ASC LIMIT ?",
+                _sql_ph(
+                    "SELECT id, op_type, payload, attempts FROM op_queue WHERE status=0 ORDER BY created_at ASC LIMIT ?"
+                ),
                 (limit,),
             )
             rows = cur.fetchall()
@@ -952,7 +967,7 @@ def process_queue_once(limit: int = 20) -> int:
             # Marcar como processing
             try:
                 cur.execute(
-                    "UPDATE op_queue SET status=1, attempts=? WHERE id=?",
+                    _sql_ph("UPDATE op_queue SET status=1, attempts=? WHERE id=?"),
                     (attempts + 1, qid),
                 )
                 conn.commit()
@@ -1074,18 +1089,24 @@ def process_queue_once(limit: int = 20) -> int:
 
             try:
                 if success:
-                    cur.execute("UPDATE op_queue SET status=2 WHERE id=?", (qid,))
+                    cur.execute(
+                        _sql_ph("UPDATE op_queue SET status=2 WHERE id=?"), (qid,)
+                    )
                 else:
                     # falló: incrementar attempts y marcar failed si ya superó 5 intentos
                     attempts_new = attempts + 1
                     if attempts_new >= 5:
                         cur.execute(
-                            "UPDATE op_queue SET status=3, last_error=? WHERE id=?",
+                            _sql_ph(
+                                "UPDATE op_queue SET status=3, last_error=? WHERE id=?"
+                            ),
                             (last_err, qid),
                         )
                     else:
                         cur.execute(
-                            "UPDATE op_queue SET status=0, attempts=?, last_error=? WHERE id=?",
+                            _sql_ph(
+                                "UPDATE op_queue SET status=0, attempts=?, last_error=? WHERE id=?"
+                            ),
                             (attempts_new, last_err, qid),
                         )
                 conn.commit()
@@ -1386,7 +1407,9 @@ def get_product_names(local: str = None) -> List[str]:
             cur = conn.cursor()
             if local:
                 cur.execute(
-                    "SELECT DISTINCT nombre FROM productos WHERE local=? ORDER BY nombre ASC",
+                    _sql_ph(
+                        "SELECT DISTINCT nombre FROM productos WHERE local=? ORDER BY nombre ASC"
+                    ),
                     (local,),
                 )
             else:
@@ -1617,12 +1640,14 @@ def create_combo(
             now = _now_local()
             if isinstance(conn, sqlite3.Connection):
                 cur.execute(
-                    """
+                    _sql_ph(
+                        """
                     INSERT INTO productos
                     (nombre, categoria, medida, estado, color, cantidad, precio_costo, precio_venta, local,
                      codigo, descripcion, fabricante, material, created_at, updated_at, is_combo)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)
-                    """,
+                    """
+                    ),
                     (
                         nombre,
                         categoria,
@@ -2422,12 +2447,14 @@ def sync_combo_across_locals(
                 # crear combo en el local
                 if isinstance(conn, sqlite3.Connection):
                     cur.execute(
-                        """
+                        _sql_ph(
+                            """
                         INSERT INTO productos
                         (nombre, categoria, medida, estado, color, cantidad, precio_costo, precio_venta, local,
                          codigo, descripcion, fabricante, material, created_at, updated_at, is_combo)
                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)
-                        """,
+                        """
+                        ),
                         (
                             combo_name,
                             combo_categoria,
@@ -2579,12 +2606,14 @@ def sync_combos_for_local(local: str) -> None:
             now = _now_local()
             if isinstance(conn, sqlite3.Connection):
                 cur.execute(
-                    """
+                    _sql_ph(
+                        """
                     INSERT INTO productos
                     (nombre, categoria, medida, estado, color, cantidad, precio_costo, precio_venta, local,
                      codigo, descripcion, fabricante, material, created_at, updated_at, is_combo)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)
-                    """,
+                    """
+                    ),
                     (
                         combo_name,
                         combo_categoria,
@@ -4330,14 +4359,16 @@ def update_stock_quantity(
         # `increment_stock` que hace un UPDATE atómico.
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT cantidad FROM productos WHERE id=?", (producto_id,))
+        cur.execute(
+            _sql_ph("SELECT cantidad FROM productos WHERE id=?"), (producto_id,)
+        )
         row = cur.fetchone()
         if not row:
             return False, "Producto no encontrado"
         old_qty = int(row[0] or 0)
         delta = int(new_qty) - old_qty
         cur.execute(
-            "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+            _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
             (int(new_qty), _now_local(), producto_id),
         )
         if (detalle or "").lower().startswith("baja") or (delta < 0 and motivo):
@@ -4353,11 +4384,13 @@ def update_stock_quantity(
         if _is_admin(usuario):
             meta["by_admin"] = True
         cur.execute(
-            """
+            _sql_ph(
+                """
             INSERT INTO historial_stock
                 (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone)
             VALUES (?, 'ajuste', ?, ?, ?, ?, ?, ?, ?, 0)
-        """,
+        """
+            ),
             (
                 producto_id,
                 accion,
@@ -4409,11 +4442,15 @@ def increment_stock(
         cur = conn.cursor()
         # UPDATE atómico
         cur.execute(
-            "UPDATE productos SET cantidad = COALESCE(cantidad,0) + ?, updated_at=? WHERE id=?",
+            _sql_ph(
+                "UPDATE productos SET cantidad = COALESCE(cantidad,0) + ?, updated_at=? WHERE id=?"
+            ),
             (delta, _now_local(), producto_id),
         )
         # Obtener cantidad resultante
-        cur.execute("SELECT cantidad, local FROM productos WHERE id=?", (producto_id,))
+        cur.execute(
+            _sql_ph("SELECT cantidad, local FROM productos WHERE id=?"), (producto_id,)
+        )
         row = cur.fetchone()
         if not row:
             return False, "Producto no encontrado"
@@ -4430,11 +4467,13 @@ def increment_stock(
             meta["by_admin"] = True
 
         cur.execute(
-            """
+            _sql_ph(
+                """
             INSERT INTO historial_stock
                 (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-        """,
+        """
+            ),
             (
                 producto_id,
                 accion,
@@ -4491,7 +4530,7 @@ def transfer_stock(
 
         # Verificar stock origen
         cur.execute(
-            "SELECT cantidad FROM productos WHERE id=? AND local=?",
+            _sql_ph("SELECT cantidad FROM productos WHERE id=? AND local=?"),
             (prod_id, from_local),
         )
         r = cur.fetchone()
@@ -4504,7 +4543,7 @@ def transfer_stock(
         # Salida en origen
         new_qty_origen = old_qty_origen - cantidad
         cur.execute(
-            "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+            _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
             (new_qty_origen, _now_local(), prod_id),
         )
 
@@ -4526,7 +4565,7 @@ def transfer_stock(
             )
             new_qty_dest = old_qty_dest + cantidad
             cur.execute(
-                "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+                _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
                 (new_qty_dest, _now_local(), dest_id),
             )
             prod_id_dest = dest_id
@@ -4534,11 +4573,13 @@ def transfer_stock(
             # Normalizar medida al crear nuevo producto destino
             medida_norm = _norm_medida(medida)
             cur.execute(
-                """
+                _sql_ph(
+                    """
                 INSERT INTO productos
                     (nombre, material, categoria, medida, estado, color, cantidad, precio_costo, precio_venta, local, created_at, updated_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-            """,
+            """
+                ),
                 (
                     nombre,
                     (row.get("material") or "").strip().lower(),
@@ -4577,11 +4618,13 @@ def transfer_stock(
             meta_in["by_admin"] = True
 
         cur.execute(
-            """
+            _sql_ph(
+                """
             INSERT INTO historial_stock
                 (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone, grupo_id)
             VALUES (?, 'transferencia', 'salida a '||?, ?, ?, ?, ?, '', ?, 0, ?)
-        """,
+        """
+            ),
             (
                 prod_id,
                 to_local,
@@ -4595,11 +4638,13 @@ def transfer_stock(
         )
 
         cur.execute(
-            """
+            _sql_ph(
+                """
             INSERT INTO historial_stock
                 (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone, grupo_id)
             VALUES (?, 'transferencia', 'entrada desde '||?, ?, ?, ?, ?, '', ?, 0, ?)
-        """,
+        """
+            ),
             (
                 prod_id_dest,
                 from_local,
@@ -4743,7 +4788,9 @@ def split_stock_estado(
     try:
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT cantidad, estado FROM productos WHERE id=?", (producto_id,))
+        cur.execute(
+            _sql_ph("SELECT cantidad, estado FROM productos WHERE id=?"), (producto_id,)
+        )
         row = cur.fetchone()
         if not row:
             return False, "Producto no encontrado"
@@ -4754,25 +4801,29 @@ def split_stock_estado(
 
         nueva_cantidad_origen = cantidad_actual - cantidad
         cur.execute(
-            "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+            _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
             (nueva_cantidad_origen, _now_local(), producto_id),
         )
 
         cur.execute(
-            """
+            _sql_ph(
+                """
             SELECT nombre, categoria, medida, precio_costo, precio_venta, local, color
             FROM productos WHERE id=?
-        """,
+        """
+            ),
             (producto_id,),
         )
         prod_info = cur.fetchone()
 
         cur.execute(
-            """
+            _sql_ph(
+                """
             INSERT INTO productos
                 (nombre, categoria, medida, precio_costo, precio_venta, cantidad, estado, color, local, created_at, updated_at)
             VALUES (?,?,?,?,?,?,?,?,?,?,?)
-        """,
+        """
+            ),
             (
                 prod_info[0],
                 prod_info[1],
@@ -4809,11 +4860,13 @@ def split_stock_estado(
             meta_entrada["by_admin"] = True
 
         cur.execute(
-            """
+            _sql_ph(
+                """
             INSERT INTO historial_stock
                 (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone, grupo_id)
             VALUES (?, 'cambio_estado', ?, ?, ?, ?, ?, ?, ?, 0, ?)
-        """,
+        """
+            ),
             (
                 producto_id,
                 f"salida de estado: {estado_actual} → {nuevo_estado}",
@@ -4827,11 +4880,13 @@ def split_stock_estado(
             ),
         )
         cur.execute(
-            """
+            _sql_ph(
+                """
             INSERT INTO historial_stock
                 (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone, grupo_id)
             VALUES (?, 'cambio_estado', ?, ?, ?, ?, ?, ?, ?, 0, ?)
-        """,
+        """
+            ),
             (
                 nuevo_producto_id,
                 f"entrada a estado: {estado_actual} → {nuevo_estado}",
@@ -4872,10 +4927,12 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            """
+            _sql_ph(
+                """
             SELECT id,producto_id,accion,detalle,cantidad,usuario,local,created_at,undone,grupo_id,meta
             FROM historial_stock WHERE id=?
-        """,
+        """
+            ),
             (entry_id,),
         )
         row = cur.fetchone()
@@ -4911,7 +4968,7 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
             horas = 0.0
         if horas > 24.0:
             return False, "Solo se puede deshacer dentro de 24 horas"
-        cur.execute("SELECT role FROM usuarios WHERE username=?", (username,))
+        cur.execute(_sql_ph("SELECT role FROM usuarios WHERE username=?"), (username,))
         role_row = cur.fetchone()
         role = role_row[0] if role_row else ""
         if cantidad is not None and abs(int(cantidad or 0)) > 20 and role != "admin":
@@ -4927,7 +4984,7 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
         if accion in ("ingreso", "baja") or (
             accion == "ajuste" and cantidad is not None
         ):
-            cur.execute("SELECT cantidad FROM productos WHERE id=?", (pid,))
+            cur.execute(_sql_ph("SELECT cantidad FROM productos WHERE id=?"), (pid,))
             current_row = cur.fetchone()
             if not current_row:
                 return False, "Producto no existe actualmente"
@@ -4935,7 +4992,7 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
             inverse_delta = -int(cantidad or 0)
             new_qty = max(0, current_qty + inverse_delta)
             cur.execute(
-                "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+                _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
                 (new_qty, _now_local(), pid),
             )
             _touch_update(conn, pid)
@@ -4965,12 +5022,14 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
             if grupo_id:
                 # Caso B: hay grupo de dos partes (salida -m y entrada +m)
                 cur.execute(
-                    """
+                    _sql_ph(
+                        """
                     SELECT id,producto_id,cantidad,meta
                     FROM historial_stock
                     WHERE grupo_id=? AND accion='cambio_estado'
                     ORDER BY id ASC
-                """,
+                """
+                    ),
                     (grupo_id,),
                 )
                 parts = cur.fetchall()
@@ -4996,18 +5055,22 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
 
                 moved = abs(int(delta_a))
                 # devolvemos las unidades al producto origen
-                cur.execute("SELECT cantidad FROM productos WHERE id=?", (pid_a,))
+                cur.execute(
+                    _sql_ph("SELECT cantidad FROM productos WHERE id=?"), (pid_a,)
+                )
                 row_ori = cur.fetchone()
                 if not row_ori:
                     return False, "Producto origen no existe para revertir"
                 qty_ori = int(row_ori[0] or 0)
                 cur.execute(
-                    "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+                    _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
                     (qty_ori + moved, _now_local(), pid_a),
                 )
 
                 # restamos al producto destino
-                cur.execute("SELECT cantidad FROM productos WHERE id=?", (pid_b,))
+                cur.execute(
+                    _sql_ph("SELECT cantidad FROM productos WHERE id=?"), (pid_b,)
+                )
                 row_dst = cur.fetchone()
                 if not row_dst:
                     return False, "Producto destino no existe para revertir"
@@ -5018,17 +5081,19 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
                         f"Stock insuficiente en destino para revertir. Disponible: {qty_dst}",
                     )
                 cur.execute(
-                    "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+                    _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
                     (qty_dst - moved, _now_local(), pid_b),
                 )
 
                 # marcamos ambas filas del grupo como deshechas
                 cur.execute(
-                    """
+                    _sql_ph(
+                        """
                     UPDATE historial_stock
                     SET undone=1, undone_by=?, undone_at=?
                     WHERE grupo_id=?
-                """,
+                """
+                    ),
                     (username, _now_local(), grupo_id),
                 )
 
@@ -5064,11 +5129,13 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
                 cur.execute(f"UPDATE productos SET {', '.join(sets)} WHERE id=?", vals)
 
                 cur.execute(
-                    """
+                    _sql_ph(
+                        """
                     UPDATE historial_stock
                     SET undone=1, undone_by=?, undone_at=?
                     WHERE id=?
-                """,
+                """
+                    ),
                     (username, _now_local(), _id),
                 )
 
@@ -5077,10 +5144,12 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
 
         elif accion == "transferencia" and grupo_id:
             cur.execute(
-                """
+                _sql_ph(
+                    """
                 SELECT id,producto_id,cantidad FROM historial_stock
                 WHERE grupo_id=? AND accion='transferencia' ORDER BY id ASC
-            """,
+            """
+                ),
                 (grupo_id,),
             )
             parts = cur.fetchall()
@@ -5097,7 +5166,7 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
                     delta_a,
                 )
             moved = abs(int(delta_a))
-            cur.execute("SELECT cantidad FROM productos WHERE id=?", (pid_b,))
+            cur.execute(_sql_ph("SELECT cantidad FROM productos WHERE id=?"), (pid_b,))
             dest_row = cur.fetchone()
             if not dest_row:
                 return False, "Producto destino no existe"
@@ -5107,24 +5176,26 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
                     False,
                     f"Stock insuficiente en destino para revertir. Disponible: {qty_dest}",
                 )
-            cur.execute("SELECT cantidad FROM productos WHERE id=?", (pid_a,))
+            cur.execute(_sql_ph("SELECT cantidad FROM productos WHERE id=?"), (pid_a,))
             qty_ori = int(cur.fetchone()[0])
             cur.execute(
-                "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+                _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
                 (qty_ori + moved, _now_local(), pid_a),
             )
             cur.execute(
-                "UPDATE productos SET cantidad=?, updated_at=? WHERE id=?",
+                _sql_ph("UPDATE productos SET cantidad=?, updated_at=? WHERE id=?"),
                 (qty_dest - moved, _now_local(), pid_b),
             )
             _touch_update(conn, pid_a)
             _touch_update(conn, pid_b)
             cur.execute(
-                """
+                _sql_ph(
+                    """
                 UPDATE historial_stock
                 SET undone=1, undone_by=?, undone_at=?
                 WHERE grupo_id=?
-            """,
+            """
+                ),
                 (username, _now_local(), grupo_id),
             )
             conn.commit()
@@ -5134,11 +5205,13 @@ def undo_historial_entry(entry_id: int, username: str) -> Tuple[bool, str]:
             return False, f"Tipo de movimiento '{accion}' no es reversible"
 
         cur.execute(
-            """
+            _sql_ph(
+                """
             UPDATE historial_stock
             SET undone=1, undone_by=?, undone_at=?
             WHERE id=?
-        """,
+        """
+            ),
             (username, _now_local(), entry_id),
         )
         conn.commit()
@@ -5515,7 +5588,9 @@ def _compat_increment_stock(
     try:
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT cantidad FROM productos WHERE id=?", (producto_id,))
+        cur.execute(
+            _sql_ph("SELECT cantidad FROM productos WHERE id=?"), (producto_id,)
+        )
         r = cur.fetchone()
         if not r:
             return False, "Producto no encontrado"
@@ -5596,11 +5671,13 @@ def _compat_add_or_increment(
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            """
+            _sql_ph(
+                """
             INSERT INTO productos
                 (nombre, material, categoria, medida, estado, color, cantidad, precio_costo, precio_venta, local, created_at, updated_at)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-        """,
+        """
+            ),
             (
                 nombre_norm,
                 (material or "").strip().lower(),
@@ -5725,10 +5802,12 @@ def add_or_increment_v2(
         with _get_conn_cm() as conn:
             cur = conn.cursor()
             cur.execute(
-                """
+                _sql_ph(
+                    """
                 SELECT id, cantidad FROM productos
                 WHERE nombre=? AND IFNULL(material,'')=? AND categoria=? AND IFNULL(medida,'')=? AND estado=? AND IFNULL(color,'')=? AND local=?
-            """,
+            """
+                ),
                 (
                     nombre,
                     material_norm,
@@ -5746,7 +5825,9 @@ def add_or_increment_v2(
                 if force_update:
                     new_qty = old_qty + int(cantidad)
                     cur.execute(
-                        "UPDATE productos SET cantidad=?, precio_costo=?, precio_venta=?, updated_at=? WHERE id=?",
+                        _sql_ph(
+                            "UPDATE productos SET cantidad=?, precio_costo=?, precio_venta=?, updated_at=? WHERE id=?"
+                        ),
                         (
                             new_qty,
                             int(precio_costo),
@@ -5757,11 +5838,13 @@ def add_or_increment_v2(
                     )
                     meta = {"old_qty": old_qty, "new_qty": new_qty}
                     cur.execute(
-                        """
+                        _sql_ph(
+                            """
                         INSERT INTO historial_stock
                             (producto_id, accion, detalle, cantidad, usuario, local, created_at, motivo, meta, undone)
                         VALUES (?, 'ajuste', ?, ?, ?, ?, ?, ?, ?, 0)
-                    """,
+                    """
+                        ),
                         (
                             pid,
                             f"incremento por add_or_increment (force)",
@@ -5780,11 +5863,13 @@ def add_or_increment_v2(
 
             # Insertar nuevo producto y registrar historial
             cur.execute(
-                """
+                _sql_ph(
+                    """
                 INSERT INTO productos
                     (nombre, material, categoria, medida, estado, color, cantidad, precio_costo, precio_venta, local, created_at, updated_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-            """,
+            """
+                ),
                 (
                     nombre,
                     material_norm,
