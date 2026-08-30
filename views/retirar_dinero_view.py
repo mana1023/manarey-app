@@ -270,8 +270,14 @@ class RetirarDineroWindow(QMainWindow):
         self._aplicar_estilo_tabla(self._tabla, alto_fila=46)
         h = self._tabla.horizontalHeader()
         h.setSectionResizeMode(2, QHeaderView.Stretch)
-        for i in (0, 1, 3, 4, 5):
+        for i in (0, 1, 3, 4):
             h.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+        # La columna de botones va con ancho fijo: si se calcula por contenido
+        # queda angosta y corta el texto de los botones.
+        h.setSectionResizeMode(5, QHeaderView.Fixed)
+        # Tiene que entrar "Boleta" + "Remito" sin cortarse. Ojo: el padding
+        # de la celda (24px) se descuenta del ancho util.
+        self._tabla.setColumnWidth(5, 285)
         self._tabla.setMinimumHeight(300)
         lay.addWidget(self._tabla)
         self._root.addWidget(card)
@@ -475,12 +481,14 @@ class RetirarDineroWindow(QMainWindow):
 
         cell = QWidget()
         cl = QHBoxLayout(cell)
-        cl.setContentsMargins(6, 5, 6, 5)
+        cl.setContentsMargins(4, 5, 8, 5)
         cl.setSpacing(8)
+        cl.addStretch()
         if venta_id:
             b_bol = QPushButton("Boleta")
             b_bol.setCursor(Qt.PointingHandCursor)
             b_bol.setMinimumHeight(30)
+            b_bol.setMinimumWidth(b_bol.sizeHint().width())
             b_bol.setStyleSheet(self._btn_tabla())
             b_bol.clicked.connect(lambda _=False, v=venta_id: self._ver_boleta(v))
             cl.addWidget(b_bol)
@@ -489,10 +497,10 @@ class RetirarDineroWindow(QMainWindow):
                 b_rem = QPushButton("Remito")
                 b_rem.setCursor(Qt.PointingHandCursor)
                 b_rem.setMinimumHeight(30)
+                b_rem.setMinimumWidth(b_rem.sizeHint().width())
                 b_rem.setStyleSheet(self._btn_tabla())
                 b_rem.clicked.connect(lambda _=False, v=venta_id: self._ver_remito(v))
                 cl.addWidget(b_rem)
-        cl.addStretch()
         self._tabla.setCellWidget(r, 5, cell)
 
     def _load_gastos(self):
