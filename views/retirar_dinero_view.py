@@ -294,7 +294,7 @@ class RetirarDineroWindow(QMainWindow):
         self._lbl_aviso.setVisible(False)
         lay.addWidget(self._lbl_aviso)
 
-        self._lbl_vacio = QLabel("No hubo ventas desde el último retiro.")
+        self._lbl_vacio = QLabel("No entró efectivo desde el último retiro.")
         self._lbl_vacio.setAlignment(Qt.AlignCenter)
         self._lbl_vacio.setStyleSheet(
             f"color:{MUTED}; font-size:15px; border:none; padding:34px;"
@@ -442,10 +442,18 @@ class RetirarDineroWindow(QMainWindow):
             except Exception:
                 pass
             try:
-                # TODAS las ventas, no solo las de efectivo: el jefe quiere ver
-                # todo lo que se vendio desde el ultimo retiro, y cuanto de eso
-                # entra de verdad a la caja.
+                # Ventas desde el ultimo retiro, con cuanto de cada una entra
+                # de verdad a la caja.
                 for e in vm.get_sales_since(loc, corte):
+                    # Solo lo que tuvo EFECTIVO (el jefe no quiere ver las
+                    # ventas con tarjeta, QR o transferencia en la caja). Las
+                    # mixtas quedan, porque parte entro a la caja. Una venta
+                    # cancelada queda solo si habia tenido efectivo.
+                    if e.get("origen") == "cancelada":
+                        if float(e.get("efectivo_cancelado") or 0) <= 0.009:
+                            continue
+                    elif float(e.get("efectivo") or 0) <= 0.009:
+                        continue
                     if _es_todos(self.local):
                         e = dict(e, cliente=f"{e.get('cliente') or '-'}  ·  {loc}")
                     entradas.append(e)
@@ -634,7 +642,7 @@ class RetirarDineroWindow(QMainWindow):
         )
         envios_n = sum(1 for e in entradas if e.get("origen") == "domicilio")
         entro_ahora = max(0.0, total - quedo_antes)
-        texto = f"{ventas_n} venta(s) desde el último retiro  ·  "
+        texto = f"{ventas_n} venta(s) en efectivo desde el último retiro  ·  "
         if envios_n:
             texto += f"{envios_n} cobro(s) de envío  ·  "
         texto += f"entró a la caja {_fmt(entro_ahora)}"
