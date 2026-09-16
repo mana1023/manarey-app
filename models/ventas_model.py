@@ -2300,6 +2300,105 @@ def get_cash_entries_since(
             pass
 
 
+def get_sales_since(local: str, since_dt: Optional[str] = None) -> List[Dict[str, Any]]:
+    """TODAS las ventas del local desde `since_dt`, no solo las de efectivo.
+
+    Sirve para que en la pantalla de retirar se vea todo lo que se vendio desde
+    el ultimo retiro, marcando cuanto de cada venta fue EFECTIVO (lo unico que
+    se puede sacar de la caja). Las ventas a cobrar en domicilio no entran: esas
+    aparecen aparte cuando se entregan.
+    """
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        ph = "%s" if is_postgres() else "?"
+
+        has_vp = False
+        try:
+            if is_postgres():
+                cur.execute("SELECT to_regclass('venta_pagos')")
+                r = cur.fetchone()
+                has_vp = bool(r and r[0])
+            else:
+                cur.execute(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type='table' AND name='venta_pagos'"
+                )
+                has_vp = cur.fetchone() is not None
+        except Exception:
+            try:
+                if is_postgres():
+                    conn.rollback()
+            except Exception:
+                pass
+
+        local_filter, params_local = "", []
+        if local and local not in ("Todos", "Todos los locales"):
+            local_filter = f" AND v.local = {ph}"
+            params_local.append(local)
+        date_filter, params_date = "", []
+        if since_dt:
+            date_filter = f" AND v.fecha > {ph}"
+            params_date.append(str(since_dt))
+
+        base = (
+            " WHERE v.estado = 'completada'"
+            " AND LOWER(TRIM(COALESCE(v.tipo_pago,''))) != 'domicilio'"
+        )
+        if has_vp:
+            efectivo_sql = (
+                "COALESCE((SELECT SUM(vp.monto) FROM venta_pagos vp "
+                " WHERE vp.venta_id = v.id"
+                "   AND LOWER(TRIM(COALESCE(vp.forma,''))) = 'efectivo'), 0)"
+            )
+        else:
+            efectivo_sql = (
+                "CASE WHEN LOWER(TRIM(COALESCE(v.forma_pago,''))) = 'efectivo' "
+                "     THEN CASE WHEN COALESCE(v.monto_pendiente,0) > 0.009 "
+                "               THEN COALESCE(v.monto_pagado, v.total) "
+                "               ELSE v.total END "
+                "     ELSE 0 END"
+            )
+        sql = (
+            "SELECT v.id, v.numero_venta, v.fecha, v.cliente_nombre, "
+            "v.forma_pago, COALESCE(v.incluye_envio,0) AS incluye_envio, "
+            f"COALESCE(v.total,0) AS total, {efectivo_sql} AS efectivo "
+            "FROM ventas v"
+            f"{base}{local_filter}{date_filter} "
+            "ORDER BY v.fecha DESC"
+        )
+        cur.execute(sql, tuple(params_local + params_date))
+        cols = [d[0] for d in cur.description]
+        out = []
+        for row in cur.fetchall() or []:
+            rec = dict(zip(cols, row))
+            efe = float(rec.get("efectivo") or 0)
+            out.append(
+                {
+                    "venta_id": rec.get("id"),
+                    "numero_venta": rec.get("numero_venta"),
+                    "fecha": rec.get("fecha"),
+                    "cliente": (rec.get("cliente_nombre") or "").strip(),
+                    "forma_pago": (rec.get("forma_pago") or "").strip(),
+                    "monto": float(rec.get("total") or 0),
+                    "efectivo": efe,
+                    "es_efectivo": efe > 0.009,
+                    "tiene_remito": int(rec.get("incluye_envio") or 0) == 1,
+                    "origen": "venta",
+                }
+            )
+        return out
+    except Exception:
+        logger.exception("Error obteniendo ventas desde fecha")
+        return []
+    finally:
+        try:
+            if "conn" in locals() and conn:
+                put_conn(conn)
+        except Exception:
+            pass
+
+
 def get_cash_withdrawals(local: str, limit: int = 50) -> List[Dict[str, Any]]:
     """Historial de retiros de efectivo: quien retiro, cuando, cuanto y cuanto dejo."""
     try:

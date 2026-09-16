@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -274,7 +275,7 @@ class RetirarDineroWindow(QMainWindow):
         self._lbl_aviso.setVisible(False)
         lay.addWidget(self._lbl_aviso)
 
-        self._lbl_vacio = QLabel("No entró plata desde el último retiro.")
+        self._lbl_vacio = QLabel("No hubo ventas desde el último retiro.")
         self._lbl_vacio.setAlignment(Qt.AlignCenter)
         self._lbl_vacio.setStyleSheet(
             f"color:{MUTED}; font-size:15px; border:none; padding:34px;"
@@ -282,21 +283,29 @@ class RetirarDineroWindow(QMainWindow):
         self._lbl_vacio.setVisible(False)
         lay.addWidget(self._lbl_vacio)
 
-        self._tabla = QTableWidget(0, 6)
+        self._tabla = QTableWidget(0, 7)
         self._tabla.setHorizontalHeaderLabels(
-            ["Cuándo", "Boleta", "Cliente", "Cómo pagó", "Monto", ""]
+            [
+                "Cuándo",
+                "Boleta",
+                "Cliente",
+                "Cómo pagó",
+                "Total venta",
+                "Entra a la caja",
+                "",
+            ]
         )
         self._aplicar_estilo_tabla(self._tabla, alto_fila=46)
         h = self._tabla.horizontalHeader()
         h.setSectionResizeMode(2, QHeaderView.Stretch)
-        for i in (0, 1, 3, 4):
+        for i in (0, 1, 3, 4, 5):
             h.setSectionResizeMode(i, QHeaderView.ResizeToContents)
         # La columna de botones va con ancho fijo: si se calcula por contenido
         # queda angosta y corta el texto de los botones.
-        h.setSectionResizeMode(5, QHeaderView.Fixed)
+        h.setSectionResizeMode(6, QHeaderView.Fixed)
         # Tiene que entrar "Boleta" + "Remito" sin cortarse. Ojo: el padding
         # de la celda (24px) se descuenta del ancho util.
-        self._tabla.setColumnWidth(5, 285)
+        self._tabla.setColumnWidth(6, 285)
         self._tabla.setMinimumHeight(300)
         lay.addWidget(self._tabla)
         self._root.addWidget(card)
@@ -397,7 +406,10 @@ class RetirarDineroWindow(QMainWindow):
             except Exception:
                 pass
             try:
-                for e in vm.get_cash_entries_since(loc, corte):
+                # TODAS las ventas, no solo las de efectivo: el jefe quiere ver
+                # todo lo que se vendio desde el ultimo retiro, y cuanto de eso
+                # entra de verdad a la caja.
+                for e in vm.get_sales_since(loc, corte):
                     if _es_todos(self.local):
                         e = dict(e, cliente=f"{e.get('cliente') or '-'}  ·  {loc}")
                     entradas.append(e)
@@ -443,9 +455,50 @@ class RetirarDineroWindow(QMainWindow):
                 pass
 
         self._corte_al_cargar = vm.get_last_withdrawal_datetime(self.local)
+
+        # Lo que el anterior DEJO en la caja sigue estando fisicamente ahi.
+        # Si no se cuenta, al contar la plata siempre sobra y no cierra.
+        quedo_antes, quien_dejo = 0.0, ""
+        if not _es_todos(self.local):
+            try:
+                previos = vm.get_cash_withdrawals(self.local, limit=1)
+                if previos:
+                    quedo_antes = float(previos[0].get("dejado") or 0)
+                    quien_dejo = (previos[0].get("usuario") or "").strip()
+            except Exception:
+                pass
+        else:
+            for loc in LOCALES:
+                try:
+                    previos = vm.get_cash_withdrawals(loc, limit=1)
+                    if previos:
+                        quedo_antes += float(previos[0].get("dejado") or 0)
+                except Exception:
+                    pass
+        if quedo_antes > 0.009:
+            entradas.insert(
+                0,
+                {
+                    "venta_id": None,
+                    "numero_venta": "",
+                    "fecha": self._corte_al_cargar,
+                    "cliente": (
+                        f"Quedó en la caja del retiro anterior"
+                        + (f" — lo dejó {quien_dejo}" if quien_dejo else "")
+                    ),
+                    "forma_pago": "De antes",
+                    "monto": quedo_antes,
+                    "efectivo": quedo_antes,
+                    "es_efectivo": True,
+                    "tiene_remito": False,
+                    "origen": "residual",
+                },
+            )
+
         gastos = self._gastos_pendientes_total()
-        efectivo_neto = max(0.0, efectivo - gastos)
+        efectivo_neto = max(0.0, efectivo + quedo_antes - gastos)
         total = efectivo_neto + domicilio_total
+        self._quedo_antes = quedo_antes
         self._entradas = entradas
         self._total_disponible = total
 
@@ -461,7 +514,9 @@ class RetirarDineroWindow(QMainWindow):
             self._lbl_desde.setText(
                 "Desde el principio (todavía no se hizo ningún retiro)"
             )
-        partes = [f"Efectivo en caja: <b>{_fmt(efectivo)}</b>"]
+        partes = [f"Ventas en efectivo: <b>{_fmt(efectivo)}</b>"]
+        if quedo_antes > 0.009:
+            partes.append(f"Quedó de antes: <b>{_fmt(quedo_antes)}</b>")
         if _es_local_domicilio(self.local) or _es_todos(self.local):
             partes.append(f"Cobros en domicilio: <b>{_fmt(domicilio_total)}</b>")
         if gastos > 0:
@@ -492,8 +547,12 @@ class RetirarDineroWindow(QMainWindow):
         hay = len(entradas) > 0
         self._tabla.setVisible(hay)
         self._lbl_vacio.setVisible(not hay)
+        ventas_n = sum(1 for e in entradas if e.get("origen") != "residual")
         self._lbl_conteo.setText(
-            f"{len(entradas)} comprobante(s)  ·  {_fmt(total)}" if hay else ""
+            f"{ventas_n} venta(s) desde el último retiro  ·  "
+            f"entra a la caja {_fmt(total)}"
+            if hay
+            else ""
         )
 
     def _add_entrada_row(self, e: dict):
@@ -504,24 +563,53 @@ class RetirarDineroWindow(QMainWindow):
         # El numero de venta es un codigo largo e ilegible: mostramos el numero
         # corto y dejamos el completo en el globito, por si hay que buscarlo.
         corto = f"#{venta_id}" if venta_id else "-"
+        es_residual = e.get("origen") == "residual"
+        # Cuanto de esta fila entra de verdad a la caja:
+        #   - cobro en domicilio -> todo
+        #   - venta -> solo la parte que se pago en efectivo
+        #   - tarjeta / QR / transferencia -> nada
+        if es_dom or es_residual:
+            a_caja = float(e.get("monto") or 0)
+        else:
+            a_caja = float(e.get("efectivo") or 0)
+        entra = a_caja > 0.009
+
         vals = [
             _fmt_fecha(e.get("fecha")),
-            corto,
+            corto if not es_residual else "—",
             e.get("cliente") or "-",
             e.get("forma_pago") or "",
             _fmt(e.get("monto")),
+            _fmt(a_caja) if entra else "—",
         ]
+        # Color segun de donde viene la plata, para que se distinga de un vistazo
+        if es_dom:
+            color = QColor(GOLD)
+        elif es_residual:
+            color = QColor(GOLD)
+        elif entra:
+            color = QColor(GREEN)
+        else:
+            color = QColor(MUTED)
+
         for i, val in enumerate(vals):
             it = QTableWidgetItem(str(val))
             if i == 1:
                 completo = str(e.get("numero_venta") or "").strip()
                 if completo:
                     it.setToolTip(f"Boleta Nº {completo}")
-            if i == 4:
+            if i in (4, 5):
                 it.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            if i == 5:
+                it.setForeground(color)
                 f = it.font()
-                f.setBold(True)
+                f.setBold(entra)
                 it.setFont(f)
+            elif not entra:
+                # Lo que no entra a la caja queda apagado: el ojo va al efectivo
+                it.setForeground(QColor(MUTED))
+            if (es_dom or es_residual) and i in (2, 3):
+                it.setForeground(QColor(GOLD))
             self._tabla.setItem(r, i, it)
 
         cell = QWidget()
@@ -546,7 +634,7 @@ class RetirarDineroWindow(QMainWindow):
                 b_rem.setStyleSheet(self._btn_tabla())
                 b_rem.clicked.connect(lambda _=False, v=venta_id: self._ver_remito(v))
                 cl.addWidget(b_rem)
-        self._tabla.setCellWidget(r, 5, cell)
+        self._tabla.setCellWidget(r, 6, cell)
 
     def _load_gastos(self):
         while self._gastos_box.count():
