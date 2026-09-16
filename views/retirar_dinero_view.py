@@ -73,9 +73,20 @@ def _es_local_domicilio(local: str) -> bool:
 def _fmt(v) -> str:
     """Plata siempre con punto cada tres numeros: $1.234.567"""
     try:
-        return "${:,.0f}".format(float(v or 0)).replace(",", ".")
+        n = float(v or 0)
     except Exception:
         return "$0"
+    signo = "−" if n < 0 else ""
+    return signo + "${:,.0f}".format(abs(n)).replace(",", ".")
+
+
+def _clave_fecha(e) -> str:
+    """Clave de orden por fecha, sin romperse con fechas raras o vacias."""
+    v = e.get("fecha")
+    try:
+        return v.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return str(v or "")
 
 
 def _fmt_num(v) -> str:
@@ -131,6 +142,8 @@ class RetirarDineroWindow(QMainWindow):
         self.back_command = back_command
         self._entradas: list = []
         self._total_disponible = 0.0
+        self._quedo_antes = 0.0
+        self._para_llevar = 0.0
         self._corte_al_cargar = None
 
         self.setWindowTitle(f"Retirar dinero — {local}")
@@ -214,7 +227,7 @@ class RetirarDineroWindow(QMainWindow):
 
         izq = QVBoxLayout()
         izq.setSpacing(4)
-        cap = QLabel("TOTAL PARA RETIRAR")
+        cap = QLabel("TIENE QUE HABER EN LA CAJA")
         cap.setStyleSheet(
             f"color:{MUTED}; font-size:13px; font-weight:800;"
             f" letter-spacing:1px; border:none;"
@@ -223,10 +236,15 @@ class RetirarDineroWindow(QMainWindow):
         self._lbl_total.setStyleSheet(
             f"color:{GOLD}; font-size:48px; font-weight:800; border:none;"
         )
+        self._lbl_para_llevar = QLabel("")
+        self._lbl_para_llevar.setStyleSheet(
+            f"color:{GREEN}; font-size:17px; font-weight:800; border:none;"
+        )
         self._lbl_desde = QLabel("")
         self._lbl_desde.setStyleSheet(f"color:{MUTED}; font-size:14px; border:none;")
         izq.addWidget(cap)
         izq.addWidget(self._lbl_total)
+        izq.addWidget(self._lbl_para_llevar)
         izq.addWidget(self._lbl_desde)
 
         self._lbl_desglose = QLabel("")
@@ -386,9 +404,20 @@ class RetirarDineroWindow(QMainWindow):
         self._load_gastos()
         self._load_historial()
 
+    def _gastos_pendientes(self) -> list:
+        locales = LOCALES if _es_todos(self.local) else [self.local]
+        salida = []
+        for loc in locales:
+            try:
+                for g in ccm.get_gastos_del_dia(loc):
+                    salida.append(dict(g, local=loc))
+            except Exception:
+                pass
+        return salida
+
     def _gastos_pendientes_total(self) -> float:
         try:
-            return sum(float(g["monto"]) for g in ccm.get_gastos_del_dia(self.local))
+            return sum(float(g["monto"] or 0) for g in self._gastos_pendientes())
         except Exception:
             return 0.0
 
@@ -419,7 +448,7 @@ class RetirarDineroWindow(QMainWindow):
         domicilio_total = 0.0
         viejos_cant, viejos_monto = 0, 0.0
         if _es_local_domicilio(self.local) or _es_todos(self.local):
-            last_dt = vm.get_last_withdrawal_datetime(_LOCAL_DOMICILIO)
+            corte_dom = vm.get_last_withdrawal_datetime(_LOCAL_DOMICILIO)
             try:
                 for c in vm.get_domicilio_pagos_pending():
                     monto = float(c.get("monto_productos") or c.get("monto") or 0)
@@ -432,7 +461,7 @@ class RetirarDineroWindow(QMainWindow):
                     if not int(c.get("entregada") or 0):
                         continue
                     # Solo lo cobrado DESPUES del ultimo retiro.
-                    if last_dt and str(creado or "") <= str(last_dt):
+                    if corte_dom and str(creado or "") <= str(corte_dom):
                         viejos_cant += 1
                         viejos_monto += monto
                         continue
@@ -443,8 +472,9 @@ class RetirarDineroWindow(QMainWindow):
                             "_pago_id": c.get("id"),
                             "numero_venta": c.get("numero_venta"),
                             "fecha": creado or c.get("fecha"),
-                            "cliente": (c.get("cliente_nombre") or "").strip(),
-                            "forma_pago": "Cobro en domicilio",
+                            "cliente": "Envío — "
+                            + ((c.get("cliente_nombre") or "").strip() or "-"),
+                            "forma_pago": "Cobró el fletero",
                             "monto": monto,
                             # Un cobro en domicilio siempre viene de un envio
                             "tiene_remito": True,
@@ -495,9 +525,36 @@ class RetirarDineroWindow(QMainWindow):
                 },
             )
 
-        gastos = self._gastos_pendientes_total()
+        lista_gastos = self._gastos_pendientes()
+        gastos = 0.0
+        for g in lista_gastos:
+            monto_g = float(g.get("monto") or 0)
+            gastos += monto_g
+            concepto = str(g.get("concepto") or "").strip() or "Gasto"
+            quien_g = str(g.get("usuario") or "").strip()
+            entradas.append(
+                {
+                    "venta_id": None,
+                    "numero_venta": "",
+                    "fecha": g.get("fecha"),
+                    "cliente": (
+                        f"Gasto: {concepto}"
+                        + (f" — lo sacó {quien_g}" if quien_g else "")
+                    ),
+                    "forma_pago": "Salió de la caja",
+                    "monto": -monto_g,
+                    "efectivo": -monto_g,
+                    "es_efectivo": True,
+                    "tiene_remito": False,
+                    "origen": "gasto",
+                }
+            )
         efectivo_neto = max(0.0, efectivo + quedo_antes - gastos)
         total = efectivo_neto + domicilio_total
+
+        resto = [e for e in entradas if e.get("origen") != "residual"]
+        resto.sort(key=_clave_fecha, reverse=True)
+        entradas = [e for e in entradas if e.get("origen") == "residual"] + resto
         self._quedo_antes = quedo_antes
         self._entradas = entradas
         self._total_disponible = total
@@ -514,14 +571,28 @@ class RetirarDineroWindow(QMainWindow):
             self._lbl_desde.setText(
                 "Desde el principio (todavía no se hizo ningún retiro)"
             )
-        partes = [f"Ventas en efectivo: <b>{_fmt(efectivo)}</b>"]
-        if quedo_antes > 0.009:
-            partes.append(f"Quedó de antes: <b>{_fmt(quedo_antes)}</b>")
+        # El desglose se arma como una CUENTA, para que cada peso del total
+        # grande quede justificado y nadie tenga que sacar cuentas de cabeza.
+        partes = [f"Ventas en efectivo <b>{_fmt(efectivo)}</b>"]
         if _es_local_domicilio(self.local) or _es_todos(self.local):
-            partes.append(f"Cobros en domicilio: <b>{_fmt(domicilio_total)}</b>")
+            partes.append(f"+ Cobros en domicilio <b>{_fmt(domicilio_total)}</b>")
+        if quedo_antes > 0.009:
+            partes.append(f"+ Quedó del retiro anterior <b>{_fmt(quedo_antes)}</b>")
         if gastos > 0:
-            partes.append(f"<span style='color:{RED}'>Gastos: −{_fmt(gastos)}</span>")
-        self._lbl_desglose.setText("　·　".join(partes))
+            partes.append(f"<span style='color:{RED}'>− Gastos {_fmt(gastos)}</span>")
+        self._lbl_desglose.setText("  ".join(partes) + f"  =  <b>{_fmt(total)}</b>")
+
+        # Lo que de verdad se lleva: el total menos el fondo que ya estaba.
+        para_llevar = max(0.0, total - quedo_antes)
+        if quedo_antes > 0.009:
+            self._lbl_para_llevar.setText(
+                f"Para llevarte ahora: {_fmt(para_llevar)}"
+                f"   ·   queda en la caja lo de antes: {_fmt(quedo_antes)}"
+            )
+            self._lbl_para_llevar.setVisible(True)
+        else:
+            self._lbl_para_llevar.setVisible(False)
+        self._para_llevar = para_llevar
         if _es_todos(self.local):
             # No se puede retirar de los 5 locales a la vez: hay que elegir uno.
             self._btn_retirar.setEnabled(False)
@@ -547,13 +618,17 @@ class RetirarDineroWindow(QMainWindow):
         hay = len(entradas) > 0
         self._tabla.setVisible(hay)
         self._lbl_vacio.setVisible(not hay)
-        ventas_n = sum(1 for e in entradas if e.get("origen") != "residual")
-        self._lbl_conteo.setText(
-            f"{ventas_n} venta(s) desde el último retiro  ·  "
-            f"entra a la caja {_fmt(total)}"
-            if hay
-            else ""
+        ventas_n = sum(
+            1 for e in entradas if e.get("origen") not in ("residual", "gasto")
         )
+        entro_ahora = max(0.0, total - quedo_antes)
+        texto = (
+            f"{ventas_n} venta(s) desde el último retiro  ·  "
+            f"entró a la caja {_fmt(entro_ahora)}"
+        )
+        if quedo_antes > 0.009:
+            texto += f"  ·  ya había {_fmt(quedo_antes)}  ·  total {_fmt(total)}"
+        self._lbl_conteo.setText(texto if hay else "")
 
     def _add_entrada_row(self, e: dict):
         r = self._tabla.rowCount()
@@ -564,26 +639,30 @@ class RetirarDineroWindow(QMainWindow):
         # corto y dejamos el completo en el globito, por si hay que buscarlo.
         corto = f"#{venta_id}" if venta_id else "-"
         es_residual = e.get("origen") == "residual"
+        es_gasto = e.get("origen") == "gasto"
         # Cuanto de esta fila entra de verdad a la caja:
         #   - cobro en domicilio -> todo
         #   - venta -> solo la parte que se pago en efectivo
         #   - tarjeta / QR / transferencia -> nada
-        if es_dom or es_residual:
+        #   - gasto -> resta
+        if es_dom or es_residual or es_gasto:
             a_caja = float(e.get("monto") or 0)
         else:
             a_caja = float(e.get("efectivo") or 0)
-        entra = a_caja > 0.009
+        entra = abs(a_caja) > 0.009
 
         vals = [
             _fmt_fecha(e.get("fecha")),
-            corto if not es_residual else "—",
+            corto if not (es_residual or es_gasto) else "—",
             e.get("cliente") or "-",
             e.get("forma_pago") or "",
             _fmt(e.get("monto")),
             _fmt(a_caja) if entra else "—",
         ]
         # Color segun de donde viene la plata, para que se distinga de un vistazo
-        if es_dom:
+        if es_gasto:
+            color = QColor(RED)
+        elif es_dom:
             color = QColor(GOLD)
         elif es_residual:
             color = QColor(GOLD)
@@ -610,6 +689,8 @@ class RetirarDineroWindow(QMainWindow):
                 it.setForeground(QColor(MUTED))
             if (es_dom or es_residual) and i in (2, 3):
                 it.setForeground(QColor(GOLD))
+            if es_gasto and i in (2, 3):
+                it.setForeground(QColor(RED))
             self._tabla.setItem(r, i, it)
 
         cell = QWidget()
@@ -818,6 +899,8 @@ class RetirarDineroWindow(QMainWindow):
 
     def _dialogo_retiro(self):
         total = float(self._total_disponible or 0)
+        quedo_antes = float(getattr(self, "_quedo_antes", 0) or 0)
+        sug_retiro = max(0.0, total - quedo_antes)
         dlg = QDialog(self)
         dlg.setWindowTitle("Retirar dinero")
         dlg.setMinimumWidth(420)
@@ -828,7 +911,7 @@ class RetirarDineroWindow(QMainWindow):
         lay.setContentsMargins(26, 24, 26, 22)
         lay.setSpacing(8)
 
-        cap = QLabel("HAY EN CAJA")
+        cap = QLabel("TIENE QUE HABER EN LA CAJA")
         cap.setStyleSheet(
             f"color:{MUTED}; font-size:12px; font-weight:800; letter-spacing:1px;"
         )
@@ -836,6 +919,14 @@ class RetirarDineroWindow(QMainWindow):
         disp = QLabel(_fmt(total))
         disp.setStyleSheet(f"color:{GOLD}; font-size:34px; font-weight:800;")
         lay.addWidget(disp)
+        if quedo_antes > 0.009:
+            det = QLabel(
+                f"Entró desde el último retiro {_fmt(sug_retiro)}"
+                f"  +  ya había en la caja {_fmt(quedo_antes)}"
+            )
+            det.setStyleSheet(f"color:{MUTED}; font-size:13px;")
+            det.setWordWrap(True)
+            lay.addWidget(det)
         lay.addSpacing(12)
 
         l0 = QLabel("¿Quién se lleva la plata?")
@@ -855,19 +946,48 @@ class RetirarDineroWindow(QMainWindow):
         l1 = QLabel("¿Cuánto te llevás?")
         l1.setStyleSheet(f"color:{TEXT}; font-size:15px; font-weight:700;")
         lay.addWidget(l1)
-        e_ret = QLineEdit(_fmt_num(total))
+        e_ret = QLineEdit(_fmt_num(sug_retiro))
         e_ret.setStyleSheet(self._input_qss(grande=True))
         lay.addWidget(e_ret)
 
         l2 = QLabel("¿Cuánto dejás en la caja?")
         l2.setStyleSheet(f"color:{TEXT}; font-size:15px; font-weight:700;")
         lay.addWidget(l2)
-        e_dej = QLineEdit("0")
+        e_dej = QLineEdit(_fmt_num(quedo_antes) if quedo_antes > 0.009 else "0")
         e_dej.setStyleSheet(self._input_qss(grande=True))
         lay.addWidget(e_dej)
 
-        e_ret.textEdited.connect(lambda _t: self._formatear_campo(e_ret))
-        e_dej.textEdited.connect(lambda _t: self._formatear_campo(e_dej))
+        lbl_cierra = QLabel("")
+        lbl_cierra.setStyleSheet("font-size:14px; font-weight:800;")
+        lbl_cierra.setWordWrap(True)
+        lay.addSpacing(6)
+        lay.addWidget(lbl_cierra)
+
+        def _revisar():
+            dif = total - (_a_numero(e_ret.text()) + _a_numero(e_dej.text()))
+            if abs(dif) < 1:
+                lbl_cierra.setText("✔  La cuenta cierra")
+                lbl_cierra.setStyleSheet(
+                    f"color:{GREEN}; font-size:14px; font-weight:800;"
+                )
+            elif dif > 0:
+                lbl_cierra.setText(f"⚠  Faltan {_fmt(dif)}")
+                lbl_cierra.setStyleSheet(
+                    f"color:{RED}; font-size:14px; font-weight:800;"
+                )
+            else:
+                lbl_cierra.setText(f"⚠  Sobran {_fmt(-dif)}")
+                lbl_cierra.setStyleSheet(
+                    f"color:{RED}; font-size:14px; font-weight:800;"
+                )
+
+        def _tipeo(campo):
+            self._formatear_campo(campo)
+            _revisar()
+
+        e_ret.textEdited.connect(lambda _t: _tipeo(e_ret))
+        e_dej.textEdited.connect(lambda _t: _tipeo(e_dej))
+        _revisar()
 
         lay.addSpacing(14)
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
