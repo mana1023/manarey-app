@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Compila y publica una nueva versión de Manarey en GitHub.
     Doble clic en PUBLICAR_ACTUALIZACION.bat para ejecutar.
@@ -28,12 +28,14 @@ Write-Host "══════════════════════�
 $tokenFile = Join-Path $root ".github_token"
 $GithubToken = ""
 
-if (Test-Path $tokenFile) {
-    $GithubToken = (Get-Content $tokenFile -Raw).Trim()
-    Write-Ok "Token de GitHub leído desde .github_token"
-} elseif ($env:GITHUB_TOKEN) {
+# La variable de entorno va primero: el token guardado en .github_token puede
+# vencer y hacer fallar la publicacion con "Bad credentials".
+if ($env:GITHUB_TOKEN) {
     $GithubToken = $env:GITHUB_TOKEN
     Write-Ok "Token de GitHub leído desde variable de entorno"
+} elseif (Test-Path $tokenFile) {
+    $GithubToken = (Get-Content $tokenFile -Raw).Trim()
+    Write-Ok "Token de GitHub leído desde .github_token"
 } else {
     Write-Host ""
     Write-Host "  Se necesita un GitHub Token con permisos 'repo'." -ForegroundColor Yellow
@@ -52,7 +54,12 @@ $env:GITHUB_REPO  = "mana1023/manarey-updates"
 # ─── Changelog ───────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "  Escribí las notas de esta versión (Enter para omitir):" -ForegroundColor Cyan
-$Notes = Read-Host "  Notas"
+if ($env:MANAREY_NOTAS) {
+    $Notes = $env:MANAREY_NOTAS
+    Write-Host "  $Notes" -ForegroundColor DarkGray
+} else {
+    $Notes = Read-Host "  Notas"
+}
 if (-not $Notes) { $Notes = "Mejoras y correcciones v$Version" }
 
 # ─── Confirmar ────────────────────────────────────────────────────────────────
@@ -61,7 +68,12 @@ Write-Host "  Versión  : $Version" -ForegroundColor White
 Write-Host "  Notas    : $Notes"   -ForegroundColor White
 Write-Host "  Repo     : mana1023/manarey-updates" -ForegroundColor White
 Write-Host ""
-$confirm = Read-Host "  ¿Continuar? (s/n)"
+if ($env:MANAREY_SI -eq "1") {
+    $confirm = "s"
+    Write-Host "  ¿Continuar? (s/n) s" -ForegroundColor DarkGray
+} else {
+    $confirm = Read-Host "  ¿Continuar? (s/n)"
+}
 if ($confirm -notmatch "^[sS]") { Write-Host "Cancelado."; exit 0 }
 
 # ─── Paso 1: Compilar con build_installer.ps1 ────────────────────────────────
@@ -144,6 +156,7 @@ if (Test-Path $internalDir) {
 
     if (Test-Path $deltaZipPath) { Remove-Item $deltaZipPath -Force }
 
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zipStream = [System.IO.Compression.ZipFile]::Open($deltaZipPath, [System.IO.Compression.ZipArchiveMode]::Create)
 
@@ -269,4 +282,4 @@ Write-Host "  Las PCs con Manarey instalado recibirán la actualización" -Foreg
 Write-Host "  automáticamente en el próximo inicio de la app." -ForegroundColor DarkGray
 Write-Host "  Si hay delta.zip, la descarga será ~10x más rápida." -ForegroundColor DarkGray
 Write-Host ""
-Read-Host "  Presioná Enter para cerrar"
+if ($env:MANAREY_SI -ne "1") { Read-Host "  Presioná Enter para cerrar" }
