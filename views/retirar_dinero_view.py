@@ -405,11 +405,14 @@ class RetirarDineroWindow(QMainWindow):
         self._load_historial()
 
     def _gastos_pendientes(self) -> list:
+        # Solo los gastos posteriores al ultimo retiro de cada local: los de
+        # antes ya se descontaron en ese retiro.
         locales = LOCALES if _es_todos(self.local) else [self.local]
         salida = []
         for loc in locales:
             try:
-                for g in ccm.get_gastos_del_dia(loc):
+                corte = vm.get_last_withdrawal_datetime(loc)
+                for g in ccm.get_gastos_desde(loc, corte):
                     salida.append(dict(g, local=loc))
             except Exception:
                 pass
@@ -619,7 +622,9 @@ class RetirarDineroWindow(QMainWindow):
         self._tabla.setVisible(hay)
         self._lbl_vacio.setVisible(not hay)
         ventas_n = sum(
-            1 for e in entradas if e.get("origen") not in ("residual", "gasto")
+            1
+            for e in entradas
+            if e.get("origen") not in ("residual", "gasto", "saldo", "cancelada")
         )
         entro_ahora = max(0.0, total - quedo_antes)
         texto = (
@@ -640,6 +645,7 @@ class RetirarDineroWindow(QMainWindow):
         corto = f"#{venta_id}" if venta_id else "-"
         es_residual = e.get("origen") == "residual"
         es_gasto = e.get("origen") == "gasto"
+        es_cancelada = e.get("origen") == "cancelada"
         # Cuanto de esta fila entra de verdad a la caja:
         #   - cobro en domicilio -> todo
         #   - venta -> solo la parte que se pago en efectivo
@@ -659,6 +665,9 @@ class RetirarDineroWindow(QMainWindow):
             _fmt(e.get("monto")),
             _fmt(a_caja) if entra else "—",
         ]
+        if es_cancelada:
+            efe_c = float(e.get("efectivo_cancelado") or 0)
+            vals[5] = f"no entra (era {_fmt(efe_c)})" if efe_c > 0.009 else "—"
         # Color segun de donde viene la plata, para que se distinga de un vistazo
         if es_gasto:
             color = QColor(RED)
@@ -689,8 +698,12 @@ class RetirarDineroWindow(QMainWindow):
                 it.setForeground(QColor(MUTED))
             if (es_dom or es_residual) and i in (2, 3):
                 it.setForeground(QColor(GOLD))
-            if es_gasto and i in (2, 3):
+            if (es_gasto or es_cancelada) and i in (2, 3, 5):
                 it.setForeground(QColor(RED))
+            if es_cancelada and i == 4:
+                f = it.font()
+                f.setStrikeOut(True)
+                it.setFont(f)
             self._tabla.setItem(r, i, it)
 
         cell = QWidget()
@@ -724,11 +737,11 @@ class RetirarDineroWindow(QMainWindow):
             if w:
                 w.deleteLater()
         try:
-            gastos = ccm.get_gastos_del_dia(self.local)
+            gastos = [] if _es_todos(self.local) else self._gastos_pendientes()
         except Exception:
             gastos = []
         if not gastos:
-            lbl = QLabel("No se cargó ningún gasto hoy.")
+            lbl = QLabel("No se cargó ningún gasto desde el último retiro.")
             lbl.setStyleSheet(f"color:{MUTED}; font-size:14px; border:none;")
             self._gastos_box.addWidget(lbl)
             return
@@ -740,7 +753,11 @@ class RetirarDineroWindow(QMainWindow):
             )
             rl = QHBoxLayout(row)
             rl.setContentsMargins(14, 8, 10, 8)
-            txt = QLabel(str(g.get("concepto") or ""))
+            quien_g = str(g.get("usuario") or "").strip()
+            txt = QLabel(
+                str(g.get("concepto") or "")
+                + (f"  ·  lo sacó {quien_g}" if quien_g else "")
+            )
             txt.setStyleSheet(f"color:{TEXT}; font-size:14px; border:none;")
             rl.addWidget(txt)
             rl.addStretch()
@@ -794,10 +811,23 @@ class RetirarDineroWindow(QMainWindow):
     def _on_add_gasto(self):
         concepto = self._gasto_concepto.text().strip()
         monto = _a_numero(self._gasto_monto.text())
+        if _es_todos(self.local):
+            QMessageBox.warning(self, "Gasto", "Elegí el local del gasto.")
+            return
         if not concepto or monto <= 0:
             QMessageBox.warning(self, "Gasto", "Escribí en qué se gastó y cuánto fue.")
             return
-        if ccm.add_gasto(self.local, self.username, concepto, monto):
+        # Un gasto es plata que sale de la caja y baja lo que tiene que haber:
+        # sin contraseña ni nombre, cualquiera podia tapar un faltante con un
+        # gasto inventado a nombre del usuario del local.
+        if not self._pedir_password():
+            return
+        quien = self._pedir_quien(
+            "Gasto", f"¿Quién sacó los {_fmt(monto)} para «{concepto}»?"
+        )
+        if not quien:
+            return
+        if ccm.add_gasto(self.local, quien, concepto, monto):
             self._gasto_concepto.clear()
             self._gasto_monto.clear()
             self._refresh()
@@ -805,8 +835,48 @@ class RetirarDineroWindow(QMainWindow):
             QMessageBox.warning(self, "Gasto", "No se pudo agregar el gasto.")
 
     def _on_delete_gasto(self, gasto_id):
-        if gasto_id and ccm.delete_gasto(gasto_id):
+        if not gasto_id or not self._pedir_password():
+            return
+        if ccm.delete_gasto(gasto_id):
             self._refresh()
+
+    def _pedir_quien(self, titulo: str, pregunta: str) -> str:
+        dlg = QDialog(self)
+        dlg.setWindowTitle(titulo)
+        dlg.setMinimumWidth(420)
+        dlg.setStyleSheet(
+            f"QDialog {{ background:{CARD}; }} QLabel {{ color:{TEXT}; }}"
+        )
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(24, 22, 24, 20)
+        lay.setSpacing(12)
+        t = QLabel(pregunta)
+        t.setWordWrap(True)
+        t.setStyleSheet(f"color:{TEXT}; font-size:15px; font-weight:700;")
+        lay.addWidget(t)
+        cb = QComboBox()
+        cb.setEditable(True)
+        cb.setStyleSheet(self._combo_qss())
+        cb.addItem("")
+        for nombre in self._nombres_conocidos():
+            cb.addItem(nombre)
+        cb.setCurrentText("")
+        cb.lineEdit().setPlaceholderText("Nombre")
+        lay.addWidget(cb)
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.button(QDialogButtonBox.Ok).setText("Aceptar")
+        bb.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        bb.button(QDialogButtonBox.Ok).setStyleSheet(self._btn(GOLD, "#171717"))
+        bb.button(QDialogButtonBox.Cancel).setStyleSheet(self._btn(CARD, TEXT))
+        bb.accepted.connect(dlg.accept)
+        bb.rejected.connect(dlg.reject)
+        lay.addWidget(bb)
+        if dlg.exec() != QDialog.Accepted:
+            return ""
+        quien = (cb.currentText() or "").strip()
+        if not quien:
+            QMessageBox.warning(self, titulo, "Poné el nombre de quién sacó la plata.")
+        return quien
 
     def _pedir_password(self) -> bool:
         pwd_real = vm.get_cash_withdraw_password()
@@ -818,7 +888,7 @@ class RetirarDineroWindow(QMainWindow):
         lay = QVBoxLayout(dlg)
         lay.setContentsMargins(24, 22, 24, 20)
         lay.setSpacing(12)
-        t = QLabel("Contraseña para retirar")
+        t = QLabel("Contraseña de la caja")
         t.setStyleSheet(f"color:{GOLD}; font-size:18px; font-weight:800;")
         lay.addWidget(t)
         edit = QLineEdit()

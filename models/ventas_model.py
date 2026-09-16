@@ -2030,6 +2030,32 @@ def get_last_withdrawal_datetime(local: str) -> Optional[str]:
             pass
 
 
+# El saldo de una sena que se paga DESPUES en efectivo entra a la caja el dia
+# que se paga, no el dia de la venta. Si se contaba por la fecha de la venta y
+# en el medio hubo un retiro, esa plata no aparecia en ninguna caja.
+_SALDO_EFECTIVO_COND = (
+    "LOWER(TRIM(COALESCE(v.pago_completado_forma,''))) = 'efectivo'"
+    " AND LOWER(TRIM(COALESCE(v.pago_completado_tipo,''))) = 'sena'"
+)
+
+
+def _saldos_efectivo(cur, ph, local_filter, params_local, campo_fecha, since_dt):
+    """Suma de saldos de sena cobrados en efectivo, filtrando por `campo_fecha`."""
+    sql = (
+        "SELECT COALESCE(SUM(COALESCE(v.pago_completado_monto,0)), 0) FROM ventas v"
+        " WHERE v.estado = 'completada'"
+        " AND LOWER(TRIM(COALESCE(v.tipo_pago,''))) != 'domicilio'"
+        f" AND {_SALDO_EFECTIVO_COND}{local_filter}"
+    )
+    params = list(params_local)
+    if since_dt:
+        sql += f" AND {campo_fecha} > {ph}"
+        params.append(str(since_dt))
+    cur.execute(sql, tuple(params))
+    row = cur.fetchone()
+    return float((row[0] if row else 0) or 0)
+
+
 def get_cash_earned_since(local: str, since_dt: Optional[str] = None) -> float:
     """
     Suma todo el efectivo cobrado en ventas de `local` desde `since_dt` (datetime ISO).
@@ -2092,6 +2118,30 @@ def get_cash_earned_since(local: str, since_dt: Optional[str] = None) -> float:
             )
             params = params_local + params_date
             cur.execute(sql, tuple(params))
+            row = cur.fetchone()
+            total = float((row[0] if row else 0) or 0)
+            if since_dt:
+                try:
+                    # El saldo va a la fecha en que se pago, no a la de la venta
+                    total -= _saldos_efectivo(
+                        cur, ph, local_filter, params_local, "v.fecha", since_dt
+                    )
+                    total += _saldos_efectivo(
+                        cur,
+                        ph,
+                        local_filter,
+                        params_local,
+                        "v.pago_completado_fecha",
+                        since_dt,
+                    )
+                except Exception:
+                    logger.exception("Error sumando saldos de sena en efectivo")
+                    try:
+                        if is_postgres():
+                            conn.rollback()
+                    except Exception:
+                        pass
+            return total
         else:
             # Tabla ventas directamente
             sql = (
@@ -2359,10 +2409,17 @@ def get_sales_since(local: str, since_dt: Optional[str] = None) -> List[Dict[str
                 "               ELSE v.total END "
                 "     ELSE 0 END"
             )
+        saldo_sql = (
+            f"CASE WHEN {_SALDO_EFECTIVO_COND}"
+            " THEN COALESCE(v.pago_completado_monto,0) ELSE 0 END"
+            if has_vp
+            else "0"
+        )
         sql = (
             "SELECT v.id, v.numero_venta, v.fecha, v.cliente_nombre, "
             "v.forma_pago, COALESCE(v.incluye_envio,0) AS incluye_envio, "
-            f"COALESCE(v.total,0) AS total, {efectivo_sql} AS efectivo "
+            f"COALESCE(v.total,0) AS total, {efectivo_sql} AS efectivo, "
+            f"{saldo_sql} AS saldo_efectivo "
             "FROM ventas v"
             f"{base}{local_filter}{date_filter} "
             "ORDER BY v.fecha DESC"
@@ -2372,7 +2429,11 @@ def get_sales_since(local: str, since_dt: Optional[str] = None) -> List[Dict[str
         out = []
         for row in cur.fetchall() or []:
             rec = dict(zip(cols, row))
-            efe = float(rec.get("efectivo") or 0)
+            # El saldo pagado despues tiene su propia fila (abajo), con su fecha
+            efe = max(
+                0.0,
+                float(rec.get("efectivo") or 0) - float(rec.get("saldo_efectivo") or 0),
+            )
             out.append(
                 {
                     "venta_id": rec.get("id"),
@@ -2385,6 +2446,73 @@ def get_sales_since(local: str, since_dt: Optional[str] = None) -> List[Dict[str
                     "es_efectivo": efe > 0.009,
                     "tiene_remito": int(rec.get("incluye_envio") or 0) == 1,
                     "origen": "venta",
+                }
+            )
+
+        if has_vp:
+            saldo_date, saldo_params = "", []
+            if since_dt:
+                saldo_date = f" AND v.pago_completado_fecha > {ph}"
+                saldo_params.append(str(since_dt))
+            cur.execute(
+                "SELECT v.id, v.numero_venta, v.pago_completado_fecha, v.cliente_nombre,"
+                " COALESCE(v.incluye_envio,0), COALESCE(v.pago_completado_monto,0)"
+                " FROM ventas v"
+                f"{base} AND {_SALDO_EFECTIVO_COND}{local_filter}{saldo_date}"
+                " ORDER BY v.pago_completado_fecha DESC",
+                tuple(params_local + saldo_params),
+            )
+            for vid, num, fecha, cliente, envio, monto in cur.fetchall() or []:
+                monto = float(monto or 0)
+                if monto <= 0.009:
+                    continue
+                out.append(
+                    {
+                        "venta_id": vid,
+                        "numero_venta": num,
+                        "fecha": fecha,
+                        "cliente": "Pagó el resto de la seña — "
+                        + ((cliente or "").strip() or "-"),
+                        "forma_pago": "Efectivo (resto)",
+                        "monto": monto,
+                        "efectivo": monto,
+                        "es_efectivo": True,
+                        "tiene_remito": int(envio or 0) == 1,
+                        "origen": "saldo",
+                    }
+                )
+
+        # Ventas CANCELADAS desde el ultimo retiro: no suman, pero se muestran.
+        # Si alguien cancela una venta en efectivo y se queda con la plata, sin
+        # esto no quedaba a la vista en ningun lado de la caja.
+        cur.execute(
+            f"SELECT v.id, v.numero_venta, v.fecha, v.cliente_nombre, v.forma_pago,"
+            f" COALESCE(v.total,0), COALESCE(v.entrega_motivo,''),"
+            f" COALESCE(v.incluye_envio,0), {efectivo_sql}"
+            " FROM ventas v WHERE v.estado = 'cancelada'"
+            f"{local_filter}{date_filter} ORDER BY v.fecha DESC",
+            tuple(params_local + params_date),
+        )
+        for vid, num, fecha, cliente, forma, total, motivo, envio, efe in (
+            cur.fetchall() or []
+        ):
+            motivo = (motivo or "").split("|")[0].strip()
+            out.append(
+                {
+                    "venta_id": vid,
+                    "numero_venta": num,
+                    "fecha": fecha,
+                    "cliente": "CANCELADA"
+                    + (f" ({motivo})" if motivo else "")
+                    + " — "
+                    + ((cliente or "").strip() or "-"),
+                    "forma_pago": (forma or "").strip(),
+                    "monto": float(total or 0),
+                    "efectivo": 0.0,
+                    "efectivo_cancelado": float(efe or 0),
+                    "es_efectivo": False,
+                    "tiene_remito": int(envio or 0) == 1,
+                    "origen": "cancelada",
                 }
             )
         return out

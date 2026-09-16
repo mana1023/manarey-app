@@ -1,4 +1,4 @@
-﻿"""Cierre de turno / caja diaria."""
+"""Cierre de turno / caja diaria."""
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -53,6 +53,46 @@ def get_gastos_del_dia(local: str) -> List[Dict[str, Any]]:
         return [dict(zip(cols, r)) for r in cur.fetchall()]
     except Exception:
         logger.exception("Error obteniendo gastos del dÃ­a")
+        return []
+    finally:
+        try:
+            put_conn(conn)
+        except Exception:
+            pass
+
+
+def get_gastos_desde(local: str, desde=None) -> List[Dict[str, Any]]:
+    """Gastos del local cargados DESPUES del ultimo retiro.
+
+    Antes se tomaban "los de hoy": si habia dos retiros en el mismo dia el
+    mismo gasto se descontaba dos veces (y esa plata podia desaparecer con la
+    cuenta cerrando). Ademas "hoy" se calculaba en hora UTC, asi que despues de
+    las 21 hs los gastos del dia dejaban de aparecer.
+    `desde` es la hora local del ultimo retiro (como la guarda cash_withdrawals).
+    """
+    conn = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        ph = _ph()
+        if is_postgres():
+            fecha_local = "(fecha AT TIME ZONE 'America/Argentina/Buenos_Aires')"
+        else:
+            fecha_local = "fecha"
+        sql = (
+            f"SELECT id, concepto, monto, usuario, {fecha_local} AS fecha"
+            f" FROM gastos_caja WHERE local={ph} AND cierre_id IS NULL"
+        )
+        params: list = [local]
+        if desde:
+            sql += f" AND {fecha_local} > {ph}"
+            params.append(str(desde))
+        sql += " ORDER BY fecha"
+        cur.execute(sql, tuple(params))
+        cols = ["id", "concepto", "monto", "usuario", "fecha"]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+    except Exception:
+        logger.exception("Error obteniendo gastos desde el ultimo retiro")
         return []
     finally:
         try:
