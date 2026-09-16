@@ -59,6 +59,7 @@ RED = "#f87171"
 ROW_ALT = "#15151c"
 
 LOCALES = ["Longchamps", "Cane", "Estacion", "Glew", "Vidriera"]
+ALTO_FILA = 52
 _LOCAL_DOMICILIO = "Longchamps"
 
 
@@ -313,7 +314,7 @@ class RetirarDineroWindow(QMainWindow):
                 "",
             ]
         )
-        self._aplicar_estilo_tabla(self._tabla, alto_fila=46)
+        self._aplicar_estilo_tabla(self._tabla, alto_fila=ALTO_FILA)
         h = self._tabla.horizontalHeader()
         h.setSectionResizeMode(2, QHeaderView.Stretch)
         for i in (0, 1, 3, 4, 5):
@@ -324,7 +325,10 @@ class RetirarDineroWindow(QMainWindow):
         # Tiene que entrar "Boleta" + "Remito" sin cortarse. Ojo: el padding
         # de la celda (24px) se descuenta del ancho util.
         self._tabla.setColumnWidth(6, 285)
-        self._tabla.setMinimumHeight(300)
+        # Sin scroll propio: se ven todas las filas y se baja con la pagina.
+        # Con una altura fija de 300px se veian 5 filas y parecia que faltaban
+        # ventas.
+        self._tabla.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         lay.addWidget(self._tabla)
         self._root.addWidget(card)
 
@@ -338,7 +342,7 @@ class RetirarDineroWindow(QMainWindow):
 
         top = QHBoxLayout()
         top.setSpacing(10)
-        hdr = QLabel("Gastos del turno")
+        hdr = QLabel("Gastos desde el último retiro")
         hdr.setStyleSheet(
             f"color:{TEXT}; font-size:18px; font-weight:800; border:none;"
         )
@@ -475,7 +479,7 @@ class RetirarDineroWindow(QMainWindow):
                             "_pago_id": c.get("id"),
                             "numero_venta": c.get("numero_venta"),
                             "fecha": creado or c.get("fecha"),
-                            "cliente": "Envío — "
+                            "cliente": "🚚  Envío — "
                             + ((c.get("cliente_nombre") or "").strip() or "-"),
                             "forma_pago": "Cobró el fletero",
                             "monto": monto,
@@ -620,20 +624,30 @@ class RetirarDineroWindow(QMainWindow):
             self._add_entrada_row(e)
         hay = len(entradas) > 0
         self._tabla.setVisible(hay)
+        self._ajustar_alto_tabla()
         self._lbl_vacio.setVisible(not hay)
         ventas_n = sum(
             1
             for e in entradas
-            if e.get("origen") not in ("residual", "gasto", "saldo", "cancelada")
+            if e.get("origen")
+            not in ("residual", "gasto", "saldo", "cancelada", "domicilio")
         )
+        envios_n = sum(1 for e in entradas if e.get("origen") == "domicilio")
         entro_ahora = max(0.0, total - quedo_antes)
-        texto = (
-            f"{ventas_n} venta(s) desde el último retiro  ·  "
-            f"entró a la caja {_fmt(entro_ahora)}"
-        )
+        texto = f"{ventas_n} venta(s) desde el último retiro  ·  "
+        if envios_n:
+            texto += f"{envios_n} cobro(s) de envío  ·  "
+        texto += f"entró a la caja {_fmt(entro_ahora)}"
         if quedo_antes > 0.009:
             texto += f"  ·  ya había {_fmt(quedo_antes)}  ·  total {_fmt(total)}"
         self._lbl_conteo.setText(texto if hay else "")
+
+    def _ajustar_alto_tabla(self):
+        t = self._tabla
+        alto = t.horizontalHeader().height() + 2 * t.frameWidth() + 4
+        for r in range(t.rowCount()):
+            alto += t.rowHeight(r)
+        t.setFixedHeight(max(alto, 120))
 
     def _add_entrada_row(self, e: dict):
         r = self._tabla.rowCount()
@@ -708,13 +722,14 @@ class RetirarDineroWindow(QMainWindow):
 
         cell = QWidget()
         cl = QHBoxLayout(cell)
-        cl.setContentsMargins(4, 5, 8, 5)
+        cl.setContentsMargins(4, 0, 8, 0)
         cl.setSpacing(8)
+        cl.setAlignment(Qt.AlignVCenter)
         cl.addStretch()
         if venta_id:
             b_bol = QPushButton("Boleta")
             b_bol.setCursor(Qt.PointingHandCursor)
-            b_bol.setMinimumHeight(30)
+            b_bol.setFixedHeight(32)
             b_bol.setMinimumWidth(b_bol.sizeHint().width())
             b_bol.setStyleSheet(self._btn_tabla())
             b_bol.clicked.connect(lambda _=False, v=venta_id: self._ver_boleta(v))
@@ -723,12 +738,37 @@ class RetirarDineroWindow(QMainWindow):
             if e.get("tiene_remito"):
                 b_rem = QPushButton("Remito")
                 b_rem.setCursor(Qt.PointingHandCursor)
-                b_rem.setMinimumHeight(30)
+                b_rem.setFixedHeight(32)
                 b_rem.setMinimumWidth(b_rem.sizeHint().width())
                 b_rem.setStyleSheet(self._btn_tabla())
                 b_rem.clicked.connect(lambda _=False, v=venta_id: self._ver_remito(v))
                 cl.addWidget(b_rem)
         self._tabla.setCellWidget(r, 6, cell)
+        if es_dom:
+            self._marcar_cobro_envio(r)
+
+    def _marcar_cobro_envio(self, r: int):
+        """La plata que cobro el fletero tiene que saltar a la vista."""
+        texto = "🚚  Cobró el fletero"
+        it = self._tabla.item(r, 3)
+        if it is not None:
+            # Texto invisible SIN emoji (los emoji se pintan a color aunque el
+            # texto sea transparente) y mas largo que la etiqueta, para que la
+            # columna tome el ancho de la etiqueta en negrita y no la corte.
+            it.setText("MM Cobró el fletero MM")
+            it.setForeground(QColor(0, 0, 0, 0))
+        cont = QWidget()
+        cl = QHBoxLayout(cont)
+        cl.setContentsMargins(6, 0, 0, 0)
+        cl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+        pill = QLabel(texto)
+        pill.setStyleSheet(
+            f"background:{GOLD}; color:#171717; border-radius:10px;"
+            f" padding:4px 10px; font-size:13px; font-weight:800;"
+        )
+        cl.addWidget(pill)
+        cl.addStretch()
+        self._tabla.setCellWidget(r, 3, cont)
 
     def _load_gastos(self):
         while self._gastos_box.count():
