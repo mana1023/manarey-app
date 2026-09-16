@@ -113,7 +113,12 @@ def _get_product_columns(conn, cur) -> set:
 def _get_all_locals(conn, cur) -> list:
     try:
         cur.execute("SELECT DISTINCT local FROM productos ORDER BY local ASC")
-        return [r[0] for r in cur.fetchall() if r and r[0]]
+        # TEST_LOC / TestLocal quedaron en la base por tests: no son locales
+        return [
+            r[0]
+            for r in cur.fetchall()
+            if r and r[0] and not str(r[0]).strip().lower().startswith("test")
+        ]
     except Exception:
         return []
 

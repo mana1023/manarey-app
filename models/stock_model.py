@@ -2005,12 +2005,21 @@ def _fill_comp_attrs_from_product(cur, comp: dict, ph: str) -> dict:
     return comp
 
 
+def _es_local_de_prueba(local) -> bool:
+    """TEST_LOC / TestLocal quedaron en la base por tests: no son locales reales."""
+    return str(local or "").strip().lower().startswith("test")
+
+
 def _get_all_locals_from_db() -> List[str]:
     try:
         with _get_conn_cm() as conn:
             cur = conn.cursor()
             cur.execute("SELECT DISTINCT local FROM productos ORDER BY local ASC")
-            return [str(r[0]) for r in cur.fetchall() if r and r[0]]
+            return [
+                str(r[0])
+                for r in cur.fetchall()
+                if r and r[0] and not _es_local_de_prueba(r[0])
+            ]
     except Exception:
         return []
 
@@ -2019,147 +2028,14 @@ def sync_all_products_across_locals(force=False):
     """
     Sincroniza todos los productos para que existan en todos los locales.
     Si un producto existe en el local A pero no en el B, se crea en el B con cantidad=0.
+
+    Habia dos copias de esta logica corriendo al abrir Stock; la vieja fallaba
+    con codigos repetidos. Ahora las dos usan la misma.
     """
     global _SYNC_PRODUCTS_ALL_LOCALS_DONE
-    if _SYNC_PRODUCTS_ALL_LOCALS_DONE and not force:
-        return
-    with _SYNC_PRODUCTS_ALL_LOCALS_LOCK:
-        if _SYNC_PRODUCTS_ALL_LOCALS_DONE and not force:
-            return
-        logger.info(
-            "Iniciando sincronización global de productos en todos los locales..."
-        )
-        try:
-            with _get_conn_cm() as conn:
-                cur = conn.cursor()
-                try:
-                    is_pg = (
-                        getattr(conn, "is_postgres", lambda: False)() or _is_postgres()
-                    )
-                except Exception:
-                    is_pg = False
-                ph = "%s" if is_pg else "?"
-
-                # Obtener todos log locales válidos
-                cur.execute(
-                    "SELECT DISTINCT local FROM productos WHERE local IS NOT NULL AND local != ''"
-                )
-                locales = [str(r[0]) for r in cur.fetchall()]
-                if not locales:
-                    _SYNC_PRODUCTS_ALL_LOCALS_DONE = True
-                    return
-
-                # Obtener todos los productos distintos (por sus atributos principales)
-                sql_distinct = """
-                    SELECT nombre, COALESCE(material,''), categoria, COALESCE(fabricante,''), 
-                           COALESCE(medida,''), estado, COALESCE(color,''), 
-                           MAX(precio_venta), MAX(precio_costo), MAX(codigo), MAX(descripcion), MAX(is_combo)
-                    FROM productos
-                    GROUP BY nombre, COALESCE(material,''), categoria, COALESCE(fabricante,''), 
-                             COALESCE(medida,''), estado, COALESCE(color,'')
-                """
-
-                try:
-                    cur.execute(sql_distinct)
-                    distinct_products = cur.fetchall()
-                except Exception:
-                    conn.rollback()
-                    # Fallback si no hay fabricante o material
-                    sql_distinct_fallback = """
-                        SELECT nombre, '', categoria, '', 
-                               COALESCE(medida,''), estado, COALESCE(color,''), 
-                               MAX(precio_venta), MAX(precio_costo), MAX(codigo), MAX(descripcion), MAX(is_combo)
-                        FROM productos
-                        GROUP BY nombre, categoria, COALESCE(medida,''), estado, COALESCE(color,'')
-                    """
-                    try:
-                        cur.execute(sql_distinct_fallback)
-                        distinct_products = cur.fetchall()
-                    except Exception as e_fb:
-                        conn.rollback()
-                        logger.error(
-                            f"Fallback distinct_products fallback failed: {e_fb}"
-                        )
-                        return
-
-                # Obtener las combinaciones existentes local/producto para no hacer SELECTs individuales
-                cur.execute(
-                    """
-                    SELECT local, nombre, COALESCE(material,''), categoria, COALESCE(fabricante,''), 
-                           COALESCE(medida,''), estado, COALESCE(color,'')
-                    FROM productos
-                    WHERE local IS NOT NULL AND local != ''
-                """
-                )
-                existing = set()
-                try:
-                    for r in cur.fetchall():
-                        existing.add((r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7]))
-                except Exception:
-                    pass
-
-                # Identificar combinaciones faltantes
-                missing = []
-                now_str = datetime.now().isoformat()
-                for loc in locales:
-                    for p in distinct_products:
-                        sig = (loc, p[0], p[1], p[2], p[3], p[4], p[5], p[6])
-                        if sig not in existing:
-                            missing.append(
-                                (
-                                    p[0],
-                                    p[1] if p[1] else None,
-                                    p[2],
-                                    p[3] if p[3] else None,
-                                    p[4] if p[4] else None,
-                                    p[5],
-                                    p[6] if p[6] else None,
-                                    loc,
-                                    0,
-                                    p[7] or 0,
-                                    p[8] or 0,
-                                    p[9] or "",
-                                    p[10] or "",
-                                    p[11] or 0,
-                                    now_str,
-                                    now_str,
-                                )
-                            )
-
-                if missing:
-                    logger.info(
-                        f"Sincronizando {len(missing)} productos faltantes en locales..."
-                    )
-                    sql_insert = f"""
-                        INSERT INTO productos (
-                            nombre, material, categoria, fabricante, 
-                            medida, estado, color, local, cantidad, 
-                            precio_venta, precio_costo, codigo, descripcion, is_combo, 
-                            created_at, updated_at
-                        ) VALUES (
-                            {ph}, {ph}, {ph}, {ph}, 
-                            {ph}, {ph}, {ph}, {ph}, {ph}, 
-                            {ph}, {ph}, {ph}, {ph}, {ph},
-                            {ph}, {ph}
-                        )
-                    """
-                    try:
-                        cur.executemany(sql_insert, missing)
-                        conn.commit()
-                        logger.info("Sincronización global completada con éxito.")
-                    except Exception as ins_e:
-                        conn.rollback()
-                        logger.error(
-                            f"Error insertando productos sincronizados: {ins_e}"
-                        )
-                else:
-                    logger.info(
-                        "Sincronización global completada: Ningun producto faltante."
-                    )
-
-                _SYNC_PRODUCTS_ALL_LOCALS_DONE = True
-        except Exception as e:
-            logger.error(f"Error general en sync_all_products_across_locals: {e}")
+    if force:
+        _SYNC_PRODUCTS_ALL_LOCALS_DONE = False
+    ensure_products_in_all_locals_once()
 
 
 def update_combo(
@@ -2550,6 +2426,16 @@ def sync_combos_for_local(local: str) -> None:
             """,
         )
         combos = cur.fetchall()
+        # Los combos que el local YA tiene, en una sola consulta. Antes se
+        # preguntaba combo por combo (y componente por componente) aunque ya
+        # estuvieran todos: ~670 consultas y 24 segundos cada vez que se abria
+        # Stock, sin crear nada.
+        cur.execute(
+            f"SELECT LOWER(nombre), COALESCE(medida,'') FROM productos"
+            f" WHERE local={ph} AND COALESCE(is_combo,0)=1",
+            (local,),
+        )
+        ya_estan = {(str(n or ""), str(m or "")) for n, m in cur.fetchall()}
         for combo_row in combos:
             combo_id = int(combo_row[0])
             combo_name = combo_row[1] or ""
@@ -2565,24 +2451,15 @@ def sync_combos_for_local(local: str) -> None:
             combo_costo = float(combo_row[11] or 0)
             if not str(combo_codigo or "").strip():
                 combo_codigo = None
+            # si ya existe combo con ese nombre en el local, saltar
+            clave = (combo_name.lower(), combo_medida)
+            if clave in ya_estan:
+                continue
             items = get_combo_items(int(combo_id))
             if not items:
                 continue
             for comp in items:
                 _fill_comp_attrs_from_product(cur, comp, ph)
-            # si ya existe combo con ese nombre en el local, saltar
-            cur.execute(
-                f"""
-                SELECT 1 FROM productos
-                WHERE local={ph} AND COALESCE(is_combo,0)=1
-                  AND COALESCE(medida,'')=COALESCE({ph},'')
-                  AND LOWER(nombre)=LOWER({ph})
-                LIMIT 1
-                """,
-                (local, combo_medida, combo_name),
-            )
-            if cur.fetchone():
-                continue
             mapped_items = []
             for comp in items:
                 pid_local = _find_product_by_attrs(cur, local, comp, ph)
@@ -2663,6 +2540,7 @@ def sync_combos_for_local(local: str) -> None:
                 r = cur.fetchone()
                 new_combo_id = int(r[0]) if r else 0
             if new_combo_id:
+                ya_estan.add(clave)
                 for it in mapped_items:
                     cur.execute(
                         f"""
@@ -3316,7 +3194,11 @@ def _ensure_products_in_all_locals() -> int:
         cur.execute("SELECT DISTINCT local FROM productos ORDER BY local ASC")
         locals_list = [str(r[0]).strip() for r in cur.fetchall() if r and r[0]]
         locals_list = [
-            l for l in locals_list if l and l not in ("Todos", "Todos los locales")
+            l
+            for l in locals_list
+            if l
+            and l not in ("Todos", "Todos los locales")
+            and not _es_local_de_prueba(l)
         ]
         if len(locals_list) <= 1:
             return 0
@@ -3325,10 +3207,21 @@ def _ensure_products_in_all_locals() -> int:
         if not rows:
             return 0
 
+        # El codigo es unico por local: si el destino ya usa ese codigo en otra
+        # variante, el INSERT fallaba, se deshacia TODO y se volvia a intentar
+        # cada vez que se abria Stock (8 segundos con la pantalla congelada).
+        codigos_usados = set()
+        for r in rows:
+            cod = str(r.get("codigo") or "").strip().lower()
+            if cod:
+                codigos_usados.add(((r.get("local") or "").strip(), cod))
+
         groups: Dict[tuple, dict] = {}
         for r in rows:
             loc = (r.get("local") or "").strip()
             if not loc or loc in ("Todos", "Todos los locales"):
+                continue
+            if _es_local_de_prueba(loc):
                 continue
             if int(r.get("is_combo") or 0) == 1:
                 continue
@@ -3378,13 +3271,17 @@ def _ensure_products_in_all_locals() -> int:
             f"INSERT INTO productos ({', '.join(insert_cols)}) VALUES ({placeholders})"
         )
         now = _now_local()
+        pendientes: List[tuple] = []
 
         for entry in groups.values():
             template = entry.get("template") or {}
             missing = [l for l in locals_list if l not in entry["locals"]]
             if not missing:
                 continue
+            cod_t = str(template.get("codigo") or "").strip().lower()
             for target_local in missing:
+                if cod_t and (target_local, cod_t) in codigos_usados:
+                    continue
                 vals: List[Any] = []
                 for col in insert_cols:
                     if col == "nombre":
@@ -3423,13 +3320,27 @@ def _ensure_products_in_all_locals() -> int:
                         vals.append(now)
                     elif col == "is_combo":
                         vals.append(int(template.get("is_combo") or 0))
-                cur.execute(insert_sql, tuple(vals))
-                inserted += 1
+                pendientes.append(tuple(vals))
+                if cod_t:
+                    codigos_usados.add((target_local, cod_t))
 
-        try:
-            conn.commit()
-        except Exception:
-            pass
+        if not pendientes:
+            return 0
+        if isinstance(conn, sqlite3.Connection):
+            cur.executemany(insert_sql, pendientes)
+        else:
+            # Todo en un solo viaje a la base (antes era un viaje por producto)
+            from psycopg2.extras import execute_values
+
+            execute_values(
+                cur,
+                f"INSERT INTO productos ({', '.join(insert_cols)}) VALUES %s"
+                " ON CONFLICT DO NOTHING",
+                pendientes,
+                page_size=500,
+            )
+        inserted = len(pendientes)
+        conn.commit()
     return inserted
 
 
@@ -3446,9 +3357,12 @@ def ensure_products_in_all_locals_once() -> None:
             inserted = _ensure_products_in_all_locals()
             if inserted:
                 logger.info(f"Sync productos/locales: insertados={inserted}")
-            _SYNC_PRODUCTS_ALL_LOCALS_DONE = True
         except Exception as e:
             logger.warning(f"ensure_products_in_all_locals_once error: {e}")
+        finally:
+            # Si fallaba no se marcaba como hecho y se reintentaba en CADA
+            # apertura de Stock, congelando la pantalla. Se intenta una vez.
+            _SYNC_PRODUCTS_ALL_LOCALS_DONE = True
 
 
 def _unaccent(text: str) -> str:

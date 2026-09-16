@@ -272,6 +272,23 @@ def _new_direct_connection():
     return psycopg2.connect(dsn=_with_connect_params(DB_URL), sslmode="require")
 
 
+# Cuando se devolvio cada conexion al pool (por id). Probar la conexion con un
+# SELECT 1 antes de CADA consulta sumaba un viaje extra a la base en toda la
+# app; si se uso hace muy poco, sigue viva y no hace falta probarla.
+_ULTIMO_USO: dict = {}
+_VIVA_SIN_PROBAR_SEG = 15.0
+
+
+def _usada_hace_poco(conn) -> bool:
+    try:
+        if getattr(conn, "closed", 1):
+            return False
+        ultimo = _ULTIMO_USO.get(id(conn))
+        return ultimo is not None and (time.time() - ultimo) < _VIVA_SIN_PROBAR_SEG
+    except Exception:
+        return False
+
+
 def get_connection():
     """Obtiene una conexión a PostgreSQL/Supabase."""
     if not is_postgres():
@@ -281,8 +298,9 @@ def get_connection():
     _init_pool_if_needed()
     if _pool:
         conn = _pool.getconn()
-        if _is_conn_alive(conn):
+        if _usada_hace_poco(conn) or _is_conn_alive(conn):
             return conn
+        _ULTIMO_USO.pop(id(conn), None)
         try:
             _pool.putconn(conn, close=True)
         except Exception:
@@ -312,6 +330,10 @@ def put_connection(conn):
     if _pool:
         try:
             _pool.putconn(conn, close=should_close)
+            if should_close or getattr(conn, "closed", 1):
+                _ULTIMO_USO.pop(id(conn), None)
+            else:
+                _ULTIMO_USO[id(conn)] = time.time()
             return
         except Exception:
             pass
