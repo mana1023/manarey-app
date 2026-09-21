@@ -498,6 +498,36 @@ class RetirarDineroWindow(QMainWindow):
                     )
             except Exception:
                 pass
+            # Los cobros que se marcan solos como retirados al confirmar la
+            # entrega (casi todos). Sin esto la plata del fletero no aparecia.
+            try:
+                for c in vm.get_domicilio_cobros_auto_since(corte_dom):
+                    monto = float(c.get("monto") or 0)
+                    if monto <= 0.009:
+                        continue
+                    domicilio_total += monto
+                    origen_loc = (c.get("local_venta") or "").strip()
+                    entradas.append(
+                        {
+                            "venta_id": c.get("venta_id"),
+                            "numero_venta": c.get("numero_venta"),
+                            "fecha": c.get("created_at"),
+                            "cliente": "🚚  Envío — "
+                            + ((c.get("cliente_nombre") or "").strip() or "-")
+                            + (
+                                f"  (venta de {origen_loc})"
+                                if origen_loc
+                                and origen_loc.lower() != _LOCAL_DOMICILIO.lower()
+                                else ""
+                            ),
+                            "forma_pago": "Cobró el fletero",
+                            "monto": monto,
+                            "tiene_remito": True,
+                            "origen": "domicilio",
+                        }
+                    )
+            except Exception:
+                pass
 
         self._corte_al_cargar = vm.get_last_withdrawal_datetime(self.local)
 

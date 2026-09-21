@@ -2209,6 +2209,119 @@ def get_domicilio_retirados_since(since_dt: Optional[str] = None) -> float:
             pass
 
 
+def get_domicilio_cobros_auto_since(
+    since_dt: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Cobros del fletero registrados al confirmar la entrega, desde `since_dt`.
+
+    Al confirmar una entrega el cobro se marca retirado=1 / auto_retirado=1 en
+    el momento (auto_retirar_domicilio_por_venta). La pantalla de Retirar dinero
+    solo buscaba los NO retirados, asi que esta plata nunca aparecia en la caja.
+    created_at es la hora de la entrega (marcar_entrega la actualiza).
+    """
+    conn = None
+    try:
+        ok, _ = ensure_domicilio_pagos_schema()
+        if not ok:
+            return []
+        conn = get_conn()
+        cur = conn.cursor()
+        ph = "%s" if is_postgres() else "?"
+        sql = (
+            "SELECT dp.id, dp.venta_id, v.numero_venta, v.cliente_nombre,"
+            " COALESCE(dp.monto_productos, dp.monto, 0), dp.created_at, dp.local,"
+            " COALESCE(v.incluye_envio,0)"
+            " FROM domicilio_pagos dp LEFT JOIN ventas v ON v.id = dp.venta_id"
+            " WHERE COALESCE(dp.auto_retirado,0)=1"
+            " AND COALESCE(v.estado,'') != 'cancelada'"
+        )
+        params: list = []
+        if since_dt:
+            sql += f" AND dp.created_at > {ph}"
+            params.append(str(since_dt))
+        sql += " ORDER BY dp.created_at DESC"
+        cur.execute(sql, tuple(params))
+        out = []
+        for pid, vid, num, cliente, monto, creado, loc, envio in cur.fetchall():
+            out.append(
+                {
+                    "id": pid,
+                    "venta_id": vid,
+                    "numero_venta": num,
+                    "cliente_nombre": cliente,
+                    "monto": float(monto or 0),
+                    "created_at": creado,
+                    "local_venta": loc,
+                    "incluye_envio": int(envio or 0),
+                }
+            )
+        return out
+    except Exception:
+        logger.exception("Error obteniendo cobros del fletero")
+        return []
+    finally:
+        try:
+            if conn:
+                put_conn(conn)
+        except Exception:
+            pass
+
+
+_LOCALES_CAJA = ["Longchamps", "Cane", "Estacion", "Glew", "Vidriera"]
+_LOCAL_COBROS_ENVIO = "Longchamps"
+
+
+def get_dinero_en_caja(local: str) -> float:
+    """Lo que TIENE que haber en la caja, con la misma cuenta que la pantalla
+    de Retirar dinero: efectivo de ventas + lo que quedo del retiro anterior
+    - gastos + (en Longchamps) lo que cobro el fletero, todo desde el ultimo
+    retiro de cada local. Antes el historial de ventas no sumaba lo que quedo
+    ni los gastos, y mostraba un numero distinto al de Retirar dinero.
+    """
+    from models import cierre_caja_model as ccm
+
+    todos = (local or "").strip().lower() in ("", "todos", "todos los locales")
+    locales = _LOCALES_CAJA if todos else [local]
+    efectivo, quedo, gastos = 0.0, 0.0, 0.0
+    for loc in locales:
+        corte = get_last_withdrawal_datetime(loc)
+        efectivo += get_cash_earned_since(loc, corte)
+        try:
+            previos = get_cash_withdrawals(loc, limit=1)
+            if previos:
+                quedo += float(previos[0].get("dejado") or 0)
+        except Exception:
+            pass
+        try:
+            gastos += sum(
+                float(g.get("monto") or 0) for g in ccm.get_gastos_desde(loc, corte)
+            )
+        except Exception:
+            pass
+    total = max(0.0, efectivo + quedo - gastos)
+    if todos or (local or "").strip().lower() == _LOCAL_COBROS_ENVIO.lower():
+        corte_dom = get_last_withdrawal_datetime(_LOCAL_COBROS_ENVIO)
+        try:
+            for c in get_domicilio_pagos_pending():
+                if str(c.get("venta_estado") or "").lower() == "cancelada":
+                    continue
+                if not int(c.get("entregada") or 0):
+                    continue
+                if corte_dom and str(c.get("created_at") or "") <= str(corte_dom):
+                    continue
+                total += float(c.get("monto_productos") or c.get("monto") or 0)
+        except Exception:
+            pass
+        try:
+            total += sum(
+                float(c.get("monto") or 0)
+                for c in get_domicilio_cobros_auto_since(corte_dom)
+            )
+        except Exception:
+            pass
+    return total
+
+
 def add_cash_withdrawal(
     local: str, amount: float, usuario: str, dejado: float = 0.0
 ) -> Tuple[bool, str]:

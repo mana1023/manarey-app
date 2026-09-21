@@ -2328,22 +2328,9 @@ class VentasWindow(QMainWindow):
             # Calcular desde el ultimo retiro (no acumulado historico).
             # Esto es correcto: despues de cada retiro la caja queda en 0,
             # por lo que el saldo actual es solo lo ganado desde entonces.
-            last_withdrawal = vm.get_last_withdrawal_datetime(local_arg)
-
-            # Efectivo de ventas normales desde el ultimo retiro
-            self._cash_local_total = vm.get_cash_earned_since(
-                local_arg, last_withdrawal
-            )
-
-            # Longchamps acumula ademas todos los cobros en domicilio
-            # (envios de todos los locales se cobran ahi).
-            if _es_local_domicilio(local_arg):
-                try:
-                    self._cash_local_total += vm.get_domicilio_retirados_since(
-                        last_withdrawal
-                    )
-                except Exception:
-                    pass
+            # Misma cuenta que la pantalla Retirar dinero (antes este numero no
+            # sumaba lo que quedo del retiro anterior y no coincidian).
+            self._cash_local_total = vm.get_dinero_en_caja(local_arg)
 
             # Con el enfoque "desde ultimo retiro" no hay nada que restar
             self._cash_withdrawn_total = 0.0
