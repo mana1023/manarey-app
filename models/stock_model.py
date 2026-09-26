@@ -5933,6 +5933,15 @@ def enqueue_op(op_type: str, payload: dict) -> int:
     return qa.enqueue_op(op_type, payload)
 
 
+def flush_commits(timeout: float = 8.0) -> int:
+    """Confirma los movimientos que quedaron en la cola. Al cerrar la app."""
+    try:
+        return int(qa.flush_commits(timeout) or 0)
+    except Exception as e:
+        logger.error(f"Error confirmando movimientos pendientes: {e}")
+        return 0
+
+
 def get_queue_count() -> int:
     try:
         return int(qa.get_queue_count() or 0)

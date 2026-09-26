@@ -1,3 +1,4 @@
+import atexit
 import json
 import logging
 import sqlite3
@@ -5,7 +6,7 @@ import threading
 import time
 import uuid
 from datetime import datetime
-from queue import Full, Queue
+from queue import Empty, Full, Queue
 
 from models import db
 from models.sql_utils import is_safe_identifier
@@ -126,6 +127,17 @@ def _get_all_locals(conn, cur) -> list:
 # Commit async to avoid UI blocks
 _commit_queue = Queue(maxsize=500)
 _commit_worker_started = False
+# Cuantos commits quedan sin confirmar. El hilo que confirma es "daemon": si el
+# programa se cierra antes de que termine, Python lo mata y ESE MOVIMIENTO SE
+# PIERDE, aunque la app ya dijo "listo". Con esto se espera a que termine.
+_commits_pendientes = 0
+_pendientes_lock = threading.Lock()
+
+
+def _marcar_pendiente(delta: int) -> None:
+    global _commits_pendientes
+    with _pendientes_lock:
+        _commits_pendientes += delta
 
 
 def _start_commit_worker():
@@ -151,6 +163,7 @@ def _start_commit_worker():
                     db.put_connection(conn)
                 except Exception:
                     pass
+                _marcar_pendiente(-1)
 
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
@@ -159,10 +172,12 @@ def _start_commit_worker():
 
 def _enqueue_commit(conn):
     """Queue a commit; the worker returns the connection to the pool."""
+    _marcar_pendiente(1)
     try:
         _commit_queue.put(conn, timeout=0.2)
         return
     except Full:
+        _marcar_pendiente(-1)
         # Fallback: commit en el hilo actual para evitar crecer indefinidamente
         try:
             conn.commit()
@@ -179,8 +194,47 @@ def _enqueue_commit(conn):
                 pass
 
 
+def flush_commits(timeout: float = 8.0) -> int:
+    """Confirma lo que quede pendiente. Se llama al cerrar la app.
+
+    Sin esto, el ultimo movimiento de stock puede perderse: la funcion ya
+    devolvio "listo" pero el commit seguia en la cola cuando el proceso murio.
+    Devuelve cuantos quedaron sin confirmar (0 = todo bien).
+    """
+    limite = time.time() + max(0.5, float(timeout or 0))
+    while time.time() < limite:
+        with _pendientes_lock:
+            if _commits_pendientes <= 0:
+                return 0
+        try:
+            conn = _commit_queue.get_nowait()
+        except Empty:
+            time.sleep(0.05)
+            continue
+        try:
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Commit error (cierre): {e}")
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        finally:
+            try:
+                db.put_connection(conn)
+            except Exception:
+                pass
+            _marcar_pendiente(-1)
+    with _pendientes_lock:
+        quedaron = max(0, _commits_pendientes)
+    if quedaron:
+        logger.error("Quedaron %d commits sin confirmar al cerrar", quedaron)
+    return quedaron
+
+
 # Start worker on import
 _start_commit_worker()
+atexit.register(flush_commits)
 
 
 def _ph(conn):

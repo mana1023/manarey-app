@@ -239,6 +239,14 @@ def main():
 
     def _shutdown_app():
         """Cierra ventanas ocultas/restantes para terminar el proceso de verdad."""
+        # Primero confirmar los movimientos de stock que quedaron en la cola:
+        # si el proceso muere antes, esa carga o transferencia se pierde.
+        try:
+            from models import stock_model as _sm
+
+            _sm.flush_commits()
+        except Exception:
+            pass
         try:
             for widget in list(app.topLevelWidgets()):
                 try:
